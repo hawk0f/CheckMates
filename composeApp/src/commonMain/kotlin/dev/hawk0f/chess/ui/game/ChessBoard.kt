@@ -1,5 +1,6 @@
 package dev.hawk0f.chess.ui.game
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -9,16 +10,26 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import dev.hawk0f.chess.resources.Res
+import dev.hawk0f.chess.resources.piece_bb
+import dev.hawk0f.chess.resources.piece_bk
+import dev.hawk0f.chess.resources.piece_bn
+import dev.hawk0f.chess.resources.piece_bp
+import dev.hawk0f.chess.resources.piece_bq
+import dev.hawk0f.chess.resources.piece_br
+import dev.hawk0f.chess.resources.piece_wb
+import dev.hawk0f.chess.resources.piece_wk
+import dev.hawk0f.chess.resources.piece_wn
+import dev.hawk0f.chess.resources.piece_wp
+import dev.hawk0f.chess.resources.piece_wq
+import dev.hawk0f.chess.resources.piece_wr
 import dev.hawk0f.chess.shared.domain.GameState
+import org.jetbrains.compose.resources.painterResource
 import dev.hawk0f.chess.shared.domain.Piece
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.domain.PieceKind
@@ -102,25 +113,23 @@ private fun BoardCell(
 
 @Composable
 private fun PieceGlyph(piece: Piece) {
-    val glyph = when (piece.kind) {
-        PieceKind.KING -> "♚"
-        PieceKind.QUEEN -> "♛"
-        PieceKind.ROOK -> "♜"
-        PieceKind.BISHOP -> "♝"
-        PieceKind.KNIGHT -> "♞"
-        PieceKind.PAWN -> "♟"
+    val resource = when (piece.color to piece.kind) {
+        PieceColor.WHITE to PieceKind.KING -> Res.drawable.piece_wk
+        PieceColor.WHITE to PieceKind.QUEEN -> Res.drawable.piece_wq
+        PieceColor.WHITE to PieceKind.ROOK -> Res.drawable.piece_wr
+        PieceColor.WHITE to PieceKind.BISHOP -> Res.drawable.piece_wb
+        PieceColor.WHITE to PieceKind.KNIGHT -> Res.drawable.piece_wn
+        PieceColor.WHITE to PieceKind.PAWN -> Res.drawable.piece_wp
+        PieceColor.BLACK to PieceKind.KING -> Res.drawable.piece_bk
+        PieceColor.BLACK to PieceKind.QUEEN -> Res.drawable.piece_bq
+        PieceColor.BLACK to PieceKind.ROOK -> Res.drawable.piece_br
+        PieceColor.BLACK to PieceKind.BISHOP -> Res.drawable.piece_bb
+        PieceColor.BLACK to PieceKind.KNIGHT -> Res.drawable.piece_bn
+        else -> Res.drawable.piece_bp
     }
-    val fill = if (piece.color == PieceColor.WHITE) Color.White else Color(0xFF202020)
-    val outline = if (piece.color == PieceColor.WHITE) Color(0xFF202020) else Color(0xFF757575)
-    Box(contentAlignment = Alignment.Center) {
-        Text(
-            text = glyph,
-            style = TextStyle(
-                color = fill,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                shadow = androidx.compose.ui.graphics.Shadow(color = outline, blurRadius = 2f)
-            )
-        )
-    }
+    Image(
+        painter = painterResource(resource),
+        contentDescription = null,
+        modifier = Modifier.fillMaxSize(0.92f)
+    )
 }

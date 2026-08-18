@@ -1,0 +1,26 @@
+services:
+  chess-server:
+    image: eclipse-temurin:21-jre
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./server-all.jar:/app/app.jar:ro
+    command: ["java", "-Xmx384m", "-jar", "app.jar"]
+    environment:
+      PUBLIC_BASE_URL: https://chess.hawk0f.icu
+      PORT: "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

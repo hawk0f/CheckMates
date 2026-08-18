@@ -40,6 +40,14 @@ fun Application.configureRouting(registry: RoomRegistry) {
             )
         }
 
+        wellKnownRoutes()
+
+        get("/game/{code}") {
+            val code = ShortCode.normalize(call.parameters["code"].orEmpty())
+            val room = if (ShortCode.isValid(code)) registry.byCode(code) else null
+            call.respondLandingPage(code, room?.hostName)
+        }
+
         get("/api/games/{code}") {
             val code = call.parameters["code"].orEmpty()
             val room = if (ShortCode.isValid(ShortCode.normalize(code))) registry.byCode(code) else null

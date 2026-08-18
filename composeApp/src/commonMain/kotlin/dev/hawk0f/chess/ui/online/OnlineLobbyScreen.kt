@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,6 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.hawk0f.chess.platform.QrScannerView
+import dev.hawk0f.chess.platform.rememberShareText
+import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 
 @Composable
 fun OnlineLobbyScreen(
@@ -36,6 +42,24 @@ fun OnlineLobbyScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var tab by remember { mutableIntStateOf(if (prefillCode != null) 1 else 0) }
+    var scanning by remember { mutableStateOf(false) }
+
+    if (scanning) {
+        QrScannerView(
+            onResult = { text ->
+                scanning = false
+                viewModel.joinGame(text)
+            },
+            onPermissionDenied = { scanning = false }
+        )
+        OutlinedButton(
+            onClick = { scanning = false },
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text("Cancel")
+        }
+        return
+    }
 
     LaunchedEffect(prefillCode) {
         if (prefillCode != null) {
@@ -100,6 +124,12 @@ fun OnlineLobbyScreen(
                 ) {
                     Text("Join game")
                 }
+                OutlinedButton(
+                    onClick = { scanning = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Scan QR")
+                }
             }
         }
 
@@ -124,6 +154,7 @@ fun OnlineLobbyScreen(
 
 @Composable
 private fun WaitingContent(step: LobbyStep.WaitingForOpponent, onCancel: () -> Unit) {
+    val shareText = rememberShareText()
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -131,11 +162,22 @@ private fun WaitingContent(step: LobbyStep.WaitingForOpponent, onCancel: () -> U
     ) {
         Text("Game code", style = MaterialTheme.typography.titleMedium)
         Text(step.shortCode, style = MaterialTheme.typography.displayMedium)
+        Image(
+            painter = rememberQrCodePainter(step.joinUrl),
+            contentDescription = "QR code for ${step.joinUrl}",
+            modifier = Modifier.size(200.dp)
+        )
         Text(step.joinUrl, style = MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CircularProgressIndicator()
+        Button(onClick = { shareText("Play chess with me! ${step.joinUrl} (code ${step.shortCode})") }) {
+            Text("Share invite")
         }
-        Text("Waiting for opponent…")
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator()
+            Text("Waiting for opponent…")
+        }
         OutlinedButton(onClick = onCancel) {
             Text("Cancel")
         }

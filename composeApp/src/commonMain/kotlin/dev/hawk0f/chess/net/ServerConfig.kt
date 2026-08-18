@@ -2,7 +2,10 @@ package dev.hawk0f.chess.net
 
 object ServerConfig {
 
-    var baseUrl: String = "http://localhost:8080"
+    const val PRODUCTION_URL = "https://chess.hawk0f.icu"
+    const val LOCAL_URL = "http://localhost:8080"
+
+    var baseUrl: String = PRODUCTION_URL
 
     val wsBaseUrl: String
         get() = baseUrl

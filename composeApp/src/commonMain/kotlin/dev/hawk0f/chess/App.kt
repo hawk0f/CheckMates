@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +35,14 @@ fun App() {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             val navController = rememberNavController()
+            LaunchedEffect(Unit) {
+                DeepLinkHandler.pendingCode.collect { code ->
+                    if (code != null) {
+                        DeepLinkHandler.consume()
+                        navController.navigate(OnlineLobbyRoute(prefillCode = code))
+                    }
+                }
+            }
             NavHost(navController = navController, startDestination = HomeRoute) {
                 composable<HomeRoute> {
                     HomeScreen(

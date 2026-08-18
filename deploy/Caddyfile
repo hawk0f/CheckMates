@@ -1,0 +1,3 @@
+chess.hawk0f.icu {
+    reverse_proxy chess-server:8080
+}

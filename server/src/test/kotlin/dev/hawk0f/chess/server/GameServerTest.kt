@@ -2,6 +2,8 @@ package dev.hawk0f.chess.server
 
 import dev.hawk0f.chess.shared.domain.GameOverReason
 import dev.hawk0f.chess.shared.domain.PieceColor
+import dev.hawk0f.chess.shared.protocol.CreateGameRequest
+import dev.hawk0f.chess.shared.protocol.CreateGameResponse
 import dev.hawk0f.chess.shared.protocol.GameMessage
 import dev.hawk0f.chess.shared.protocol.ProtocolJson
 import io.ktor.client.HttpClient

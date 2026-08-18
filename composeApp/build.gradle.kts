@@ -37,6 +37,10 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.camerax.camera2)
+            implementation(libs.camerax.lifecycle)
+            implementation(libs.camerax.view)
+            implementation(libs.mlkit.barcode.scanning)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -59,11 +63,17 @@ kotlin {
             implementation(libs.ktor.client.websockets)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
+
+            implementation(libs.qrose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "dev.hawk0f.chess.resources"
 }
 
 dependencies {
