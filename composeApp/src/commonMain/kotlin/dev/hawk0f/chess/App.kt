@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.hawk0f.chess.session.GameSessionHolder
+import dev.hawk0f.chess.ui.ble.BleLobbyScreen
 import dev.hawk0f.chess.ui.game.GameMode
 import dev.hawk0f.chess.ui.game.GameScreen
 import dev.hawk0f.chess.ui.home.HomeScreen
@@ -26,6 +27,9 @@ object HotseatGameRoute
 
 @Serializable
 data class OnlineLobbyRoute(val prefillCode: String? = null)
+
+@Serializable
+object BleLobbyRoute
 
 @Serializable
 object RemoteGameRoute
@@ -47,7 +51,8 @@ fun App() {
                 composable<HomeRoute> {
                     HomeScreen(
                         onPassAndPlay = { navController.navigate(HotseatGameRoute) },
-                        onPlayOnline = { navController.navigate(OnlineLobbyRoute()) }
+                        onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
+                        onPlayBluetooth = { navController.navigate(BleLobbyRoute) }
                     )
                 }
                 composable<HotseatGameRoute> {
@@ -60,6 +65,16 @@ fun App() {
                     val route = entry.toRoute<OnlineLobbyRoute>()
                     OnlineLobbyScreen(
                         prefillCode = route.prefillCode,
+                        onGameReady = {
+                            navController.navigate(RemoteGameRoute) {
+                                popUpTo<HomeRoute>()
+                            }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable<BleLobbyRoute> {
+                    BleLobbyScreen(
                         onGameReady = {
                             navController.navigate(RemoteGameRoute) {
                                 popUpTo<HomeRoute>()

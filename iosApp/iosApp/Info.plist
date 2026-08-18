@@ -64,5 +64,7 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera is used to scan QR invite codes.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetooth is used to play chess with a nearby friend.</string>
 </dict>
 </plist>
