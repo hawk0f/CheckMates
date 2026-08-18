@@ -59,7 +59,9 @@ class OnlineLobbyViewModel : ViewModel() {
                 val created = api.createGame(state.playerName.ifBlank { "Host" })
                 val transport = WebSocketGameTransport(
                     client = httpClient,
-                    url = ServerConfig.wsGameUrl(created.gameId, created.playerToken)
+                    url = ServerConfig.wsGameUrl(created.gameId, created.playerToken),
+                    gameId = created.gameId,
+                    playerToken = created.playerToken
                 )
                 val session = ActiveGameSession(transport)
                 GameSessionHolder.install(session)

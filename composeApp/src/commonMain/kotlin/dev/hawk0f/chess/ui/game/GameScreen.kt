@@ -13,10 +13,17 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import dev.hawk0f.chess.platform.playMoveSound
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.chess.shared.domain.GameOverReason
@@ -36,6 +43,21 @@ fun GameScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gameState = uiState.gameState
 
+    val haptic = LocalHapticFeedback.current
+    var lastSeenPieceCount by remember { mutableStateOf(32) }
+    LaunchedEffect(gameState.uciHistory.size) {
+        if (gameState.uciHistory.isNotEmpty()) {
+            val pieceCount = gameState.pieces.size
+            playMoveSound(capture = pieceCount < lastSeenPieceCount)
+            lastSeenPieceCount = pieceCount
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        } else {
+            lastSeenPieceCount = 32
+        }
+    }
+
+    val bottomColor = uiState.myColor ?: PieceColor.WHITE
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
@@ -54,6 +76,7 @@ fun GameScreen(
             },
             style = MaterialTheme.typography.titleLarge
         )
+        CapturedRow(gameState, capturedFrom = bottomColor)
         ChessBoard(
             gameState = gameState,
             selected = uiState.selected,
@@ -62,6 +85,7 @@ fun GameScreen(
             onSquareTap = viewModel::onSquareTap,
             modifier = Modifier.fillMaxWidth()
         )
+        CapturedRow(gameState, capturedFrom = bottomColor.opposite)
         if (uiState.drawOfferIncoming) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -131,8 +155,9 @@ fun GameScreen(
 private fun RemoteStatusBar(uiState: GameUiState) {
     val opponent = uiState.opponentName ?: "Opponent"
     val status = when {
+        uiState.connectionState is TransportConnectionState.Reconnecting -> "reconnecting…"
         uiState.connectionState is TransportConnectionState.Closed -> "connection lost"
-        !uiState.opponentConnected -> "$opponent disconnected"
+        !uiState.opponentConnected -> "$opponent reconnecting…"
         else -> null
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -181,6 +206,50 @@ private fun PromotionDialog(
         },
         confirmButton = {}
     )
+}
+
+private val pieceValues = mapOf(
+    PieceKind.PAWN to 1,
+    PieceKind.KNIGHT to 3,
+    PieceKind.BISHOP to 3,
+    PieceKind.ROOK to 5,
+    PieceKind.QUEEN to 9
+)
+
+private val initialCounts = mapOf(
+    PieceKind.PAWN to 8,
+    PieceKind.KNIGHT to 2,
+    PieceKind.BISHOP to 2,
+    PieceKind.ROOK to 2,
+    PieceKind.QUEEN to 1
+)
+
+@Composable
+private fun CapturedRow(gameState: dev.hawk0f.chess.shared.domain.GameState, capturedFrom: PieceColor) {
+    val remaining = gameState.pieces.values
+        .filter { it.color == capturedFrom }
+        .groupingBy { it.kind }
+        .eachCount()
+    val captured = buildList {
+        for ((kind, initial) in initialCounts) {
+            repeat(initial - (remaining[kind] ?: 0)) {
+                add(kind)
+            }
+        }
+    }.sortedByDescending { pieceValues[it] }
+    if (captured.isEmpty()) {
+        return
+    }
+    val glyphs = captured.joinToString("") { kind ->
+        when (kind) {
+            PieceKind.QUEEN -> if (capturedFrom == PieceColor.WHITE) "♕" else "♛"
+            PieceKind.ROOK -> if (capturedFrom == PieceColor.WHITE) "♖" else "♜"
+            PieceKind.BISHOP -> if (capturedFrom == PieceColor.WHITE) "♗" else "♝"
+            PieceKind.KNIGHT -> if (capturedFrom == PieceColor.WHITE) "♘" else "♞"
+            else -> if (capturedFrom == PieceColor.WHITE) "♙" else "♟"
+        }
+    }
+    Text(text = glyphs, style = MaterialTheme.typography.titleMedium)
 }
 
 private fun resultText(result: GameResult): String {
