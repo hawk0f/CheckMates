@@ -42,7 +42,12 @@ data class GameUiState(
     val timeControl: TimeControl? = null,
     val whiteMillis: Long? = null,
     val blackMillis: Long? = null,
-    val showTimePicker: Boolean = false
+    val showTimePicker: Boolean = false,
+    val rematchOfferIncoming: Boolean = false,
+    val rematchOfferOutgoing: Boolean = false,
+    val seriesMyWins: Int = 0,
+    val seriesOpponentWins: Int = 0,
+    val seriesDraws: Int = 0
 )
 
 class GameViewModel(private val mode: GameMode) : ViewModel() {
@@ -214,6 +219,18 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 _uiState.value = _uiState.value.copy(drawOfferOutgoing = false)
             }
 
+            GameMessage.RematchOffered -> {
+                _uiState.value = _uiState.value.copy(rematchOfferIncoming = true)
+            }
+
+            GameMessage.RematchDeclined -> {
+                _uiState.value = _uiState.value.copy(rematchOfferOutgoing = false)
+            }
+
+            is GameMessage.RematchStarted -> {
+                resetForRematch(message.color)
+            }
+
             is GameMessage.OpponentConnectionChanged -> {
                 _uiState.value = _uiState.value.copy(opponentConnected = message.connected)
             }
@@ -229,6 +246,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
             return
         }
         recordUploaded = true
+        recordSeriesResult(result.winner)
         val session = (mode as? GameMode.Remote)?.session
         val myColor = if (session == null) null else _uiState.value.myColor
         val myName = session?.myName ?: "White"
@@ -246,6 +264,56 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 uciHistory = state.uciHistory,
                 finishedAtMillis = epochMillis()
             )
+        )
+    }
+
+    private fun recordSeriesResult(winner: PieceColor?) {
+        val perspective = if (mode is GameMode.Remote) _uiState.value.myColor else PieceColor.WHITE
+        val current = _uiState.value
+        _uiState.value = when (winner) {
+            null -> current.copy(seriesDraws = current.seriesDraws + 1)
+            perspective -> current.copy(seriesMyWins = current.seriesMyWins + 1)
+            else -> current.copy(seriesOpponentWins = current.seriesOpponentWins + 1)
+        }
+    }
+
+    fun offerRematch() {
+        if (mode is GameMode.Remote && !_uiState.value.rematchOfferOutgoing) {
+            _uiState.value = _uiState.value.copy(rematchOfferOutgoing = true)
+            viewModelScope.launch { mode.session.send(GameMessage.OfferRematch) }
+        }
+    }
+
+    fun acceptRematch() {
+        if (mode is GameMode.Remote) {
+            viewModelScope.launch { mode.session.send(GameMessage.AcceptRematch) }
+        }
+    }
+
+    fun declineRematch() {
+        if (mode is GameMode.Remote) {
+            _uiState.value = _uiState.value.copy(rematchOfferIncoming = false)
+            viewModelScope.launch { mode.session.send(GameMessage.DeclineRematch) }
+        }
+    }
+
+    private fun resetForRematch(newColor: PieceColor) {
+        game = ChessGame()
+        recordUploaded = false
+        timeoutClaimed = false
+        val current = _uiState.value
+        _uiState.value = current.copy(
+            gameState = game.state(),
+            selected = null,
+            legalTargets = emptySet(),
+            pendingPromotion = null,
+            myColor = newColor,
+            drawOfferIncoming = false,
+            drawOfferOutgoing = false,
+            rematchOfferIncoming = false,
+            rematchOfferOutgoing = false,
+            whiteMillis = current.timeControl?.let { it.initialSeconds * 1000L },
+            blackMillis = current.timeControl?.let { it.initialSeconds * 1000L }
         )
     }
 
@@ -338,16 +406,22 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         if (mode is GameMode.Hotseat) {
             game = ChessGame()
             recordUploaded = false
+            val series = _uiState.value
             _uiState.value = initialUiState().copy(
                 timeControl = hotseatTimeControl,
                 whiteMillis = hotseatTimeControl?.let { it.initialSeconds * 1000L },
                 blackMillis = hotseatTimeControl?.let { it.initialSeconds * 1000L },
-                showTimePicker = false
+                showTimePicker = false,
+                seriesMyWins = series.seriesMyWins,
+                seriesOpponentWins = series.seriesOpponentWins,
+                seriesDraws = series.seriesDraws
             )
         }
     }
 
     val isRemote: Boolean get() = mode is GameMode.Remote
+
+    val supportsRematch: Boolean get() = (mode as? GameMode.Remote)?.session?.kind == "online"
 
     private fun submitMove(uci: String) {
         when (mode) {

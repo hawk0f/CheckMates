@@ -34,7 +34,7 @@ class GameRoom(
     val timeControl: TimeControl? = null
 ) {
 
-    private val game = ChessGame()
+    private var game = ChessGame()
     private val mutex = Mutex()
     private val players = mutableMapOf<PieceColor, PlayerSlot>()
 
@@ -43,6 +43,7 @@ class GameRoom(
     var lastActivityMillis: Long = System.currentTimeMillis()
         private set
     private var drawOfferedBy: PieceColor? = null
+    private var rematchOfferedBy: PieceColor? = null
     private val remainingMillis = mutableMapOf<PieceColor, Long>()
     private var turnStartedAtMillis: Long = 0
 
@@ -86,9 +87,10 @@ class GameRoom(
         guestColor
     }
 
-    suspend fun handle(color: PieceColor, message: GameMessage) {
+    suspend fun handle(token: String, message: GameMessage) {
         mutex.withLock {
             touch()
+            val color = players.entries.find { it.value.token == token }?.key ?: return
             when (message) {
                 is GameMessage.MakeMove -> handleMove(color, message.uci)
                 GameMessage.Resign -> finishLocked(GameOverReason.RESIGNATION, color.opposite)
@@ -111,6 +113,27 @@ class GameRoom(
                 }
                 GameMessage.RequestResync -> players[color]?.session?.sendMessage(resyncMessage())
                 GameMessage.ClaimTimeout -> handleTimeoutClaim()
+                GameMessage.OfferRematch -> {
+                    if (status == RoomStatus.FINISHED && players.size == 2) {
+                        if (rematchOfferedBy == color.opposite) {
+                            startRematch()
+                        } else if (rematchOfferedBy == null) {
+                            rematchOfferedBy = color
+                            opponentOf(color)?.session?.sendMessage(GameMessage.RematchOffered)
+                        }
+                    }
+                }
+                GameMessage.AcceptRematch -> {
+                    if (status == RoomStatus.FINISHED && rematchOfferedBy == color.opposite) {
+                        startRematch()
+                    }
+                }
+                GameMessage.DeclineRematch -> {
+                    if (rematchOfferedBy == color.opposite) {
+                        rematchOfferedBy = null
+                        opponentOf(color)?.session?.sendMessage(GameMessage.RematchDeclined)
+                    }
+                }
                 GameMessage.Ping -> players[color]?.session?.sendMessage(GameMessage.Pong)
                 else -> players[color]?.session?.sendMessage(
                     GameMessage.ProtocolError("UNEXPECTED_MESSAGE", "unexpected message type")
@@ -119,11 +142,31 @@ class GameRoom(
         }
     }
 
-    suspend fun detach(color: PieceColor) {
+    suspend fun detach(token: String) {
         mutex.withLock {
             touch()
+            val color = players.entries.find { it.value.token == token }?.key ?: return
             players[color]?.session = null
             opponentOf(color)?.session?.sendMessage(GameMessage.OpponentConnectionChanged(connected = false))
+        }
+    }
+
+    private suspend fun startRematch() {
+        game = ChessGame()
+        drawOfferedBy = null
+        rematchOfferedBy = null
+        status = RoomStatus.IN_PROGRESS
+        val swapped = players.entries.associate { (color, slot) -> color.opposite to slot }
+        players.clear()
+        players.putAll(swapped)
+        if (timeControl != null) {
+            remainingMillis[PieceColor.WHITE] = timeControl.initialSeconds * 1000L
+            remainingMillis[PieceColor.BLACK] = timeControl.initialSeconds * 1000L
+            turnStartedAtMillis = System.currentTimeMillis()
+        }
+        for ((color, slot) in players) {
+            slot.session?.sendMessage(GameMessage.RematchStarted(color))
+            slot.session?.sendMessage(resyncMessage())
         }
     }
 

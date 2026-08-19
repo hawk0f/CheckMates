@@ -81,6 +81,13 @@ fun GameScreen(
             },
             style = MaterialTheme.typography.titleLarge
         )
+        if (uiState.seriesMyWins + uiState.seriesOpponentWins + uiState.seriesDraws > 0) {
+            Text(
+                text = seriesText(uiState, viewModel.isRemote),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         BoardSideRow(uiState, sideColor = bottomColor.opposite, capturedFrom = bottomColor)
         ChessBoard(
             gameState = gameState,
@@ -143,17 +150,46 @@ fun GameScreen(
         AlertDialog(
             onDismissRequest = {},
             title = { Text("Game over") },
-            text = { Text(resultText(result)) },
-            confirmButton = {
-                if (!viewModel.isRemote) {
-                    Button(onClick = viewModel::newGame) {
-                        Text("New Game")
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(resultText(result))
+                    if (uiState.rematchOfferIncoming) {
+                        Text(
+                            "${uiState.opponentName ?: "Opponent"} wants a rematch",
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             },
+            confirmButton = {
+                when {
+                    !viewModel.isRemote -> Button(onClick = viewModel::newGame) {
+                        Text("New Game")
+                    }
+                    viewModel.supportsRematch && uiState.rematchOfferIncoming ->
+                        Button(onClick = viewModel::acceptRematch) {
+                            Text("Accept rematch")
+                        }
+                    viewModel.supportsRematch ->
+                        Button(
+                            onClick = viewModel::offerRematch,
+                            enabled = !uiState.rematchOfferOutgoing
+                        ) {
+                            Text(if (uiState.rematchOfferOutgoing) "Rematch offered" else "Rematch")
+                        }
+                    else -> {}
+                }
+            },
             dismissButton = {
-                TextButton(onClick = onExit) {
-                    Text("Exit")
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (viewModel.isRemote && uiState.rematchOfferIncoming) {
+                        TextButton(onClick = viewModel::declineRematch) {
+                            Text("Decline")
+                        }
+                    }
+                    TextButton(onClick = onExit) {
+                        Text("Exit")
+                    }
                 }
             }
         )
@@ -266,6 +302,13 @@ private fun colorName(color: PieceColor?): String = when (color) {
     PieceColor.WHITE -> "White"
     PieceColor.BLACK -> "Black"
     null -> "…"
+}
+
+private fun seriesText(uiState: GameUiState, isRemote: Boolean): String {
+    val left = if (isRemote) "You" else "White"
+    val right = if (isRemote) uiState.opponentName ?: "Opponent" else "Black"
+    val base = "Series: $left ${uiState.seriesMyWins} – ${uiState.seriesOpponentWins} $right"
+    return if (uiState.seriesDraws > 0) "$base (${uiState.seriesDraws} drawn)" else base
 }
 
 @Composable

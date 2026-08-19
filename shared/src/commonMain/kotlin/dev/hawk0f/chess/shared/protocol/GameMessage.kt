@@ -53,6 +53,30 @@ sealed interface GameMessage {
     data object ClaimTimeout : GameMessage
 
     @Serializable
+    @SerialName("offerRematch")
+    data object OfferRematch : GameMessage
+
+    @Serializable
+    @SerialName("acceptRematch")
+    data object AcceptRematch : GameMessage
+
+    @Serializable
+    @SerialName("declineRematch")
+    data object DeclineRematch : GameMessage
+
+    @Serializable
+    @SerialName("rematchOffered")
+    data object RematchOffered : GameMessage
+
+    @Serializable
+    @SerialName("rematchDeclined")
+    data object RematchDeclined : GameMessage
+
+    @Serializable
+    @SerialName("rematchStarted")
+    data class RematchStarted(val color: PieceColor) : GameMessage
+
+    @Serializable
     @SerialName("gameCreated")
     data class GameCreated(
         val gameId: String,

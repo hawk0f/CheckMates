@@ -28,6 +28,7 @@ class ActiveGameSession(
             transport.incoming.collect { message ->
                 when (message) {
                     is GameMessage.ColorAssigned -> myColor.value = message.color
+                    is GameMessage.RematchStarted -> myColor.value = message.color
                     is GameMessage.OpponentJoined -> opponentName.value = message.opponentName
                     else -> {}
                 }

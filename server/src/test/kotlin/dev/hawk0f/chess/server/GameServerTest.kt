@@ -235,4 +235,67 @@ class GameServerTest {
             assertEquals("GAME_NOT_FOUND", error.code)
         }
     }
+
+    @Test
+    fun rematchSwapsColorsAndResetsGame() = testApplication {
+        application { module() }
+        val client = testClient(this)
+
+        val created: CreateGameResponse = client.post("/api/games") {
+            contentType(ContentType.Application.Json)
+            setBody(CreateGameRequest("Host"))
+        }.body()
+
+        val hostFirstColor = CompletableDeferred<PieceColor>()
+        val guestFirstColor = CompletableDeferred<PieceColor>()
+        val hostSecondColor = CompletableDeferred<PieceColor>()
+        val guestSecondColor = CompletableDeferred<PieceColor>()
+        val hostSawMove = CompletableDeferred<GameMessage.MoveApplied>()
+        val guestSawMove = CompletableDeferred<GameMessage.MoveApplied>()
+
+        withTimeout(15_000) {
+            coroutineScope {
+                val hostJob = launch {
+                    client.webSocket("/ws/game/${created.gameId}?token=${created.playerToken}") {
+                        val color = (awaitMessage { it is GameMessage.ColorAssigned } as GameMessage.ColorAssigned).color
+                        hostFirstColor.complete(color)
+                        awaitMessage { it is GameMessage.OpponentJoined }
+                        sendMessage(GameMessage.Resign)
+                        awaitMessage { it is GameMessage.GameOver }
+                        sendMessage(GameMessage.OfferRematch)
+                        val restarted = awaitMessage { it is GameMessage.RematchStarted } as GameMessage.RematchStarted
+                        hostSecondColor.complete(restarted.color)
+                        if (restarted.color == PieceColor.WHITE) {
+                            sendMessage(GameMessage.MakeMove("e2e4"))
+                        }
+                        val applied = awaitMessage { it is GameMessage.MoveApplied } as GameMessage.MoveApplied
+                        hostSawMove.complete(applied)
+                    }
+                }
+                val guestJob = launch {
+                    client.webSocket("/ws/game/${created.gameId}") {
+                        sendMessage(GameMessage.JoinGame(created.shortCode, "Guest"))
+                        val color = (awaitMessage { it is GameMessage.ColorAssigned } as GameMessage.ColorAssigned).color
+                        guestFirstColor.complete(color)
+                        awaitMessage { it is GameMessage.GameOver }
+                        awaitMessage { it is GameMessage.RematchOffered }
+                        sendMessage(GameMessage.AcceptRematch)
+                        val restarted = awaitMessage { it is GameMessage.RematchStarted } as GameMessage.RematchStarted
+                        guestSecondColor.complete(restarted.color)
+                        if (restarted.color == PieceColor.WHITE) {
+                            sendMessage(GameMessage.MakeMove("e2e4"))
+                        }
+                        val applied = awaitMessage { it is GameMessage.MoveApplied } as GameMessage.MoveApplied
+                        guestSawMove.complete(applied)
+                    }
+                }
+                assertEquals(hostFirstColor.await().opposite, hostSecondColor.await())
+                assertEquals(guestFirstColor.await().opposite, guestSecondColor.await())
+                assertEquals(1, hostSawMove.await().moveNumber)
+                assertEquals("e2e4", guestSawMove.await().uci)
+                hostJob.join()
+                guestJob.join()
+            }
+        }
+    }
 }

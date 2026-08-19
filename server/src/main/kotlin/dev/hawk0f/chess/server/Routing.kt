@@ -1,6 +1,5 @@
 package dev.hawk0f.chess.server
 
-import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.protocol.GameMessage
 import dev.hawk0f.chess.shared.protocol.ProtocolJson
 import dev.hawk0f.chess.shared.protocol.ShortCode
@@ -71,14 +70,14 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
                 sendMessage(GameMessage.ProtocolError("GAME_NOT_FOUND", "game expired or never existed"))
                 return@webSocket
             }
-            val token = call.request.queryParameters["token"]
-            var color: PieceColor? = null
-            if (token != null) {
-                color = room.attach(token, this)
-                if (color == null) {
+            val queryToken = call.request.queryParameters["token"]
+            var token: String? = null
+            if (queryToken != null) {
+                if (room.attach(queryToken, this) == null) {
                     sendMessage(GameMessage.ProtocolError("BAD_TOKEN", "unknown player token"))
                     return@webSocket
                 }
+                token = queryToken
             }
             try {
                 for (frame in incoming) {
@@ -90,10 +89,10 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
                         sendMessage(GameMessage.ProtocolError("BAD_MESSAGE", "cannot parse message"))
                         continue
                     }
-                    color = dispatch(room, color, message) ?: continue
+                    token = dispatch(room, token, message) ?: continue
                 }
             } finally {
-                color?.let { room.detach(it) }
+                token?.let { room.detach(it) }
             }
         }
     }
@@ -101,12 +100,12 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
 
 private suspend fun WebSocketServerSession.dispatch(
     room: GameRoom,
-    color: PieceColor?,
+    token: String?,
     message: GameMessage
-): PieceColor? {
-    if (color != null) {
-        room.handle(color, message)
-        return color
+): String? {
+    if (token != null) {
+        room.handle(token, message)
+        return token
     }
     return when (message) {
         is GameMessage.JoinGame -> {
@@ -125,7 +124,7 @@ private suspend fun WebSocketServerSession.dispatch(
                         playerToken = guestToken
                     )
                 )
-                assigned
+                guestToken
             }
         }
 
@@ -133,8 +132,10 @@ private suspend fun WebSocketServerSession.dispatch(
             val assigned = room.attach(message.playerToken, this)
             if (assigned == null) {
                 sendMessage(GameMessage.ProtocolError("BAD_TOKEN", "unknown player token"))
+                null
+            } else {
+                message.playerToken
             }
-            assigned
         }
 
         else -> {
