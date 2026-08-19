@@ -20,8 +20,10 @@ import dev.hawk0f.chess.shared.protocol.GameInfoResponse
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 
-fun Application.configureRouting(registry: RoomRegistry) {
+fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) {
     routing {
+        accountRoutes(users)
+
         get("/health") {
             call.respondText("ok")
         }

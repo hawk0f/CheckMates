@@ -66,6 +66,7 @@ kotlin {
 
             implementation(libs.qrose)
             implementation(libs.kable.core)
+            implementation(libs.multiplatform.settings)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

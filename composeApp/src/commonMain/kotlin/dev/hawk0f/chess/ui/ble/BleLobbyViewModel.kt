@@ -64,7 +64,7 @@ class BleLobbyViewModel : ViewModel() {
                 val server = BlePeripheralServer()
                 peripheralServer = server
                 val engine = BleHostEngine(server, hostDisplayName())
-                val session = ActiveGameSession(engine.localTransport)
+                val session = ActiveGameSession(engine.localTransport, kind = "ble", myName = hostDisplayName())
                 GameSessionHolder.install(session)
                 engine.start()
                 combine(session.myColor, session.opponentName) { color, name -> color != null && name != null }
@@ -128,7 +128,7 @@ class BleLobbyViewModel : ViewModel() {
                     peripheral = peripheral,
                     guestName = _uiState.value.playerName.ifBlank { "Guest" }
                 )
-                val session = ActiveGameSession(transport)
+                val session = ActiveGameSession(transport, kind = "ble", myName = _uiState.value.playerName.ifBlank { "Guest" })
                 GameSessionHolder.install(session)
                 transport.connectAndJoin()
                 combine(session.myColor, session.opponentName) { color, name -> color != null && name != null }

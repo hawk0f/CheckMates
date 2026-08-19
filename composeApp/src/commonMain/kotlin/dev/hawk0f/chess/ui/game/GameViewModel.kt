@@ -2,8 +2,11 @@ package dev.hawk0f.chess.ui.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.hawk0f.chess.platform.epochMillis
 import dev.hawk0f.chess.session.ActiveGameSession
+import dev.hawk0f.chess.session.AuthManager
 import dev.hawk0f.chess.session.GameSessionHolder
+import dev.hawk0f.chess.shared.protocol.GameRecordRequest
 import dev.hawk0f.chess.shared.domain.ChessGame
 import dev.hawk0f.chess.shared.domain.GameOverReason
 import dev.hawk0f.chess.shared.domain.GameState
@@ -39,6 +42,7 @@ data class GameUiState(
 class GameViewModel(private val mode: GameMode) : ViewModel() {
 
     private var game = ChessGame()
+    private var recordUploaded = false
 
     private val _uiState = MutableStateFlow(initialUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -116,6 +120,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                     drawOfferIncoming = false,
                     drawOfferOutgoing = false
                 )
+                maybeUploadRecord()
             }
 
             is GameMessage.MoveRejected -> {
@@ -136,6 +141,33 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
 
             else -> {}
         }
+    }
+
+    private fun maybeUploadRecord() {
+        val state = game.state()
+        val result = state.result ?: return
+        if (recordUploaded) {
+            return
+        }
+        recordUploaded = true
+        val session = (mode as? GameMode.Remote)?.session
+        val myColor = if (session == null) null else _uiState.value.myColor
+        val myName = session?.myName ?: "White"
+        val opponent = session?.let { _uiState.value.opponentName ?: "Opponent" } ?: "Black"
+        val whiteName = if (myColor == PieceColor.BLACK) opponent else myName
+        val blackName = if (myColor == PieceColor.BLACK) myName else opponent
+        AuthManager.uploadGameIfLoggedIn(
+            GameRecordRequest(
+                mode = session?.kind ?: "hotseat",
+                myColor = myColor,
+                whiteName = whiteName,
+                blackName = blackName,
+                winner = result.winner,
+                reason = result.reason,
+                uciHistory = state.uciHistory,
+                finishedAtMillis = epochMillis()
+            )
+        )
     }
 
     private fun rebuildFromFen(fen: String) {
@@ -196,6 +228,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 }
                 game.finish(GameOverReason.RESIGNATION, state.sideToMove.opposite)
                 _uiState.value = clearedSelection()
+                maybeUploadRecord()
             }
 
             is GameMode.Remote -> viewModelScope.launch { mode.session.send(GameMessage.Resign) }
@@ -225,6 +258,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     fun newGame() {
         if (mode is GameMode.Hotseat) {
             game = ChessGame()
+            recordUploaded = false
             _uiState.value = initialUiState()
         }
     }
@@ -235,7 +269,10 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         when (mode) {
             GameMode.Hotseat -> {
                 when (game.applyUci(uci)) {
-                    is MoveOutcome.Applied -> _uiState.value = clearedSelection()
+                    is MoveOutcome.Applied -> {
+                        _uiState.value = clearedSelection()
+                        maybeUploadRecord()
+                    }
                     MoveOutcome.Illegal -> _uiState.value = _uiState.value.copy(
                         selected = null,
                         legalTargets = emptySet(),

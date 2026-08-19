@@ -63,7 +63,7 @@ class OnlineLobbyViewModel : ViewModel() {
                     gameId = created.gameId,
                     playerToken = created.playerToken
                 )
-                val session = ActiveGameSession(transport)
+                val session = ActiveGameSession(transport, kind = "online", myName = state.playerName.ifBlank { "Host" })
                 GameSessionHolder.install(session)
                 transport.start(session.scope)
                 _uiState.value = _uiState.value.copy(
@@ -107,7 +107,7 @@ class OnlineLobbyViewModel : ViewModel() {
                     url = ServerConfig.wsGameUrl(info.gameId!!),
                     firstMessage = GameMessage.JoinGame(code, state.playerName.ifBlank { "Guest" })
                 )
-                val session = ActiveGameSession(transport)
+                val session = ActiveGameSession(transport, kind = "online", myName = state.playerName.ifBlank { "Guest" })
                 GameSessionHolder.install(session)
                 transport.start(session.scope)
                 combine(session.myColor, session.opponentName) { color, name -> color != null && name != null }

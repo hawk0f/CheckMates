@@ -2,7 +2,6 @@ package dev.hawk0f.chess
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +16,11 @@ import dev.hawk0f.chess.ui.game.GameMode
 import dev.hawk0f.chess.ui.game.GameScreen
 import dev.hawk0f.chess.ui.home.HomeScreen
 import dev.hawk0f.chess.ui.online.OnlineLobbyScreen
+import dev.hawk0f.chess.ui.profile.ProfileScreen
+import dev.hawk0f.chess.ui.profile.ReplayHolder
+import dev.hawk0f.chess.ui.replay.ReplayScreen
+import dev.hawk0f.chess.ui.settings.SettingsScreen
+import dev.hawk0f.chess.ui.theme.AppTheme
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -34,9 +38,18 @@ object BleLobbyRoute
 @Serializable
 object RemoteGameRoute
 
+@Serializable
+object SettingsRoute
+
+@Serializable
+object ProfileRoute
+
+@Serializable
+object ReplayRoute
+
 @Composable
 fun App() {
-    MaterialTheme {
+    AppTheme {
         Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             val navController = rememberNavController()
             LaunchedEffect(Unit) {
@@ -52,8 +65,27 @@ fun App() {
                     HomeScreen(
                         onPassAndPlay = { navController.navigate(HotseatGameRoute) },
                         onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
-                        onPlayBluetooth = { navController.navigate(BleLobbyRoute) }
+                        onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
+                        onOpenSettings = { navController.navigate(SettingsRoute) },
+                        onOpenProfile = { navController.navigate(ProfileRoute) }
                     )
+                }
+                composable<SettingsRoute> {
+                    SettingsScreen(onBack = { navController.popBackStack() })
+                }
+                composable<ProfileRoute> {
+                    ProfileScreen(
+                        onOpenReplay = { navController.navigate(ReplayRoute) },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable<ReplayRoute> {
+                    val item = ReplayHolder.current
+                    if (item == null) {
+                        navController.popBackStack()
+                    } else {
+                        ReplayScreen(item = item, onBack = { navController.popBackStack() })
+                    }
                 }
                 composable<HotseatGameRoute> {
                     GameScreen(

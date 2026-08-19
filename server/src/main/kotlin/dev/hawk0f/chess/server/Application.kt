@@ -23,7 +23,9 @@ fun main() {
 
 fun Application.module() {
     val publicBaseUrl = System.getenv("PUBLIC_BASE_URL") ?: "http://localhost:8080"
+    val dbPath = System.getenv("DB_PATH") ?: "data/chess.db"
     val registry = RoomRegistry(publicBaseUrl)
+    val users = UserRepository(Db.init(dbPath))
 
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
@@ -41,5 +43,5 @@ fun Application.module() {
         }
     }
 
-    configureRouting(registry)
+    configureRouting(registry, users)
 }

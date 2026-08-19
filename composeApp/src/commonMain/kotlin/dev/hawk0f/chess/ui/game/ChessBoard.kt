@@ -50,9 +50,8 @@ import dev.hawk0f.chess.shared.domain.Piece
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.domain.PieceKind
 import dev.hawk0f.chess.shared.domain.Square
+import dev.hawk0f.chess.ui.theme.LocalBoardColors
 
-private val lightSquare = Color(0xFFF0D9B5)
-private val darkSquare = Color(0xFFB58863)
 private val selectedTint = Color(0x8020A0F0)
 private val lastMoveTint = Color(0x66CDD26A)
 private val checkTint = Color(0x80E5605D)
@@ -176,8 +175,9 @@ private fun BoardCell(
     onTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val base = if ((square.file + square.rank) % 2 == 0) darkSquare else lightSquare
-    val labelColor = if ((square.file + square.rank) % 2 == 0) lightSquare else darkSquare
+    val boardColors = LocalBoardColors.current
+    val base = if ((square.file + square.rank) % 2 == 0) boardColors.darkSquare else boardColors.lightSquare
+    val labelColor = if ((square.file + square.rank) % 2 == 0) boardColors.lightSquare else boardColors.darkSquare
     val overlay = when {
         isSelected -> selectedTint
         isCheckedKing -> checkTint

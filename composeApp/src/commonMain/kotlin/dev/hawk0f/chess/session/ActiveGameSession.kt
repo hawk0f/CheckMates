@@ -11,7 +11,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-class ActiveGameSession(val transport: GameTransport) {
+class ActiveGameSession(
+    val transport: GameTransport,
+    val kind: String = "online",
+    val myName: String = "Me"
+) {
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
