@@ -12,11 +12,11 @@ dependencies {
 }
 
 android {
-    namespace = "dev.hawk0f.chess.app"
+    namespace = "dev.hawk0f.checkmates.app"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "dev.hawk0f.chess"
+        applicationId = "dev.hawk0f.checkmates"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

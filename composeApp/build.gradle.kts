@@ -20,7 +20,7 @@ kotlin {
     }
 
     androidLibrary {
-        namespace = "dev.hawk0f.chess"
+        namespace = "dev.hawk0f.checkmates"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -75,7 +75,7 @@ kotlin {
 }
 
 compose.resources {
-    packageOfResClass = "dev.hawk0f.chess.resources"
+    packageOfResClass = "dev.hawk0f.checkmates.resources"
 }
 
 dependencies {

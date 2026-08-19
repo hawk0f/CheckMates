@@ -5,7 +5,7 @@ plugins {
 }
 
 application {
-    mainClass.set("dev.hawk0f.chess.server.ApplicationKt")
+    mainClass.set("dev.hawk0f.checkmates.server.ApplicationKt")
 }
 
 kotlin {

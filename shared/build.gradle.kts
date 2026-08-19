@@ -15,7 +15,7 @@ kotlin {
     iosSimulatorArm64()
 
     androidLibrary {
-        namespace = "dev.hawk0f.chess.shared"
+        namespace = "dev.hawk0f.checkmates.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 

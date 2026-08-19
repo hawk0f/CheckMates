@@ -1,4 +1,4 @@
-rootProject.name = "Chess"
+rootProject.name = "CheckMates"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
