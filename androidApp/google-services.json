@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "314266360477",
+    "project_id": "checkmates-4a850",
+    "storage_bucket": "checkmates-4a850.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:314266360477:android:fa9af7e297190899c29274",
+        "android_client_info": {
+          "package_name": "dev.hawk0f.checkmates"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaFnSTS_TtCWGD5vVRYW2VMPFA2K2jeuA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

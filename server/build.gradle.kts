@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.sqlite.jdbc)
     implementation(libs.bcrypt)
     implementation(libs.logback.classic)
+    implementation(libs.google.auth.oauth2)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.ktor.server.test.host)

@@ -22,7 +22,8 @@ enum class RoomStatus {
 class PlayerSlot(
     val token: String,
     val name: String,
-    var session: WebSocketServerSession?
+    var session: WebSocketServerSession?,
+    var pushToken: String? = null
 )
 
 class GameRoom(
@@ -84,6 +85,7 @@ class GameRoom(
         session.sendMessage(GameMessage.OpponentJoined(players[hostColor]!!.name))
         session.sendMessage(resyncMessage())
         players[hostColor]!!.session?.sendMessage(GameMessage.OpponentJoined(guestName))
+        pushIfOffline(hostColor, "Opponent joined", "$guestName joined your game $shortCode")
         guestColor
     }
 
@@ -113,6 +115,9 @@ class GameRoom(
                 }
                 GameMessage.RequestResync -> players[color]?.session?.sendMessage(resyncMessage())
                 GameMessage.ClaimTimeout -> handleTimeoutClaim()
+                is GameMessage.RegisterPush -> {
+                    players[color]?.pushToken = message.token
+                }
                 GameMessage.OfferRematch -> {
                     if (status == RoomStatus.FINISHED && players.size == 2) {
                         if (rematchOfferedBy == color.opposite) {
@@ -120,6 +125,11 @@ class GameRoom(
                         } else if (rematchOfferedBy == null) {
                             rematchOfferedBy = color
                             opponentOf(color)?.session?.sendMessage(GameMessage.RematchOffered)
+                            pushIfOffline(
+                                color.opposite,
+                                "Rematch?",
+                                "${players[color]?.name ?: "Opponent"} wants a rematch in game $shortCode"
+                            )
                         }
                     }
                 }
@@ -219,9 +229,25 @@ class GameRoom(
                     status = RoomStatus.FINISHED
                     broadcast(GameMessage.GameOver(result.reason, result.winner))
                 }
+                if (state.result == null) {
+                    pushIfOffline(
+                        color.opposite,
+                        "Your move",
+                        "${players[color]?.name ?: "Opponent"} played $uci in game $shortCode"
+                    )
+                }
             }
             MoveOutcome.Illegal -> players[color]?.session?.sendMessage(GameMessage.MoveRejected(uci, "ILLEGAL"))
         }
+    }
+
+    private fun pushIfOffline(color: PieceColor, title: String, body: String) {
+        val slot = players[color] ?: return
+        val pushToken = slot.pushToken ?: return
+        if (slot.session != null) {
+            return
+        }
+        FcmSender.send(pushToken, title, body, mapOf("shortCode" to shortCode))
     }
 
     private suspend fun finishLocked(reason: GameOverReason, winner: PieceColor?) {
@@ -231,6 +257,14 @@ class GameRoom(
         game.finish(reason, winner)
         status = RoomStatus.FINISHED
         broadcast(GameMessage.GameOver(reason, winner))
+        val resultText = when (winner) {
+            PieceColor.WHITE -> "White wins"
+            PieceColor.BLACK -> "Black wins"
+            null -> "Draw"
+        }
+        for (color in players.keys) {
+            pushIfOffline(color, "Game over", "$resultText — ${reason.name.lowercase().replace('_', ' ')} in game $shortCode")
+        }
     }
 
     private fun flagIsDown(color: PieceColor): Boolean {

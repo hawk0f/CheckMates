@@ -53,6 +53,10 @@ sealed interface GameMessage {
     data object ClaimTimeout : GameMessage
 
     @Serializable
+    @SerialName("registerPush")
+    data class RegisterPush(val token: String, val platform: String = "android") : GameMessage
+
+    @Serializable
     @SerialName("offerRematch")
     data object OfferRematch : GameMessage
 

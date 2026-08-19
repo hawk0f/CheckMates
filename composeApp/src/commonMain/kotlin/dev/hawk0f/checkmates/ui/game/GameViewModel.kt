@@ -2,6 +2,7 @@ package dev.hawk0f.checkmates.ui.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.hawk0f.checkmates.platform.currentPushToken
 import dev.hawk0f.checkmates.platform.epochMillis
 import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.session.AuthManager
@@ -153,6 +154,13 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         }
         viewModelScope.launch {
             session.send(GameMessage.RequestResync)
+        }
+        if (session.kind == "online") {
+            viewModelScope.launch {
+                currentPushToken()?.let { token ->
+                    session.send(GameMessage.RegisterPush(token))
+                }
+            }
         }
     }
 
