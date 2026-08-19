@@ -31,7 +31,7 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
         post("/api/games") {
             val request = call.receive<CreateGameRequest>()
             val hostName = request.hostName.trim().take(30).ifEmpty { "Host" }
-            val created = registry.create(hostName)
+            val created = registry.create(hostName, request.timeControl?.takeIf { it.initialSeconds in 10..86400 && it.incrementSeconds in 0..600 })
             call.respond(
                 CreateGameResponse(
                     gameId = created.gameId,
@@ -58,7 +58,8 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
                     exists = room != null,
                     joinable = room?.status == RoomStatus.WAITING_FOR_GUEST,
                     gameId = room?.gameId,
-                    hostName = room?.hostName
+                    hostName = room?.hostName,
+                    timeControl = room?.timeControl
                 )
             )
         }

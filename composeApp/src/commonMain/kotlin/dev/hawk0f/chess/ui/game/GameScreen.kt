@@ -30,7 +30,12 @@ import dev.hawk0f.chess.shared.domain.GameOverReason
 import dev.hawk0f.chess.shared.domain.GameResult
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.domain.PieceKind
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import dev.hawk0f.chess.shared.transport.TransportConnectionState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun GameScreen(
@@ -76,16 +81,16 @@ fun GameScreen(
             },
             style = MaterialTheme.typography.titleLarge
         )
-        CapturedRow(gameState, capturedFrom = bottomColor)
+        BoardSideRow(uiState, sideColor = bottomColor.opposite, capturedFrom = bottomColor)
         ChessBoard(
             gameState = gameState,
             selected = uiState.selected,
             legalTargets = uiState.legalTargets,
             flipped = uiState.myColor == PieceColor.BLACK,
             onSquareTap = viewModel::onSquareTap,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.weight(1f)
         )
-        CapturedRow(gameState, capturedFrom = bottomColor.opposite)
+        BoardSideRow(uiState, sideColor = bottomColor, capturedFrom = bottomColor.opposite)
         if (uiState.drawOfferIncoming) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -122,6 +127,10 @@ fun GameScreen(
         }
     }
 
+    if (uiState.showTimePicker && gameState.result == null) {
+        TimeControlDialog(onPick = viewModel::selectTimeControl)
+    }
+
     uiState.pendingPromotion?.let {
         PromotionDialog(
             color = gameState.sideToMove,
@@ -149,6 +158,84 @@ fun GameScreen(
             }
         )
     }
+}
+
+private val timeControlChoices = listOf(
+    null,
+    TimeControl(180, 0),
+    TimeControl(180, 2),
+    TimeControl(300, 0),
+    TimeControl(600, 0),
+    TimeControl(900, 10)
+)
+
+@Composable
+private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
+    AlertDialog(
+        onDismissRequest = { onPick(null) },
+        title = { Text("Time control") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (choice in timeControlChoices) {
+                    OutlinedButton(
+                        onClick = { onPick(choice) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(choice?.label ?: "No clock")
+                    }
+                }
+            }
+        },
+        confirmButton = {}
+    )
+}
+
+@Composable
+private fun BoardSideRow(uiState: GameUiState, sideColor: PieceColor, capturedFrom: PieceColor) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(modifier = Modifier.weight(1f)) {
+            CapturedRow(uiState.gameState, capturedFrom = capturedFrom)
+        }
+        val millis = if (sideColor == PieceColor.WHITE) uiState.whiteMillis else uiState.blackMillis
+        if (millis != null) {
+            ClockBadge(
+                millis = millis,
+                active = uiState.gameState.result == null && uiState.gameState.sideToMove == sideColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun ClockBadge(millis: Long, active: Boolean) {
+    val totalSeconds = millis / 1000
+    val text = if (totalSeconds < 20) {
+        val tenths = (millis % 1000) / 100
+        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}.$tenths"
+    } else {
+        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+        color = when {
+            millis <= 20_000 && active -> MaterialTheme.colorScheme.error
+            active -> MaterialTheme.colorScheme.onPrimaryContainer
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (active) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    )
 }
 
 @Composable
@@ -266,6 +353,7 @@ private fun resultText(result: GameResult): String {
         GameOverReason.INSUFFICIENT_MATERIAL -> "insufficient material"
         GameOverReason.REPETITION -> "threefold repetition"
         GameOverReason.FIFTY_MOVE -> "fifty-move rule"
+        GameOverReason.TIMEOUT -> "time out"
         GameOverReason.DISCONNECTION -> "disconnection"
     }
     return "$winner — $reason"

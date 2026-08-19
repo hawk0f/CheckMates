@@ -11,6 +11,7 @@ enum class GameOverReason {
     INSUFFICIENT_MATERIAL,
     REPETITION,
     FIFTY_MOVE,
+    TIMEOUT,
     DISCONNECTION
 }
 

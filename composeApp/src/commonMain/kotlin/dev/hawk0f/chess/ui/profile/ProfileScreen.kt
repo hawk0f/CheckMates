@@ -350,6 +350,7 @@ private fun reasonLabel(reason: GameOverReason): String = when (reason) {
     GameOverReason.INSUFFICIENT_MATERIAL -> "Insufficient material"
     GameOverReason.REPETITION -> "Repetition"
     GameOverReason.FIFTY_MOVE -> "Fifty-move rule"
+    GameOverReason.TIMEOUT -> "Time out"
     GameOverReason.DISCONNECTION -> "Disconnection"
 }
 

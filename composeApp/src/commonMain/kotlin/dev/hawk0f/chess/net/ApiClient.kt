@@ -11,6 +11,7 @@ import dev.hawk0f.chess.shared.protocol.GameRecordResponse
 import dev.hawk0f.chess.shared.protocol.LoginRequest
 import dev.hawk0f.chess.shared.protocol.ProfileResponse
 import dev.hawk0f.chess.shared.protocol.RegisterRequest
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import dev.hawk0f.chess.shared.protocol.UpdateProfileRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -36,10 +37,10 @@ private suspend inline fun <reified T> HttpResponse.bodyOrError(): T {
 
 class ApiClient(private val client: HttpClient) {
 
-    suspend fun createGame(hostName: String): CreateGameResponse =
+    suspend fun createGame(hostName: String, timeControl: TimeControl? = null): CreateGameResponse =
         client.post("${ServerConfig.baseUrl}/api/games") {
             contentType(ContentType.Application.Json)
-            setBody(CreateGameRequest(hostName))
+            setBody(CreateGameRequest(hostName, timeControl))
         }.body()
 
     suspend fun gameInfo(code: String): GameInfoResponse =

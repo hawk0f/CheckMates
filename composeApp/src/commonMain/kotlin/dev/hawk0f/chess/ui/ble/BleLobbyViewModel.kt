@@ -10,6 +10,7 @@ import dev.hawk0f.chess.ble.BleConstants
 import dev.hawk0f.chess.ble.BleHostEngine
 import dev.hawk0f.chess.ble.BlePeripheralServer
 import dev.hawk0f.chess.session.ActiveGameSession
+import dev.hawk0f.chess.session.AuthManager
 import dev.hawk0f.chess.session.GameSessionHolder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +47,9 @@ data class BleLobbyUiState(
 @OptIn(ExperimentalUuidApi::class)
 class BleLobbyViewModel : ViewModel() {
 
-    private val _uiState = MutableStateFlow(BleLobbyUiState())
+    private val _uiState = MutableStateFlow(
+        BleLobbyUiState(playerName = AuthManager.profile.value?.displayName.orEmpty().take(18))
+    )
     val uiState: StateFlow<BleLobbyUiState> = _uiState.asStateFlow()
 
     private var scanJob: Job? = null

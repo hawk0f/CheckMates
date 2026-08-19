@@ -1,5 +1,7 @@
 package dev.hawk0f.chess.ui.game
 
+import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,17 +48,65 @@ import dev.hawk0f.chess.resources.piece_wp
 import dev.hawk0f.chess.resources.piece_wq
 import dev.hawk0f.chess.resources.piece_wr
 import dev.hawk0f.chess.shared.domain.GameState
-import org.jetbrains.compose.resources.painterResource
 import dev.hawk0f.chess.shared.domain.Piece
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.domain.PieceKind
 import dev.hawk0f.chess.shared.domain.Square
 import dev.hawk0f.chess.ui.theme.LocalBoardColors
+import org.jetbrains.compose.resources.painterResource
 
 private val selectedTint = Color(0x8020A0F0)
 private val lastMoveTint = Color(0x66CDD26A)
 private val checkTint = Color(0x80E5605D)
 private val legalDot = Color(0x59000000)
+
+private data class TrackedPiece(val id: Int, val piece: Piece, val square: Square)
+
+private class PieceTracker {
+    private var nextId = 0
+    private var current: List<TrackedPiece> = emptyList()
+    private var lastHistorySize = -1
+
+    fun update(state: GameState): List<TrackedPiece> {
+        if (state.uciHistory.size < lastHistorySize) {
+            current = emptyList()
+        }
+        lastHistorySize = state.uciHistory.size
+        val unmatched = state.pieces.toMutableMap()
+        val result = mutableListOf<TrackedPiece>()
+        val leftoverOld = mutableListOf<TrackedPiece>()
+        for (old in current) {
+            if (unmatched[old.square] == old.piece) {
+                result.add(old)
+                unmatched.remove(old.square)
+            } else {
+                leftoverOld.add(old)
+            }
+        }
+        state.lastMove?.let { (from, to) ->
+            val movedOld = leftoverOld.find { it.square == from }
+            val landed = unmatched[to]
+            if (movedOld != null && landed != null) {
+                result.add(TrackedPiece(movedOld.id, landed, to))
+                unmatched.remove(to)
+                leftoverOld.remove(movedOld)
+            }
+        }
+        for ((square, piece) in unmatched.toList()) {
+            val match = leftoverOld.find { it.piece == piece }
+            if (match != null) {
+                result.add(TrackedPiece(match.id, piece, square))
+                unmatched.remove(square)
+                leftoverOld.remove(match)
+            }
+        }
+        for ((square, piece) in unmatched) {
+            result.add(TrackedPiece(nextId++, piece, square))
+        }
+        current = result
+        return result
+    }
+}
 
 @Composable
 fun ChessBoard(
@@ -69,6 +120,8 @@ fun ChessBoard(
     var boardSizePx by remember { mutableStateOf(0) }
     var dragFrom by remember(gameState.fen) { mutableStateOf<Square?>(null) }
     var dragPosition by remember { mutableStateOf(Offset.Zero) }
+    val tracker = remember { PieceTracker() }
+    val trackedPieces = remember(gameState) { tracker.update(gameState) }
 
     fun squareAt(position: Offset): Square? {
         if (boardSizePx == 0) {
@@ -127,7 +180,7 @@ fun ChessBoard(
                         val square = Square.of(file, rank)
                         BoardCell(
                             square = square,
-                            piece = gameState.pieces[square].takeIf { square != dragFrom },
+                            hasPiece = gameState.pieces[square] != null,
                             isSelected = square == selected,
                             isLegalTarget = square in legalTargets,
                             isLastMove = gameState.lastMove?.let { square == it.first || square == it.second } == true,
@@ -138,6 +191,30 @@ fun ChessBoard(
                             onTap = { onSquareTap(square) },
                             modifier = Modifier.weight(1f).fillMaxSize()
                         )
+                    }
+                }
+            }
+        }
+        if (boardSizePx > 0) {
+            val cell = boardSizePx / 8
+            val cellDp = with(LocalDensity.current) { cell.toDp() }
+            trackedPieces.forEach { tracked ->
+                key(tracked.id) {
+                    val column = if (flipped) 7 - tracked.square.file else tracked.square.file
+                    val row = if (flipped) tracked.square.rank else 7 - tracked.square.rank
+                    val animatedOffset by animateIntOffsetAsState(
+                        targetValue = IntOffset(column * cell, row * cell),
+                        animationSpec = tween(durationMillis = 180)
+                    )
+                    if (tracked.square != dragFrom) {
+                        Box(
+                            modifier = Modifier
+                                .offset { animatedOffset }
+                                .size(cellDp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PieceGlyph(tracked.piece)
+                        }
                     }
                 }
             }
@@ -165,7 +242,7 @@ fun ChessBoard(
 @Composable
 private fun BoardCell(
     square: Square,
-    piece: Piece?,
+    hasPiece: Boolean,
     isSelected: Boolean,
     isLegalTarget: Boolean,
     isLastMove: Boolean,
@@ -204,15 +281,12 @@ private fun BoardCell(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp)
             )
         }
-        if (piece != null) {
-            PieceGlyph(piece)
-        }
         if (isLegalTarget) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize(if (piece == null) 0.3f else 0.85f)
+                    .fillMaxSize(if (hasPiece) 0.85f else 0.3f)
                     .clip(CircleShape)
-                    .background(if (piece == null) legalDot else Color.Transparent)
+                    .background(if (hasPiece) Color.Transparent else legalDot)
             )
         }
     }

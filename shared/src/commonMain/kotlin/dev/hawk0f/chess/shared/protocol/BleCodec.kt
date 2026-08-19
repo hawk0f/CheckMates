@@ -86,6 +86,7 @@ object BleCodec {
         GameOverReason.INSUFFICIENT_MATERIAL -> 'i'
         GameOverReason.REPETITION -> 'p'
         GameOverReason.FIFTY_MOVE -> 'f'
+        GameOverReason.TIMEOUT -> 't'
         GameOverReason.DISCONNECTION -> 'd'
     }
 
@@ -97,6 +98,7 @@ object BleCodec {
         'i' -> GameOverReason.INSUFFICIENT_MATERIAL
         'p' -> GameOverReason.REPETITION
         'f' -> GameOverReason.FIFTY_MOVE
+        't' -> GameOverReason.TIMEOUT
         'd' -> GameOverReason.DISCONNECTION
         else -> null
     }

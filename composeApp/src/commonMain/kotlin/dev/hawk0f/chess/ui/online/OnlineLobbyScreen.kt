@@ -27,8 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
 import dev.hawk0f.chess.platform.QrScannerView
 import dev.hawk0f.chess.platform.rememberShareText
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
@@ -106,6 +110,26 @@ fun OnlineLobbyScreen(
             }
 
             else -> if (tab == 0) {
+                Text("Time control", style = MaterialTheme.typography.titleSmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    for (choice in listOf(
+                        null,
+                        TimeControl(180, 0),
+                        TimeControl(180, 2),
+                        TimeControl(300, 0),
+                        TimeControl(600, 0),
+                        TimeControl(900, 10)
+                    )) {
+                        FilterChip(
+                            selected = uiState.timeControl == choice,
+                            onClick = { viewModel.onTimeControlChange(choice) },
+                            label = { Text(choice?.label ?: "None") }
+                        )
+                    }
+                }
                 Button(onClick = viewModel::createGame, modifier = Modifier.fillMaxWidth()) {
                     Text("Create game")
                 }

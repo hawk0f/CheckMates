@@ -7,6 +7,7 @@ import dev.hawk0f.chess.session.ActiveGameSession
 import dev.hawk0f.chess.session.AuthManager
 import dev.hawk0f.chess.session.GameSessionHolder
 import dev.hawk0f.chess.shared.protocol.GameRecordRequest
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import dev.hawk0f.chess.shared.domain.ChessGame
 import dev.hawk0f.chess.shared.domain.GameOverReason
 import dev.hawk0f.chess.shared.domain.GameState
@@ -18,6 +19,7 @@ import dev.hawk0f.chess.shared.protocol.GameMessage
 import dev.hawk0f.chess.shared.transport.TransportConnectionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -36,13 +38,19 @@ data class GameUiState(
     val opponentConnected: Boolean,
     val drawOfferIncoming: Boolean,
     val drawOfferOutgoing: Boolean,
-    val connectionState: TransportConnectionState?
+    val connectionState: TransportConnectionState?,
+    val timeControl: TimeControl? = null,
+    val whiteMillis: Long? = null,
+    val blackMillis: Long? = null,
+    val showTimePicker: Boolean = false
 )
 
 class GameViewModel(private val mode: GameMode) : ViewModel() {
 
     private var game = ChessGame()
     private var recordUploaded = false
+    private var hotseatTimeControl: TimeControl? = null
+    private var timeoutClaimed = false
 
     private val _uiState = MutableStateFlow(initialUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -50,6 +58,71 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     init {
         if (mode is GameMode.Remote) {
             observeSession(mode.session)
+        }
+        startClockTicker()
+    }
+
+    fun selectTimeControl(timeControl: TimeControl?) {
+        if (mode !is GameMode.Hotseat) {
+            return
+        }
+        hotseatTimeControl = timeControl
+        _uiState.value = _uiState.value.copy(
+            timeControl = timeControl,
+            whiteMillis = timeControl?.let { it.initialSeconds * 1000L },
+            blackMillis = timeControl?.let { it.initialSeconds * 1000L },
+            showTimePicker = false
+        )
+    }
+
+    private fun startClockTicker() {
+        viewModelScope.launch {
+            var last = epochMillis()
+            while (true) {
+                delay(200)
+                val now = epochMillis()
+                val delta = now - last
+                last = now
+                val state = _uiState.value
+                if (state.timeControl == null || state.gameState.result != null) {
+                    continue
+                }
+                if (mode is GameMode.Hotseat && state.gameState.uciHistory.isEmpty()) {
+                    continue
+                }
+                val toMove = state.gameState.sideToMove
+                val current = if (toMove == PieceColor.WHITE) state.whiteMillis else state.blackMillis
+                if (current == null) {
+                    continue
+                }
+                val next = (current - delta).coerceAtLeast(0)
+                _uiState.value = if (toMove == PieceColor.WHITE) {
+                    state.copy(whiteMillis = next)
+                } else {
+                    state.copy(blackMillis = next)
+                }
+                if (next == 0L) {
+                    onFlagFall(toMove)
+                }
+            }
+        }
+    }
+
+    private fun onFlagFall(color: PieceColor) {
+        when (mode) {
+            GameMode.Hotseat -> {
+                if (game.state().result == null) {
+                    game.finish(GameOverReason.TIMEOUT, color.opposite)
+                    _uiState.value = clearedSelection()
+                    maybeUploadRecord()
+                }
+            }
+            is GameMode.Remote -> {
+                if (!timeoutClaimed) {
+                    timeoutClaimed = true
+                    viewModelScope.launch { mode.session.send(GameMessage.ClaimTimeout) }
+                }
+            }
         }
     }
 
@@ -83,13 +156,16 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 if (game.applyUci(message.uci) is MoveOutcome.Illegal) {
                     rebuildFromFen(message.fenAfter)
                 }
+                timeoutClaimed = false
                 _uiState.value = _uiState.value.copy(
                     gameState = game.state(),
                     selected = null,
                     legalTargets = emptySet(),
                     pendingPromotion = null,
                     drawOfferIncoming = false,
-                    drawOfferOutgoing = false
+                    drawOfferOutgoing = false,
+                    whiteMillis = message.whiteMillis ?: _uiState.value.whiteMillis,
+                    blackMillis = message.blackMillis ?: _uiState.value.blackMillis
                 )
             }
 
@@ -109,7 +185,10 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                     gameState = game.state(),
                     drawOfferIncoming = message.drawOfferPending && _uiState.value.drawOfferIncoming,
                     selected = null,
-                    legalTargets = emptySet()
+                    legalTargets = emptySet(),
+                    timeControl = message.timeControl ?: _uiState.value.timeControl,
+                    whiteMillis = message.whiteMillis ?: _uiState.value.whiteMillis,
+                    blackMillis = message.blackMillis ?: _uiState.value.blackMillis
                 )
             }
 
@@ -259,7 +338,12 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         if (mode is GameMode.Hotseat) {
             game = ChessGame()
             recordUploaded = false
-            _uiState.value = initialUiState()
+            _uiState.value = initialUiState().copy(
+                timeControl = hotseatTimeControl,
+                whiteMillis = hotseatTimeControl?.let { it.initialSeconds * 1000L },
+                blackMillis = hotseatTimeControl?.let { it.initialSeconds * 1000L },
+                showTimePicker = false
+            )
         }
     }
 
@@ -307,7 +391,8 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
             opponentConnected = true,
             drawOfferIncoming = false,
             drawOfferOutgoing = false,
-            connectionState = remote?.session?.transport?.connectionState?.value
+            connectionState = remote?.session?.transport?.connectionState?.value,
+            showTimePicker = remote == null
         )
     }
 

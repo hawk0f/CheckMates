@@ -7,9 +7,11 @@ import dev.hawk0f.chess.net.ServerConfig
 import dev.hawk0f.chess.net.WebSocketGameTransport
 import dev.hawk0f.chess.net.configuredHttpClient
 import dev.hawk0f.chess.session.ActiveGameSession
+import dev.hawk0f.chess.session.AuthManager
 import dev.hawk0f.chess.session.GameSessionHolder
 import dev.hawk0f.chess.shared.protocol.GameMessage
 import dev.hawk0f.chess.shared.protocol.ShortCode
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +31,8 @@ sealed interface LobbyStep {
 data class OnlineLobbyUiState(
     val playerName: String = "",
     val codeInput: String = "",
-    val step: LobbyStep = LobbyStep.Idle
+    val step: LobbyStep = LobbyStep.Idle,
+    val timeControl: TimeControl? = null
 )
 
 class OnlineLobbyViewModel : ViewModel() {
@@ -37,11 +40,17 @@ class OnlineLobbyViewModel : ViewModel() {
     private val httpClient = configuredHttpClient()
     private val api = ApiClient(httpClient)
 
-    private val _uiState = MutableStateFlow(OnlineLobbyUiState())
+    private val _uiState = MutableStateFlow(
+        OnlineLobbyUiState(playerName = AuthManager.profile.value?.displayName.orEmpty().take(30))
+    )
     val uiState: StateFlow<OnlineLobbyUiState> = _uiState.asStateFlow()
 
     fun onNameChange(value: String) {
         _uiState.value = _uiState.value.copy(playerName = value.take(30))
+    }
+
+    fun onTimeControlChange(value: TimeControl?) {
+        _uiState.value = _uiState.value.copy(timeControl = value)
     }
 
     fun onCodeChange(value: String) {
@@ -56,7 +65,7 @@ class OnlineLobbyViewModel : ViewModel() {
         _uiState.value = state.copy(step = LobbyStep.Working)
         viewModelScope.launch {
             try {
-                val created = api.createGame(state.playerName.ifBlank { "Host" })
+                val created = api.createGame(state.playerName.ifBlank { "Host" }, state.timeControl)
                 val transport = WebSocketGameTransport(
                     client = httpClient,
                     url = ServerConfig.wsGameUrl(created.gameId, created.playerToken),

@@ -6,6 +6,7 @@ import dev.hawk0f.chess.shared.domain.MoveOutcome
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.protocol.GameMessage
 import dev.hawk0f.chess.shared.protocol.ProtocolJson
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import io.ktor.server.websocket.WebSocketServerSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
@@ -29,7 +30,8 @@ class GameRoom(
     val shortCode: String,
     hostToken: String,
     hostName: String,
-    hostColor: PieceColor
+    hostColor: PieceColor,
+    val timeControl: TimeControl? = null
 ) {
 
     private val game = ChessGame()
@@ -41,6 +43,8 @@ class GameRoom(
     var lastActivityMillis: Long = System.currentTimeMillis()
         private set
     private var drawOfferedBy: PieceColor? = null
+    private val remainingMillis = mutableMapOf<PieceColor, Long>()
+    private var turnStartedAtMillis: Long = 0
 
     init {
         players[hostColor] = PlayerSlot(hostToken, hostName, null)
@@ -70,6 +74,11 @@ class GameRoom(
         val guestColor = hostColor.opposite
         players[guestColor] = PlayerSlot(guestToken, guestName, session)
         status = RoomStatus.IN_PROGRESS
+        if (timeControl != null) {
+            remainingMillis[PieceColor.WHITE] = timeControl.initialSeconds * 1000L
+            remainingMillis[PieceColor.BLACK] = timeControl.initialSeconds * 1000L
+            turnStartedAtMillis = System.currentTimeMillis()
+        }
         session.sendMessage(GameMessage.ColorAssigned(guestColor))
         session.sendMessage(GameMessage.OpponentJoined(players[hostColor]!!.name))
         session.sendMessage(resyncMessage())
@@ -101,6 +110,7 @@ class GameRoom(
                     }
                 }
                 GameMessage.RequestResync -> players[color]?.session?.sendMessage(resyncMessage())
+                GameMessage.ClaimTimeout -> handleTimeoutClaim()
                 GameMessage.Ping -> players[color]?.session?.sendMessage(GameMessage.Pong)
                 else -> players[color]?.session?.sendMessage(
                     GameMessage.ProtocolError("UNEXPECTED_MESSAGE", "unexpected message type")
@@ -144,11 +154,24 @@ class GameRoom(
             players[color]?.session?.sendMessage(GameMessage.MoveRejected(uci, "NOT_YOUR_TURN"))
             return
         }
+        if (timeControl != null && flagIsDown(color)) {
+            finishLocked(GameOverReason.TIMEOUT, color.opposite)
+            return
+        }
         when (val outcome = game.applyUci(uci)) {
             is MoveOutcome.Applied -> {
                 drawOfferedBy = null
+                chargeClock(color)
                 val state = outcome.state
-                broadcast(GameMessage.MoveApplied(uci, state.fen, state.uciHistory.size))
+                broadcast(
+                    GameMessage.MoveApplied(
+                        uci = uci,
+                        fenAfter = state.fen,
+                        moveNumber = state.uciHistory.size,
+                        whiteMillis = remainingMillis[PieceColor.WHITE],
+                        blackMillis = remainingMillis[PieceColor.BLACK]
+                    )
+                )
                 state.result?.let { result ->
                     status = RoomStatus.FINISHED
                     broadcast(GameMessage.GameOver(result.reason, result.winner))
@@ -167,10 +190,54 @@ class GameRoom(
         broadcast(GameMessage.GameOver(reason, winner))
     }
 
+    private fun flagIsDown(color: PieceColor): Boolean {
+        val remaining = remainingMillis[color] ?: return false
+        val elapsed = if (game.sideToMove() == color && status == RoomStatus.IN_PROGRESS) {
+            System.currentTimeMillis() - turnStartedAtMillis
+        } else {
+            0
+        }
+        return remaining - elapsed <= 0
+    }
+
+    private fun chargeClock(color: PieceColor) {
+        if (timeControl == null) {
+            return
+        }
+        val now = System.currentTimeMillis()
+        val elapsed = now - turnStartedAtMillis
+        val left = (remainingMillis[color] ?: 0) - elapsed + timeControl.incrementSeconds * 1000L
+        remainingMillis[color] = left
+        turnStartedAtMillis = now
+    }
+
+    private suspend fun handleTimeoutClaim() {
+        if (status != RoomStatus.IN_PROGRESS || timeControl == null) {
+            return
+        }
+        val toMove = game.sideToMove()
+        if (flagIsDown(toMove)) {
+            finishLocked(GameOverReason.TIMEOUT, toMove.opposite)
+        }
+    }
+
+    private fun currentClock(color: PieceColor): Long? {
+        val remaining = remainingMillis[color] ?: return null
+        val elapsed = if (game.sideToMove() == color && status == RoomStatus.IN_PROGRESS) {
+            System.currentTimeMillis() - turnStartedAtMillis
+        } else {
+            0
+        }
+        return (remaining - elapsed).coerceAtLeast(0)
+    }
+
     private fun resyncMessage() = GameMessage.Resync(
         fen = game.fen(),
         uciHistory = game.state().uciHistory,
-        drawOfferPending = drawOfferedBy != null
+        drawOfferPending = drawOfferedBy != null,
+        timeControl = timeControl,
+        whiteMillis = currentClock(PieceColor.WHITE),
+        blackMillis = currentClock(PieceColor.BLACK)
     )
 
     private suspend fun broadcast(message: GameMessage) {

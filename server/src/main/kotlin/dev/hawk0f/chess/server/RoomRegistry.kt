@@ -2,6 +2,7 @@ package dev.hawk0f.chess.server
 
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.protocol.ShortCode
+import dev.hawk0f.chess.shared.protocol.TimeControl
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
@@ -20,14 +21,14 @@ class RoomRegistry(private val publicBaseUrl: String) {
 
     fun joinUrl(shortCode: String): String = "$publicBaseUrl/game/$shortCode"
 
-    fun create(hostName: String): CreatedGame {
+    fun create(hostName: String, timeControl: TimeControl? = null): CreatedGame {
         val gameId = UUID.randomUUID().toString()
         val playerToken = UUID.randomUUID().toString()
         val hostColor = if (Random.nextBoolean()) PieceColor.WHITE else PieceColor.BLACK
         while (true) {
             val code = ShortCode.generate()
             if (idsByCode.putIfAbsent(code, gameId) == null) {
-                val room = GameRoom(gameId, code, playerToken, hostName, hostColor)
+                val room = GameRoom(gameId, code, playerToken, hostName, hostColor, timeControl)
                 roomsById[gameId] = room
                 return CreatedGame(gameId, code, playerToken, hostColor)
             }

@@ -49,6 +49,10 @@ sealed interface GameMessage {
     data object Ping : GameMessage
 
     @Serializable
+    @SerialName("claimTimeout")
+    data object ClaimTimeout : GameMessage
+
+    @Serializable
     @SerialName("gameCreated")
     data class GameCreated(
         val gameId: String,
@@ -67,7 +71,13 @@ sealed interface GameMessage {
 
     @Serializable
     @SerialName("moveApplied")
-    data class MoveApplied(val uci: String, val fenAfter: String, val moveNumber: Int) : GameMessage
+    data class MoveApplied(
+        val uci: String,
+        val fenAfter: String,
+        val moveNumber: Int,
+        val whiteMillis: Long? = null,
+        val blackMillis: Long? = null
+    ) : GameMessage
 
     @Serializable
     @SerialName("moveRejected")
@@ -90,7 +100,10 @@ sealed interface GameMessage {
     data class Resync(
         val fen: String,
         val uciHistory: List<String>,
-        val drawOfferPending: Boolean
+        val drawOfferPending: Boolean,
+        val timeControl: TimeControl? = null,
+        val whiteMillis: Long? = null,
+        val blackMillis: Long? = null
     ) : GameMessage
 
     @Serializable

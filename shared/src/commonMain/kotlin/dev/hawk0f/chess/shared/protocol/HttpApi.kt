@@ -5,7 +5,13 @@ import dev.hawk0f.chess.shared.domain.GameOverReason
 import dev.hawk0f.chess.shared.domain.PieceColor
 
 @Serializable
-data class CreateGameRequest(val hostName: String)
+data class TimeControl(val initialSeconds: Int, val incrementSeconds: Int) {
+    val label: String
+        get() = "${initialSeconds / 60}+$incrementSeconds"
+}
+
+@Serializable
+data class CreateGameRequest(val hostName: String, val timeControl: TimeControl? = null)
 
 @Serializable
 data class CreateGameResponse(
@@ -20,7 +26,8 @@ data class GameInfoResponse(
     val exists: Boolean,
     val joinable: Boolean,
     val gameId: String?,
-    val hostName: String?
+    val hostName: String?,
+    val timeControl: TimeControl? = null
 )
 
 @Serializable
