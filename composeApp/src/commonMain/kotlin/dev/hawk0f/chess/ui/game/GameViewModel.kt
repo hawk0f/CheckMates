@@ -10,6 +10,7 @@ import dev.hawk0f.chess.shared.protocol.GameRecordRequest
 import dev.hawk0f.chess.shared.protocol.TimeControl
 import dev.hawk0f.chess.shared.domain.ChessGame
 import dev.hawk0f.chess.shared.domain.GameOverReason
+import dev.hawk0f.chess.shared.domain.PgnBuilder
 import dev.hawk0f.chess.shared.domain.GameState
 import dev.hawk0f.chess.shared.domain.MoveOutcome
 import dev.hawk0f.chess.shared.domain.PieceColor
@@ -422,6 +423,24 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     val isRemote: Boolean get() = mode is GameMode.Remote
 
     val supportsRematch: Boolean get() = (mode as? GameMode.Remote)?.session?.kind == "online"
+
+    fun buildPgn(): String {
+        val state = game.state()
+        val session = (mode as? GameMode.Remote)?.session
+        val myColor = if (session == null) null else _uiState.value.myColor
+        val myName = session?.myName ?: "White"
+        val opponent = session?.let { _uiState.value.opponentName ?: "Opponent" } ?: "Black"
+        val whiteName = if (myColor == PieceColor.BLACK) opponent else myName
+        val blackName = if (myColor == PieceColor.BLACK) myName else opponent
+        return PgnBuilder.build(
+            whiteName = whiteName,
+            blackName = blackName,
+            winner = state.result?.winner,
+            reason = state.result?.reason,
+            uciHistory = state.uciHistory,
+            dateMillis = epochMillis()
+        )
+    }
 
     private fun submitMove(uci: String) {
         when (mode) {

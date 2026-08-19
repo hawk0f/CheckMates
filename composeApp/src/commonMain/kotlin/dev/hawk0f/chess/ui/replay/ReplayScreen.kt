@@ -19,7 +19,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.hawk0f.chess.platform.rememberShareText
 import dev.hawk0f.chess.shared.domain.ChessGame
+import dev.hawk0f.chess.shared.domain.PgnBuilder
 import dev.hawk0f.chess.shared.domain.PieceColor
 import dev.hawk0f.chess.shared.protocol.GameHistoryItem
 import dev.hawk0f.chess.ui.game.ChessBoard
@@ -96,8 +98,31 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
             }
         }
 
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Back")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val shareText = rememberShareText()
+            OutlinedButton(
+                onClick = {
+                    shareText(
+                        PgnBuilder.build(
+                            whiteName = item.whiteName,
+                            blackName = item.blackName,
+                            winner = item.winner,
+                            reason = item.reason,
+                            uciHistory = item.uciHistory,
+                            dateMillis = item.finishedAtMillis
+                        )
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Share PGN")
+            }
+            OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) {
+                Text("Back")
+            }
         }
     }
 }

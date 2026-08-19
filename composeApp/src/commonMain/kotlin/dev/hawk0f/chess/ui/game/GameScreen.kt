@@ -24,6 +24,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import dev.hawk0f.chess.platform.playMoveSound
+import dev.hawk0f.chess.platform.rememberShareText
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.chess.shared.domain.GameOverReason
@@ -186,6 +187,10 @@ fun GameScreen(
                         TextButton(onClick = viewModel::declineRematch) {
                             Text("Decline")
                         }
+                    }
+                    val shareText = rememberShareText()
+                    TextButton(onClick = { shareText(viewModel.buildPgn()) }) {
+                        Text("PGN")
                     }
                     TextButton(onClick = onExit) {
                         Text("Exit")
