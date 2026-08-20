@@ -278,7 +278,8 @@ private fun PlayContent(
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                text = "Rapid and classical only. Blitz works for friend challenges and Stockfish below.",
+                text = "Pool needs rapid pace: minutes + 40 x increment must reach 480. " +
+                    "Faster clocks work for friend challenges and Stockfish below.",
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.outline
             )

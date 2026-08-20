@@ -49,6 +49,9 @@ data class LichessLobbyUiState(
 )
 
 val QUICK_CLOCKS = listOf(
+    LichessClockOption("3+8", 3, 8),
+    LichessClockOption("5+5", 5, 5),
+    LichessClockOption("8+0", 8, 0),
     LichessClockOption("10+0", 10, 0),
     LichessClockOption("15+10", 15, 10),
     LichessClockOption("30+0", 30, 0)
