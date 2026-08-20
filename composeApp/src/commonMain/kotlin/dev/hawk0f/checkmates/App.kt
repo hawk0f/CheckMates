@@ -16,6 +16,7 @@ import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessHomeScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessPuzzleScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessSeekScreen
 import dev.hawk0f.checkmates.ui.online.OnlineLobbyScreen
 import dev.hawk0f.checkmates.ui.profile.ProfileScreen
@@ -42,6 +43,9 @@ object LichessHomeRoute
 
 @Serializable
 object LichessSeekRoute
+
+@Serializable
+object LichessPuzzleRoute
 
 @Serializable
 object RemoteGameRoute
@@ -144,13 +148,16 @@ fun App() {
                             }
                         },
                         onOpenSeek = { navController.navigate(LichessSeekRoute) },
-                        onOpenPuzzle = {},
+                        onOpenPuzzle = { navController.navigate(LichessPuzzleRoute) },
                         onOpenWatch = {},
                         onOpenArenas = {},
                         onOpenExplorer = {},
                         onOpenPlayers = {},
                         onBack = { navController.popBackStack() }
                     )
+                }
+                composable<LichessPuzzleRoute> {
+                    LichessPuzzleScreen(onBack = { navController.popBackStack() })
                 }
                 composable<LichessSeekRoute> {
                     LichessSeekScreen(
