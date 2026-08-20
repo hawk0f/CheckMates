@@ -15,7 +15,8 @@ import dev.hawk0f.checkmates.ui.ble.BleLobbyScreen
 import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
-import dev.hawk0f.checkmates.ui.lichess.LichessLobbyScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessHomeScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessSeekScreen
 import dev.hawk0f.checkmates.ui.online.OnlineLobbyScreen
 import dev.hawk0f.checkmates.ui.profile.ProfileScreen
 import dev.hawk0f.checkmates.ui.profile.ReplayHolder
@@ -37,7 +38,10 @@ data class OnlineLobbyRoute(val prefillCode: String? = null)
 object BleLobbyRoute
 
 @Serializable
-object LichessLobbyRoute
+object LichessHomeRoute
+
+@Serializable
+object LichessSeekRoute
 
 @Serializable
 object RemoteGameRoute
@@ -67,7 +71,7 @@ fun App() {
             LaunchedEffect(Unit) {
                 DeepLinkHandler.pendingLichessAuth.collect { callback ->
                     if (callback != null) {
-                        navController.navigate(LichessLobbyRoute) {
+                        navController.navigate(LichessHomeRoute) {
                             launchSingleTop = true
                         }
                     }
@@ -79,7 +83,7 @@ fun App() {
                         onPassAndPlay = { navController.navigate(HotseatGameRoute) },
                         onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
                         onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
-                        onPlayLichess = { navController.navigate(LichessLobbyRoute) },
+                        onPlayLichess = { navController.navigate(LichessHomeRoute) },
                         onOpenSettings = { navController.navigate(SettingsRoute) },
                         onOpenProfile = { navController.navigate(ProfileRoute) },
                         onResumeGame = { navController.navigate(RemoteGameRoute) }
@@ -132,8 +136,24 @@ fun App() {
                         onBack = { navController.popBackStack() }
                     )
                 }
-                composable<LichessLobbyRoute> {
-                    LichessLobbyScreen(
+                composable<LichessHomeRoute> {
+                    LichessHomeScreen(
+                        onGameReady = {
+                            navController.navigate(RemoteGameRoute) {
+                                popUpTo<HomeRoute>()
+                            }
+                        },
+                        onOpenSeek = { navController.navigate(LichessSeekRoute) },
+                        onOpenPuzzle = {},
+                        onOpenWatch = {},
+                        onOpenArenas = {},
+                        onOpenExplorer = {},
+                        onOpenPlayers = {},
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable<LichessSeekRoute> {
+                    LichessSeekScreen(
                         onGameReady = {
                             navController.navigate(RemoteGameRoute) {
                                 popUpTo<HomeRoute>()

@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -297,4 +299,153 @@ fun OutlineTile(
     ) {
         content()
     }
+}
+
+@Composable
+fun InitialsBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 38.dp,
+    container: Color? = null,
+    contentColor: Color? = null
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(container ?: scheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text.take(2).uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor ?: scheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun ListRow(
+    title: String,
+    subtitle: String? = null,
+    leading: @Composable (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        leading?.invoke()
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleSmall)
+            subtitle?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant
+                )
+            }
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
+fun SegmentedTabs(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(scheme.surfaceVariant)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        options.forEachIndexed { index, option ->
+            val selected = index == selectedIndex
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(if (selected) scheme.surface else Color.Transparent)
+                    .clickable { onSelect(index) }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = option,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (selected) scheme.onSurface else scheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WinRateBar(
+    white: Int,
+    draws: Int,
+    black: Int,
+    modifier: Modifier = Modifier,
+    height: Dp = 10.dp
+) {
+    val scheme = MaterialTheme.colorScheme
+    val total = (white + draws + black).coerceAtLeast(1)
+    Row(
+        modifier = modifier.height(height).clip(RoundedCornerShape(999.dp)),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        if (white > 0) {
+            Box(
+                modifier = Modifier
+                    .weight(white.toFloat() / total)
+                    .fillMaxHeight()
+                    .background(scheme.surfaceBright)
+            )
+        }
+        if (draws > 0) {
+            Box(
+                modifier = Modifier
+                    .weight(draws.toFloat() / total)
+                    .fillMaxHeight()
+                    .background(scheme.outline)
+            )
+        }
+        if (black > 0) {
+            Box(
+                modifier = Modifier
+                    .weight(black.toFloat() / total)
+                    .fillMaxHeight()
+                    .background(scheme.inverseSurface)
+            )
+        }
+    }
+}
+
+@Composable
+fun CodeChip(text: String, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = scheme.onSurfaceVariant,
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(scheme.surfaceVariant)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    )
 }

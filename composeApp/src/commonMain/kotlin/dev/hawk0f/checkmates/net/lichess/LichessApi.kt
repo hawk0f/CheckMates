@@ -28,7 +28,11 @@ const val LICHESS_BASE_URL = "https://lichess.org"
 const val LICHESS_EXPLORER_URL = "https://explorer.lichess.ovh"
 
 @Serializable
-data class LichessAccount(val id: String, val username: String)
+data class LichessAccount(
+    val id: String,
+    val username: String,
+    val perfs: Map<String, LichessRating> = emptyMap()
+)
 
 @Serializable
 data class LichessTokenResponse(val access_token: String, val expires_in: Long? = null)

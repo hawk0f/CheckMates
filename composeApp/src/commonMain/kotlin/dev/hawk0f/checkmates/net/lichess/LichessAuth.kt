@@ -17,7 +17,18 @@ object LichessAuth {
 
     const val CLIENT_ID = "dev.hawk0f.checkmates"
     const val REDIRECT_URI = "dev.hawk0f.checkmates://lichess-auth"
-    const val SCOPE = "board:play"
+    const val SCOPE =
+        "board:play challenge:read challenge:write puzzle:read tournament:write follow:read"
+
+    val SCOPE_DETAILS = listOf(
+        "board:play" to "Move, resign, offer draws",
+        "challenge:read · write" to "Invite friends, accept invites",
+        "puzzle:read" to "Your puzzle history and streak",
+        "tournament:write" to "Join arenas and Swiss events",
+        "follow:read" to "See who you follow online"
+    )
+
+    val SCOPE_DECLINED = listOf("email:read" to "Not requested")
 
     private const val KEY_TOKEN = "lichess.token"
     private const val KEY_USERNAME = "lichess.username"
