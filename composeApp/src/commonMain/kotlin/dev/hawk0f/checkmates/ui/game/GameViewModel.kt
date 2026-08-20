@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dev.hawk0f.checkmates.platform.currentPushToken
 import dev.hawk0f.checkmates.platform.epochMillis
 import dev.hawk0f.checkmates.session.ActiveGameSession
+import dev.hawk0f.checkmates.net.lichess.LichessGameTransport
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
@@ -434,6 +435,32 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     val isRemote: Boolean get() = mode is GameMode.Remote
 
     val supportsRematch: Boolean get() = (mode as? GameMode.Remote)?.session?.kind == "online"
+
+    val lichessTransport: LichessGameTransport?
+        get() = (mode as? GameMode.Remote)?.session?.transport as? LichessGameTransport
+
+    fun offerTakeback() {
+        val transport = lichessTransport ?: return
+        viewModelScope.launch { transport.offerTakeback() }
+    }
+
+    fun answerTakeback(accept: Boolean) {
+        val transport = lichessTransport ?: return
+        viewModelScope.launch { transport.answerTakeback(accept) }
+    }
+
+    fun claimVictory() {
+        val transport = lichessTransport ?: return
+        viewModelScope.launch { transport.claimVictory() }
+    }
+
+    fun sendChat(text: String) {
+        val transport = lichessTransport ?: return
+        if (text.isBlank()) {
+            return
+        }
+        viewModelScope.launch { transport.sendChat(text.trim()) }
+    }
 
     fun buildPgn(): String {
         val state = game.state()

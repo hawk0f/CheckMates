@@ -34,6 +34,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.hawk0f.checkmates.net.lichess.LichessChatLine
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.platform.playMoveSound
 import dev.hawk0f.checkmates.platform.rememberShareText
@@ -53,6 +55,7 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.StatTile
 import org.jetbrains.compose.resources.painterResource
@@ -229,6 +232,66 @@ private fun BottomSheet(
     viewModel: GameViewModel,
     onResignRequest: () -> Unit
 ) {
+    val lichess = viewModel.lichessTransport
+    val takebackIncoming by (lichess?.takebackIncoming ?: MutableStateFlow(false))
+        .collectAsStateWithLifecycle()
+    val takebackOutgoing by (lichess?.takebackOutgoing ?: MutableStateFlow(false))
+        .collectAsStateWithLifecycle()
+    val opponentGone by (lichess?.opponentGoneSeconds ?: MutableStateFlow<Int?>(null))
+        .collectAsStateWithLifecycle()
+    val chatLines by (lichess?.chat ?: MutableStateFlow(emptyList<LichessChatLine>()))
+        .collectAsStateWithLifecycle()
+    var chatOpen by remember { mutableStateOf(false) }
+    var chatDraft by remember { mutableStateOf("") }
+
+    if (chatOpen && lichess != null) {
+        AlertDialog(
+            onDismissRequest = { chatOpen = false },
+            title = { Text("Chat", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (chatLines.isEmpty()) {
+                        Text(
+                            text = "No messages yet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    for (line in chatLines.takeLast(8)) {
+                        Text(
+                            text = "${line.author}: ${line.text}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    SoftTextField(
+                        value = chatDraft,
+                        onValueChange = { chatDraft = it.take(140) },
+                        placeholder = "Say something",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                PillButton(
+                    text = "Send",
+                    onClick = {
+                        viewModel.sendChat(chatDraft)
+                        chatDraft = ""
+                    },
+                    compact = true
+                )
+            },
+            dismissButton = {
+                PillButton(
+                    text = "Close",
+                    onClick = { chatOpen = false },
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
+            }
+        )
+    }
+
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     Column(
@@ -278,6 +341,63 @@ private fun BottomSheet(
             }
         }
 
+        if (lichess != null && takebackIncoming) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(scheme.surfaceVariant)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Takeback requested",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f)
+                )
+                PillButton(
+                    text = "Allow",
+                    onClick = { viewModel.answerTakeback(true) },
+                    tone = PillTone.ACCENT,
+                    compact = true
+                )
+                PillButton(
+                    text = "No",
+                    onClick = { viewModel.answerTakeback(false) },
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
+            }
+        }
+
+        val goneSeconds = opponentGone
+        if (lichess != null && goneSeconds != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (goneSeconds > 0) {
+                        "Opponent gone — claim victory in ${goneSeconds}s"
+                    } else {
+                        "Opponent gone"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                PillButton(
+                    text = "Claim win",
+                    onClick = viewModel::claimVictory,
+                    tone = PillTone.INK,
+                    compact = true,
+                    enabled = goneSeconds == 0
+                )
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -297,6 +417,25 @@ private fun BottomSheet(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (lichess != null) {
+                    CircleButton(
+                        onClick = viewModel::offerTakeback,
+                        enabled = !takebackOutgoing
+                    ) {
+                        Text(
+                            text = "↩",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = scheme.onSurface
+                        )
+                    }
+                    CircleButton(onClick = { chatOpen = true }) {
+                        Text(
+                            text = "…",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = scheme.onSurface
+                        )
+                    }
+                }
                 if (viewModel.isRemote) {
                     CircleButton(
                         onClick = viewModel::offerDraw,

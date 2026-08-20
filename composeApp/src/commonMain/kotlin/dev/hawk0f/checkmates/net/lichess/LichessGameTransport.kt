@@ -40,6 +40,18 @@ class LichessGameTransport(
     private var blackMillis: Long? = null
     private var drawOfferSeen = false
 
+    private val _opponentGoneSeconds = MutableStateFlow<Int?>(null)
+    val opponentGoneSeconds: StateFlow<Int?> = _opponentGoneSeconds.asStateFlow()
+
+    private val _takebackIncoming = MutableStateFlow(false)
+    val takebackIncoming: StateFlow<Boolean> = _takebackIncoming.asStateFlow()
+
+    private val _takebackOutgoing = MutableStateFlow(false)
+    val takebackOutgoing: StateFlow<Boolean> = _takebackOutgoing.asStateFlow()
+
+    private val _chat = MutableStateFlow<List<LichessChatLine>>(emptyList())
+    val chat: StateFlow<List<LichessChatLine>> = _chat.asStateFlow()
+
     override val incoming: Flow<GameMessage> = _incoming
     override val connectionState: StateFlow<TransportConnectionState> = _connectionState.asStateFlow()
 
@@ -78,6 +90,19 @@ class LichessGameTransport(
         when (event.typeName()) {
             "gameFull" -> handleGameFull(event)
             "gameState" -> handleGameState(event, resyncing = false)
+            "chatLine" -> {
+                val author = event.stringAt("username") ?: "?"
+                val text = event.stringAt("text").orEmpty()
+                if (text.isNotBlank()) {
+                    _chat.value = _chat.value + LichessChatLine(author, text)
+                }
+            }
+
+            "opponentGone" -> {
+                val gone = event.boolAt("gone") == true
+                _opponentGoneSeconds.value = if (gone) event.intAt("claimWinInSeconds") ?: 0 else null
+            }
+
             else -> {}
         }
     }
@@ -148,6 +173,19 @@ class LichessGameTransport(
             drawOfferSeen = false
         }
 
+        val myTakeback = if (myColor == PieceColor.WHITE) {
+            state.boolAt("wtakeback")
+        } else {
+            state.boolAt("btakeback")
+        } == true
+        val theirTakeback = if (myColor == PieceColor.WHITE) {
+            state.boolAt("btakeback")
+        } else {
+            state.boolAt("wtakeback")
+        } == true
+        _takebackOutgoing.value = myTakeback
+        _takebackIncoming.value = theirTakeback
+
         val status = state.stringAt("status")
         if (status != null && status !in ACTIVE_STATUSES) {
             finished = true
@@ -204,6 +242,22 @@ class LichessGameTransport(
             }
 
             else -> {}
+        }
+    }
+
+    suspend fun offerTakeback() {
+        api.takeback(token, gameId, accept = true)
+    }
+
+    suspend fun answerTakeback(accept: Boolean) {
+        api.takeback(token, gameId, accept = accept)
+    }
+
+    suspend fun claimVictory(): Boolean = api.claimVictory(token, gameId)
+
+    suspend fun sendChat(text: String) {
+        if (api.sendChat(token, gameId, text)) {
+            _chat.value = _chat.value + LichessChatLine(myUsername, text)
         }
     }
 
