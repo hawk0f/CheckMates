@@ -35,7 +35,6 @@ fun LichessConnectContent(
     onSignIn: () -> Unit,
     onOpenPuzzle: () -> Unit,
     onOpenWatch: () -> Unit,
-    onOpenExplorer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -92,7 +91,6 @@ fun LichessConnectContent(
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 PillButton("Puzzle", onOpenPuzzle, tone = PillTone.SOFT, compact = true)
                 PillButton("Watch", onOpenWatch, tone = PillTone.SOFT, compact = true)
-                PillButton("Explorer", onOpenExplorer, tone = PillTone.SOFT, compact = true)
             }
         }
 

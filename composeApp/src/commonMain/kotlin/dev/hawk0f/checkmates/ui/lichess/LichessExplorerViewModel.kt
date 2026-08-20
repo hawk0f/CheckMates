@@ -81,6 +81,14 @@ class LichessExplorerViewModel : ViewModel() {
     }
 
     private fun fetch() {
+        val token = LichessAuth.token
+        if (token == null) {
+            _uiState.value = _uiState.value.copy(
+                loading = false,
+                error = "The opening explorer needs a lichess token — sign in first."
+            )
+            return
+        }
         val fen = game.fen()
         val state = _uiState.value
         _uiState.value = state.copy(loading = true)
@@ -88,13 +96,15 @@ class LichessExplorerViewModel : ViewModel() {
             runCatching {
                 when (state.source) {
                     ExplorerSource.LICHESS -> api.explorerLichess(
+                        token = token,
                         fen = fen,
                         speeds = listOf("blitz", "rapid", "classical"),
                         ratings = listOf(1400, 1600, 1800)
                     )
 
-                    ExplorerSource.MASTERS -> api.explorerMasters(fen)
+                    ExplorerSource.MASTERS -> api.explorerMasters(token, fen)
                     ExplorerSource.PLAYER -> api.explorerPlayer(
+                        token = token,
                         fen = fen,
                         player = state.username.orEmpty(),
                         color = "white"

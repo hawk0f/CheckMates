@@ -16,7 +16,11 @@ import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessHomeScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessArenasScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessExplorerScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessPlayersScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessReviewScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessWatchScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessPuzzleScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessSeekScreen
 import dev.hawk0f.checkmates.ui.online.OnlineLobbyScreen
@@ -50,6 +54,18 @@ object LichessPuzzleRoute
 
 @Serializable
 object LichessExplorerRoute
+
+@Serializable
+object LichessWatchRoute
+
+@Serializable
+object LichessArenasRoute
+
+@Serializable
+object LichessPlayersRoute
+
+@Serializable
+data class LichessReviewRoute(val gameId: String)
 
 @Serializable
 object RemoteGameRoute
@@ -153,15 +169,34 @@ fun App() {
                         },
                         onOpenSeek = { navController.navigate(LichessSeekRoute) },
                         onOpenPuzzle = { navController.navigate(LichessPuzzleRoute) },
-                        onOpenWatch = {},
-                        onOpenArenas = {},
+                        onOpenWatch = { navController.navigate(LichessWatchRoute) },
+                        onOpenArenas = { navController.navigate(LichessArenasRoute) },
                         onOpenExplorer = { navController.navigate(LichessExplorerRoute) },
-                        onOpenPlayers = {},
+                        onOpenPlayers = { navController.navigate(LichessPlayersRoute) },
                         onBack = { navController.popBackStack() }
                     )
                 }
                 composable<LichessPuzzleRoute> {
                     LichessPuzzleScreen(onBack = { navController.popBackStack() })
+                }
+                composable<LichessWatchRoute> {
+                    LichessWatchScreen(
+                        onReview = { gameId -> navController.navigate(LichessReviewRoute(gameId)) },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable<LichessArenasRoute> {
+                    LichessArenasScreen(onBack = { navController.popBackStack() })
+                }
+                composable<LichessPlayersRoute> {
+                    LichessPlayersScreen(onBack = { navController.popBackStack() })
+                }
+                composable<LichessReviewRoute> { entry ->
+                    val route = entry.toRoute<LichessReviewRoute>()
+                    LichessReviewScreen(
+                        gameId = route.gameId,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable<LichessExplorerRoute> {
                     LichessExplorerScreen(onBack = { navController.popBackStack() })

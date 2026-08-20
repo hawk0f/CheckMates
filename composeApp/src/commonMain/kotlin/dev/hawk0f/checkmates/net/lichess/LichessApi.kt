@@ -25,7 +25,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
 const val LICHESS_BASE_URL = "https://lichess.org"
-const val LICHESS_EXPLORER_URL = "https://explorer.lichess.ovh"
+const val LICHESS_EXPLORER_URL = "https://explorer.lichess.org"
 
 @Serializable
 data class LichessAccount(
@@ -300,23 +300,32 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
         )
 
     suspend fun explorerLichess(
+        token: String,
         fen: String,
         speeds: List<String>,
         ratings: List<Int>
     ): LichessExplorerPosition =
         client.get("$LICHESS_EXPLORER_URL/lichess") {
+            bearerAuth(token)
             parameter("fen", fen)
             parameter("speeds", speeds.joinToString(","))
             parameter("ratings", ratings.joinToString(","))
         }.body()
 
-    suspend fun explorerMasters(fen: String): LichessExplorerPosition =
+    suspend fun explorerMasters(token: String, fen: String): LichessExplorerPosition =
         client.get("$LICHESS_EXPLORER_URL/masters") {
+            bearerAuth(token)
             parameter("fen", fen)
         }.body()
 
-    suspend fun explorerPlayer(fen: String, player: String, color: String): LichessExplorerPosition =
+    suspend fun explorerPlayer(
+        token: String,
+        fen: String,
+        player: String,
+        color: String
+    ): LichessExplorerPosition =
         client.get("$LICHESS_EXPLORER_URL/player") {
+            bearerAuth(token)
             parameter("fen", fen)
             parameter("player", player)
             parameter("color", color)

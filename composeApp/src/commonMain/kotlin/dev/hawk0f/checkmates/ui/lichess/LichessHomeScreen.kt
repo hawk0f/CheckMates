@@ -93,7 +93,6 @@ fun LichessHomeScreen(
                 onSignIn = { openUrl(viewModel.startLogin()) },
                 onOpenPuzzle = onOpenPuzzle,
                 onOpenWatch = onOpenWatch,
-                onOpenExplorer = onOpenExplorer,
                 modifier = Modifier.weight(1f).padding(top = 12.dp)
             )
         } else {
