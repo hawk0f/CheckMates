@@ -15,6 +15,7 @@ import dev.hawk0f.checkmates.ui.ble.BleLobbyScreen
 import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
+import dev.hawk0f.checkmates.ui.lichess.LichessLobbyScreen
 import dev.hawk0f.checkmates.ui.online.OnlineLobbyScreen
 import dev.hawk0f.checkmates.ui.profile.ProfileScreen
 import dev.hawk0f.checkmates.ui.profile.ReplayHolder
@@ -34,6 +35,9 @@ data class OnlineLobbyRoute(val prefillCode: String? = null)
 
 @Serializable
 object BleLobbyRoute
+
+@Serializable
+object LichessLobbyRoute
 
 @Serializable
 object RemoteGameRoute
@@ -66,6 +70,7 @@ fun App() {
                         onPassAndPlay = { navController.navigate(HotseatGameRoute) },
                         onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
                         onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
+                        onPlayLichess = { navController.navigate(LichessLobbyRoute) },
                         onOpenSettings = { navController.navigate(SettingsRoute) },
                         onOpenProfile = { navController.navigate(ProfileRoute) },
                         onResumeGame = { navController.navigate(RemoteGameRoute) }
@@ -110,6 +115,16 @@ fun App() {
                 }
                 composable<BleLobbyRoute> {
                     BleLobbyScreen(
+                        onGameReady = {
+                            navController.navigate(RemoteGameRoute) {
+                                popUpTo<HomeRoute>()
+                            }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable<LichessLobbyRoute> {
+                    LichessLobbyScreen(
                         onGameReady = {
                             navController.navigate(RemoteGameRoute) {
                                 popUpTo<HomeRoute>()

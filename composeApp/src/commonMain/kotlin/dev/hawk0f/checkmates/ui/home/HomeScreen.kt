@@ -51,6 +51,7 @@ fun HomeScreen(
     onPassAndPlay: () -> Unit = {},
     onPlayOnline: () -> Unit = {},
     onPlayBluetooth: () -> Unit = {},
+    onPlayLichess: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onResumeGame: () -> Unit = {},
@@ -81,6 +82,7 @@ fun HomeScreen(
                 onPlayOnline = onPlayOnline,
                 onPassAndPlay = onPassAndPlay,
                 onPlayBluetooth = onPlayBluetooth,
+                onPlayLichess = onPlayLichess,
                 onOpenProfile = onOpenProfile,
                 onOpenSettings = onOpenSettings,
                 onAbout = { showAbout = true }
@@ -215,6 +217,7 @@ private fun ModeRail(
     onPlayOnline: () -> Unit,
     onPassAndPlay: () -> Unit,
     onPlayBluetooth: () -> Unit,
+    onPlayLichess: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onAbout: () -> Unit
@@ -236,6 +239,12 @@ private fun ModeRail(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             PillButton(
+                text = "Lichess",
+                onClick = onPlayLichess,
+                tone = PillTone.BAND,
+                compact = true
+            )
+            PillButton(
                 text = "Nearby",
                 onClick = onPlayBluetooth,
                 tone = PillTone.SOFT,
@@ -247,19 +256,21 @@ private fun ModeRail(
                 tone = PillTone.SOFT,
                 compact = true
             )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             PillButton(
                 text = "Settings",
                 onClick = onOpenSettings,
                 tone = PillTone.SOFT,
                 compact = true
             )
+            PillButton(
+                text = "About",
+                onClick = onAbout,
+                tone = PillTone.SOFT,
+                compact = true
+            )
         }
-        PillButton(
-            text = "About",
-            onClick = onAbout,
-            tone = PillTone.SOFT,
-            compact = true
-        )
     }
 }
 

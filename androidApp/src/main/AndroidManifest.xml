@@ -39,6 +39,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="chess" android:host="game" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="chess" android:host="lichess-auth" />
+            </intent-filter>
         </activity>
         <service
             android:name="dev.hawk0f.checkmates.PushMessagingService"

@@ -257,6 +257,9 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         recordUploaded = true
         recordSeriesResult(result.winner)
         val session = (mode as? GameMode.Remote)?.session
+        if (session?.kind == "lichess") {
+            return
+        }
         val myColor = if (session == null) null else _uiState.value.myColor
         val myName = session?.myName ?: "White"
         val opponent = session?.let { _uiState.value.opponentName ?: "Opponent" } ?: "Black"
