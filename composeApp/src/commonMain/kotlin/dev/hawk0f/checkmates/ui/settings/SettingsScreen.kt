@@ -1,6 +1,5 @@
 package dev.hawk0f.checkmates.ui.settings
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,16 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,80 +23,118 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.hawk0f.checkmates.ui.theme.BoardColors
+import dev.hawk0f.checkmates.ui.theme.CheckIcon
+import dev.hawk0f.checkmates.ui.theme.ChevronDirection
+import dev.hawk0f.checkmates.ui.theme.ChevronIcon
+import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.DarkModePreference
+import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SelectPill
+import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
 import dev.hawk0f.checkmates.ui.theme.ThemePalette
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
-
-        Text("Appearance", style = MaterialTheme.typography.titleMedium)
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            DarkModePreference.entries.forEachIndexed { index, preference ->
-                SegmentedButton(
-                    selected = ThemeManager.darkMode == preference,
-                    onClick = { ThemeManager.selectDarkMode(preference) },
-                    shape = SegmentedButtonDefaults.itemShape(index, DarkModePreference.entries.size)
-                ) {
-                    Text(preference.title)
-                }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Text("Settings", style = MaterialTheme.typography.displaySmall)
+            CircleButton(onClick = onBack) {
+                ChevronIcon(
+                    direction = ChevronDirection.LEFT,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
-        Text("Color theme", style = MaterialTheme.typography.titleMedium)
-        ThemePalette.entries.forEach { palette ->
-            PaletteCard(
-                palette = palette,
-                selected = ThemeManager.palette == palette,
-                onSelect = { ThemeManager.selectPalette(palette) }
-            )
-        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 26.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                SectionLabel("Appearance")
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    for (preference in DarkModePreference.entries) {
+                        SelectPill(
+                            text = preference.title,
+                            selected = ThemeManager.darkMode == preference,
+                            onClick = { ThemeManager.selectDarkMode(preference) }
+                        )
+                    }
+                }
+            }
 
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Back")
+            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                SectionLabel("Board theme")
+                for (palette in ThemePalette.entries) {
+                    PaletteRow(
+                        palette = palette,
+                        selected = ThemeManager.palette == palette,
+                        onSelect = { ThemeManager.selectPalette(palette) }
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun PaletteCard(palette: ThemePalette, selected: Boolean, onSelect: () -> Unit) {
-    val border = if (selected) {
-        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-    } else {
-        null
-    }
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        ),
-        border = border
+private fun PaletteRow(palette: ThemePalette, selected: Boolean, onSelect: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    SoftCard(
+        modifier = Modifier.fillMaxWidth(),
+        container = if (selected) scheme.primary else scheme.surfaceVariant,
+        onClick = onSelect
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BoardSwatch(palette.boardLight)
             Column(modifier = Modifier.weight(1f)) {
-                Text(palette.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = palette.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (selected) scheme.onPrimary else scheme.onSurface
+                )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.padding(top = 6.dp)
                 ) {
-                    ColorDot(palette)
+                    for (color in listOf(
+                        palette.light.primary,
+                        palette.light.secondary,
+                        palette.dark.primary
+                    )) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                    }
                 }
             }
-            RadioButton(selected = selected, onClick = onSelect)
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(scheme.onPrimary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CheckIcon(color = scheme.primary, size = 14.dp)
+                }
+            }
         }
     }
 }
@@ -113,8 +144,8 @@ private fun BoardSwatch(colors: BoardColors) {
     Column(
         modifier = Modifier
             .size(44.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
     ) {
         repeat(2) { row ->
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -129,18 +160,5 @@ private fun BoardSwatch(colors: BoardColors) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ColorDot(palette: ThemePalette) {
-    listOf(palette.light.primary, palette.light.primaryContainer, palette.dark.primary).forEach { color ->
-        Box(
-            modifier = Modifier
-                .size(16.dp)
-                .clip(RoundedCornerShape(50))
-                .background(color)
-                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(50))
-        )
     }
 }

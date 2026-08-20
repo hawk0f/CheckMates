@@ -1,13 +1,17 @@
 package dev.hawk0f.checkmates.ui.profile
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,26 +19,22 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +45,17 @@ import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.ProfileResponse
+import dev.hawk0f.checkmates.ui.theme.ChevronDirection
+import dev.hawk0f.checkmates.ui.theme.ChevronIcon
+import dev.hawk0f.checkmates.ui.theme.CircleButton
+import dev.hawk0f.checkmates.ui.theme.Hairline
+import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
+import dev.hawk0f.checkmates.ui.theme.PillButton
+import dev.hawk0f.checkmates.ui.theme.PillTone
+import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SelectPill
+import dev.hawk0f.checkmates.ui.theme.SoftTextField
+import dev.hawk0f.checkmates.ui.theme.StatTile
 
 @Composable
 fun ProfileScreen(
@@ -54,100 +65,122 @@ fun ProfileScreen(
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentProfile = profile
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        val currentProfile = profile
+    Column(modifier = Modifier.fillMaxSize()) {
         if (currentProfile == null) {
-            AuthContent(uiState, viewModel)
+            AuthContent(uiState, viewModel, onBack)
         } else {
-            LoggedInContent(currentProfile, uiState, viewModel, onOpenReplay)
-        }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Back")
+            LoggedInContent(currentProfile, uiState, viewModel, onOpenReplay, onBack)
         }
     }
 
     uiState.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Error") },
+            title = { Text("Something went wrong", style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                Button(onClick = viewModel::dismissError) {
-                    Text("OK")
-                }
+                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
             }
         )
     }
 }
 
 @Composable
-private fun AuthContent(uiState: ProfileUiState, viewModel: ProfileViewModel) {
-    var tab by remember { mutableIntStateOf(0) }
+private fun ColumnScopeAuthHeader(title: String, onBack: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(title, style = MaterialTheme.typography.displaySmall)
+        CircleButton(onClick = onBack) {
+            ChevronIcon(
+                direction = ChevronDirection.LEFT,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.AuthContent(
+    uiState: ProfileUiState,
+    viewModel: ProfileViewModel,
+    onBack: () -> Unit
+) {
+    var registering by remember { mutableStateOf(false) }
     var login by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
 
-    Text("Profile", style = MaterialTheme.typography.headlineMedium)
-    Text(
-        "Sign in to keep your game history and stats on the server.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-
-    TabRow(selectedTabIndex = tab) {
-        Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Sign in") })
-        Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Register") })
-    }
-
-    OutlinedTextField(
-        value = login,
-        onValueChange = { login = it.take(20) },
-        label = { Text("Login") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
-    OutlinedTextField(
-        value = password,
-        onValueChange = { password = it.take(64) },
-        label = { Text("Password") },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth()
-    )
-    if (tab == 1) {
-        OutlinedTextField(
-            value = displayName,
-            onValueChange = { displayName = it.take(40) },
-            label = { Text("Display name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+    ColumnScopeAuthHeader(title = "Your profile", onBack = onBack)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 26.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Text(
+            text = "Sign in to keep your games, stats and replays on the server.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-
-    if (uiState.busy) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            CircularProgressIndicator()
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            SelectPill(
+                text = "Sign in",
+                selected = !registering,
+                onClick = { registering = false }
+            )
+            SelectPill(
+                text = "Register",
+                selected = registering,
+                onClick = { registering = true }
+            )
         }
-    } else {
-        Button(
-            onClick = {
-                if (tab == 0) {
-                    viewModel.login(login, password)
-                } else {
-                    viewModel.register(login, password, displayName)
-                }
-            },
-            enabled = login.length >= 3 && password.length >= 6,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (tab == 0) "Sign in" else "Create account")
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SoftTextField(
+                value = login,
+                onValueChange = { login = it.take(20) },
+                placeholder = "Login",
+                modifier = Modifier.fillMaxWidth()
+            )
+            SoftTextField(
+                value = password,
+                onValueChange = { password = it.take(64) },
+                placeholder = "Password",
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (registering) {
+                SoftTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it.take(40) },
+                    placeholder = "Display name",
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        if (uiState.busy) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            PillButton(
+                text = if (registering) "Create account" else "Sign in",
+                onClick = {
+                    if (registering) {
+                        viewModel.register(login, password, displayName)
+                    } else {
+                        viewModel.login(login, password)
+                    }
+                },
+                enabled = login.length >= 3 && password.length >= 6,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -157,58 +190,110 @@ private fun ColumnScope.LoggedInContent(
     profile: ProfileResponse,
     uiState: ProfileUiState,
     viewModel: ProfileViewModel,
-    onOpenReplay: () -> Unit
+    onOpenReplay: () -> Unit,
+    onBack: () -> Unit
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
     var editingName by remember { mutableStateOf(false) }
     var pickingAvatar by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.clickable { pickingAvatar = true }
-        ) {
-            AvatarBadge(profile.avatarKind, profile.avatarValue, size = 72.dp, fontSize = 36.sp)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(profile.displayName, style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "@${profile.login}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row {
-                TextButton(onClick = { editingName = true }) {
-                    Text("Edit name")
+    Box(modifier = Modifier.fillMaxWidth().clipToBounds()) {
+        Box(
+            modifier = Modifier
+                .size(190.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 78.dp, y = (-64).dp)
+                .clip(CircleShape)
+                .background(accents.band)
+        )
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 26.dp, end = 20.dp, top = 22.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.clickable { pickingAvatar = true }) {
+                    AvatarBadge(profile.avatarKind, profile.avatarValue, size = 76.dp, fontSize = 32.sp)
                 }
-                TextButton(onClick = viewModel::logout) {
-                    Text("Log out")
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(profile.displayName, style = MaterialTheme.typography.headlineMedium)
+                    Text(
+                        text = "@${profile.login} · ${uiState.history.size} games",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
+                CircleButton(onClick = onBack) {
+                    ChevronIcon(direction = ChevronDirection.LEFT, color = scheme.onSurfaceVariant)
                 }
             }
         }
     }
 
-    StatsRow(uiState.history)
+    val decided = uiState.history.filter { it.myColor != null }
+    val wins = decided.count { it.winner != null && it.winner == it.myColor }
+    val losses = decided.count { it.winner != null && it.winner != it.myColor }
+    val draws = uiState.history.count { it.winner == null }
 
-    Text("Game history", style = MaterialTheme.typography.titleMedium)
-    if (!uiState.historyLoaded) {
-        CircularProgressIndicator()
-    } else if (uiState.history.isEmpty()) {
-        Text(
-            "No games yet. Finish a game and it will show up here.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        StatTile(
+            value = wins.toString(),
+            label = "Won",
+            accent = true,
+            modifier = Modifier.weight(1f)
         )
-    } else {
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(uiState.history, key = { it.id }) { item ->
-                HistoryCard(item) {
-                    ReplayHolder.current = item
-                    onOpenReplay()
+        StatTile(value = draws.toString(), label = "Drawn", modifier = Modifier.weight(1f))
+        StatTile(value = losses.toString(), label = "Lost", modifier = Modifier.weight(1f))
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp),
+        horizontalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        PillButton(
+            text = "Edit name",
+            onClick = { editingName = true },
+            tone = PillTone.SOFT,
+            compact = true
+        )
+        PillButton(
+            text = "Log out",
+            onClick = viewModel::logout,
+            tone = PillTone.SOFT,
+            compact = true
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .padding(start = 26.dp, end = 26.dp, top = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SectionLabel("Recent games")
+        if (!uiState.historyLoaded) {
+            CircularProgressIndicator(color = scheme.primary)
+        } else if (uiState.history.isEmpty()) {
+            Text(
+                text = "No games yet. Finish a game and it lands here.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant
+            )
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                items(uiState.history, key = { it.id }) { item ->
+                    HistoryRow(item) {
+                        ReplayHolder.current = item
+                        onOpenReplay()
+                    }
+                    Hairline()
                 }
             }
         }
@@ -218,26 +303,32 @@ private fun ColumnScope.LoggedInContent(
         var name by remember { mutableStateOf(profile.displayName) }
         AlertDialog(
             onDismissRequest = { editingName = false },
-            title = { Text("Display name") },
+            title = { Text("Display name", style = MaterialTheme.typography.titleLarge) },
             text = {
-                OutlinedTextField(
+                SoftTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    singleLine = true
+                    placeholder = "Display name",
+                    modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    editingName = false
-                    viewModel.updateDisplayName(name)
-                }) {
-                    Text("Save")
-                }
+                PillButton(
+                    text = "Save",
+                    onClick = {
+                        editingName = false
+                        viewModel.updateDisplayName(name)
+                    },
+                    compact = true
+                )
             },
             dismissButton = {
-                TextButton(onClick = { editingName = false }) {
-                    Text("Cancel")
-                }
+                PillButton(
+                    text = "Cancel",
+                    onClick = { editingName = false },
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
             }
         )
     }
@@ -254,90 +345,58 @@ private fun ColumnScope.LoggedInContent(
 }
 
 @Composable
-private fun StatsRow(history: List<GameHistoryItem>) {
-    val decided = history.filter { it.myColor != null }
-    val wins = decided.count { it.winner != null && it.winner == it.myColor }
-    val losses = decided.count { it.winner != null && it.winner != it.myColor }
-    val draws = history.count { it.winner == null }
+private fun HistoryRow(item: GameHistoryItem, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val won = item.winner != null && item.winner == item.myColor
+    val drawn = item.winner == null
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        StatCard("Games", history.size.toString(), Modifier.weight(1f))
-        StatCard("Wins", wins.toString(), Modifier.weight(1f))
-        StatCard("Draws", draws.toString(), Modifier.weight(1f))
-        StatCard("Losses", losses.toString(), Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(
+                    when {
+                        drawn -> scheme.outlineVariant
+                        won -> accents.bandStrong
+                        else -> scheme.primary
+                    }
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Text(value, style = MaterialTheme.typography.titleLarge)
-            Text(label, style = MaterialTheme.typography.labelMedium)
-        }
-    }
-}
-
-@Composable
-private fun HistoryCard(item: GameHistoryItem, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    "${item.whiteName} vs ${item.blackName}",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    resultLabel(item),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = resultColor(item)
-                )
-            }
             Text(
-                "${modeLabel(item.mode)} · ${item.uciHistory.size} moves · ${reasonLabel(item.reason)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                formatDate(item.finishedAtMillis),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = if (drawn) "D" else if (won) "W" else "L",
+                style = MaterialTheme.typography.titleMedium,
+                color = scheme.onPrimary
             )
         }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "${item.whiteName} — ${item.blackName}",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = "${modeLabel(item.mode)} · ${reasonLabel(item.reason)} · " +
+                    "${item.uciHistory.size} moves",
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = formatDate(item.finishedAtMillis),
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.outline
+        )
     }
-}
-
-@Composable
-private fun resultColor(item: GameHistoryItem) = when {
-    item.winner == null || item.myColor == null -> MaterialTheme.colorScheme.onSurfaceVariant
-    item.winner == item.myColor -> MaterialTheme.colorScheme.primary
-    else -> MaterialTheme.colorScheme.error
-}
-
-private fun resultLabel(item: GameHistoryItem): String = when {
-    item.winner == null -> "Draw"
-    item.myColor == null -> if (item.winner == PieceColor.WHITE) "1–0" else "0–1"
-    item.winner == item.myColor -> "Won"
-    else -> "Lost"
 }
 
 private fun modeLabel(mode: String): String = when (mode) {
     "online" -> "Online"
-    "ble" -> "Bluetooth"
+    "ble" -> "Nearby"
     "hotseat" -> "Pass & Play"
     else -> mode
 }
@@ -358,10 +417,10 @@ private fun reasonLabel(reason: GameOverReason): String = when (reason) {
 private fun AvatarPickerDialog(onPick: (String, String) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose avatar") },
+        title = { Text("Choose avatar", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Chess pieces", style = MaterialTheme.typography.titleSmall)
+                SectionLabel("Pieces")
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(6),
                     modifier = Modifier.height(100.dp),
@@ -369,14 +428,12 @@ private fun AvatarPickerDialog(onPick: (String, String) -> Unit, onDismiss: () -
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(pieceAvatarCodes) { code ->
-                        Column(
-                            modifier = Modifier.clickable { onPick("piece", code) }
-                        ) {
+                        Box(modifier = Modifier.clickable { onPick("piece", code) }) {
                             AvatarBadge("piece", code, size = 40.dp, fontSize = 20.sp)
                         }
                     }
                 }
-                Text("Emoji", style = MaterialTheme.typography.titleSmall)
+                SectionLabel("Emoji")
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(6),
                     modifier = Modifier.height(200.dp),
@@ -384,19 +441,16 @@ private fun AvatarPickerDialog(onPick: (String, String) -> Unit, onDismiss: () -
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(emojiAvatarChoices) { emoji ->
-                        Column(
-                            modifier = Modifier.clickable { onPick("emoji", emoji) }
-                        ) {
+                        Box(modifier = Modifier.clickable { onPick("emoji", emoji) }) {
                             AvatarBadge("emoji", emoji, size = 40.dp, fontSize = 20.sp)
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            PillButton(text = "Cancel", onClick = onDismiss, tone = PillTone.SOFT, compact = true)
         }
     )
 }

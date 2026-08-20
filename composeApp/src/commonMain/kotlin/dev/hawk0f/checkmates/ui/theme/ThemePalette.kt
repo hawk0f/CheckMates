@@ -7,7 +7,18 @@ import androidx.compose.ui.graphics.Color
 
 data class BoardColors(
     val lightSquare: Color,
-    val darkSquare: Color
+    val darkSquare: Color,
+    val lightHighlight: Color? = null,
+    val darkHighlight: Color? = null
+)
+
+data class AppAccents(
+    val pageAlt: Color,
+    val band: Color,
+    val onBand: Color,
+    val bandStrong: Color,
+    val positive: Color,
+    val negative: Color
 )
 
 enum class ThemePalette(
@@ -16,8 +27,104 @@ enum class ThemePalette(
     val light: ColorScheme,
     val dark: ColorScheme,
     val boardLight: BoardColors,
-    val boardDark: BoardColors
+    val boardDark: BoardColors,
+    val accentsLight: AppAccents? = null,
+    val accentsDark: AppAccents? = null
 ) {
+    SAGE(
+        id = "sage",
+        title = "Board First",
+        light = lightColorScheme(
+            primary = Color(0xFFC67139),
+            onPrimary = Color(0xFFFFF2EB),
+            primaryContainer = Color(0xFFFFE1D0),
+            onPrimaryContainer = Color(0xFF8C491A),
+            secondary = Color(0xFF56633F),
+            onSecondary = Color(0xFFF0FAE1),
+            secondaryContainer = Color(0xFFE1EECC),
+            onSecondaryContainer = Color(0xFF3D472B),
+            tertiary = Color(0xFF7A8A5E),
+            onTertiary = Color(0xFFF0FAE1),
+            tertiaryContainer = Color(0xFFEBDDC5),
+            onTertiaryContainer = Color(0xFF474238),
+            background = Color(0xFFF5EAD8),
+            onBackground = Color(0xFF201E1D),
+            surface = Color(0xFFF5EAD8),
+            onSurface = Color(0xFF201E1D),
+            surfaceVariant = Color(0xFFEBDDC5),
+            onSurfaceVariant = Color(0xFF645C50),
+            surfaceContainer = Color(0xFFF9F4ED),
+            surfaceContainerHigh = Color(0xFFEBDDC5),
+            surfaceContainerLow = Color(0xFFF9F4ED),
+            outline = Color(0xFFA19786),
+            outlineVariant = Color(0xFFC0B6A5),
+            inverseSurface = Color(0xFF201E1D),
+            inverseOnSurface = Color(0xFFF5EAD8),
+            error = Color(0xFF8C491A),
+            onError = Color(0xFFFFF2EB),
+            errorContainer = Color(0xFFFFE1D0),
+            onErrorContainer = Color(0xFF8C491A)
+        ),
+        dark = darkColorScheme(
+            primary = Color(0xFFDF9257),
+            onPrimary = Color(0xFF2E1607),
+            primaryContainer = Color(0xFF5E3013),
+            onPrimaryContainer = Color(0xFFFFE1D0),
+            secondary = Color(0xFFAEC08C),
+            onSecondary = Color(0xFF232B18),
+            secondaryContainer = Color(0xFF3B452C),
+            onSecondaryContainer = Color(0xFFE1EECC),
+            tertiary = Color(0xFF9CAE7C),
+            onTertiary = Color(0xFF222B15),
+            tertiaryContainer = Color(0xFF3A352C),
+            onTertiaryContainer = Color(0xFFE7DCC9),
+            background = Color(0xFF1B1917),
+            onBackground = Color(0xFFF2E7D6),
+            surface = Color(0xFF1B1917),
+            onSurface = Color(0xFFF2E7D6),
+            surfaceVariant = Color(0xFF332F28),
+            onSurfaceVariant = Color(0xFFC5BAA8),
+            surfaceContainer = Color(0xFF2A2721),
+            surfaceContainerHigh = Color(0xFF332F28),
+            surfaceContainerLow = Color(0xFF232019),
+            outline = Color(0xFF8B8171),
+            outlineVariant = Color(0xFF4A443A),
+            inverseSurface = Color(0xFFF2E7D6),
+            inverseOnSurface = Color(0xFF1B1917),
+            error = Color(0xFFE7A277),
+            onError = Color(0xFF3A1B06),
+            errorContainer = Color(0xFF5E3013),
+            onErrorContainer = Color(0xFFFFE1D0)
+        ),
+        boardLight = BoardColors(
+            lightSquare = Color(0xFFF0FAE1),
+            darkSquare = Color(0xFF8FA073),
+            lightHighlight = Color(0xFFE1EECC),
+            darkHighlight = Color(0xFF728157)
+        ),
+        boardDark = BoardColors(
+            lightSquare = Color(0xFFC7D4AB),
+            darkSquare = Color(0xFF64744C),
+            lightHighlight = Color(0xFFB2C293),
+            darkHighlight = Color(0xFF52603C)
+        ),
+        accentsLight = AppAccents(
+            pageAlt = Color(0xFFF0FAE1),
+            band = Color(0xFFE1EECC),
+            onBand = Color(0xFF56633F),
+            bandStrong = Color(0xFF7A8A5E),
+            positive = Color(0xFF56633F),
+            negative = Color(0xFF8C491A)
+        ),
+        accentsDark = AppAccents(
+            pageAlt = Color(0xFF1A1F16),
+            band = Color(0xFF2F3A24),
+            onBand = Color(0xFFC9D9A8),
+            bandStrong = Color(0xFF7A8A5E),
+            positive = Color(0xFFAEC08C),
+            negative = Color(0xFFE7A277)
+        )
+    ),
     ROYAL(
         id = "royal",
         title = "Royal Violet",
@@ -156,7 +263,7 @@ enum class ThemePalette(
     );
 
     companion object {
-        fun byId(id: String?): ThemePalette = entries.firstOrNull { it.id == id } ?: ROYAL
+        fun byId(id: String?): ThemePalette = entries.firstOrNull { it.id == id } ?: SAGE
     }
 }
 

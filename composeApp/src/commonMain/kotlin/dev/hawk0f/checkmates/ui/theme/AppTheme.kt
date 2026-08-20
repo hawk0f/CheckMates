@@ -1,12 +1,24 @@
 package dev.hawk0f.checkmates.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 
-val LocalBoardColors = staticCompositionLocalOf { ThemePalette.ROYAL.boardLight }
+val LocalBoardColors = staticCompositionLocalOf { ThemePalette.SAGE.boardLight }
+
+val LocalAppAccents = staticCompositionLocalOf { ThemePalette.SAGE.accentsLight!! }
+
+private fun derivedAccents(scheme: ColorScheme) = AppAccents(
+    pageAlt = scheme.surface,
+    band = scheme.secondaryContainer,
+    onBand = scheme.onSecondaryContainer,
+    bandStrong = scheme.secondary,
+    positive = scheme.primary,
+    negative = scheme.error
+)
 
 @Composable
 fun AppTheme(content: @Composable () -> Unit) {
@@ -18,7 +30,12 @@ fun AppTheme(content: @Composable () -> Unit) {
     }
     val colorScheme = if (useDark) palette.dark else palette.light
     val boardColors = if (useDark) palette.boardDark else palette.boardLight
-    CompositionLocalProvider(LocalBoardColors provides boardColors) {
-        MaterialTheme(colorScheme = colorScheme, content = content)
+    val accents = (if (useDark) palette.accentsDark else palette.accentsLight)
+        ?: derivedAccents(colorScheme)
+    CompositionLocalProvider(
+        LocalBoardColors provides boardColors,
+        LocalAppAccents provides accents
+    ) {
+        MaterialTheme(colorScheme = colorScheme, typography = appTypography(), content = content)
     }
 }

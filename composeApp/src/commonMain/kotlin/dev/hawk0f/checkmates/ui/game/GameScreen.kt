@@ -1,17 +1,25 @@
 package dev.hawk0f.checkmates.ui.game
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,23 +28,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import dev.hawk0f.checkmates.platform.playMoveSound
-import dev.hawk0f.checkmates.platform.rememberShareText
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.hawk0f.checkmates.platform.playMoveSound
+import dev.hawk0f.checkmates.platform.rememberShareText
 import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.GameResult
+import dev.hawk0f.checkmates.shared.domain.GameState
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.shared.transport.TransportConnectionState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import dev.hawk0f.checkmates.ui.profile.pieceDrawable
+import dev.hawk0f.checkmates.ui.theme.ChevronDirection
+import dev.hawk0f.checkmates.ui.theme.ChevronIcon
+import dev.hawk0f.checkmates.ui.theme.CircleButton
+import dev.hawk0f.checkmates.ui.theme.FlagIcon
+import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
+import dev.hawk0f.checkmates.ui.theme.PillButton
+import dev.hawk0f.checkmates.ui.theme.PillTone
+import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SoftCard
+import dev.hawk0f.checkmates.ui.theme.StatTile
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun GameScreen(
@@ -48,6 +67,7 @@ fun GameScreen(
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gameState = uiState.gameState
+    val accents = LocalAppAccents.current
 
     val haptic = LocalHapticFeedback.current
     var lastSeenPieceCount by remember { mutableStateOf(32) }
@@ -63,76 +83,59 @@ fun GameScreen(
     }
 
     val bottomColor = uiState.myColor ?: PieceColor.WHITE
+    var confirmingResign by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (viewModel.isRemote) {
-            RemoteStatusBar(uiState)
-        }
-        Text(
-            text = when {
-                gameState.result != null -> resultText(gameState.result!!)
-                viewModel.isRemote && uiState.myColor == gameState.sideToMove -> "Your move"
-                viewModel.isRemote -> "Opponent's move"
-                gameState.sideToMove == PieceColor.WHITE -> "White to move"
-                else -> "Black to move"
-            },
-            style = MaterialTheme.typography.titleLarge
-        )
-        if (uiState.seriesMyWins + uiState.seriesOpponentWins + uiState.seriesDraws > 0) {
-            Text(
-                text = seriesText(uiState, viewModel.isRemote),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = Modifier.fillMaxSize().background(accents.pageAlt)) {
+        if (gameState.result != null) {
+            GameOverPanel(
+                uiState = uiState,
+                viewModel = viewModel,
+                bottomColor = bottomColor,
+                onExit = onExit
+            )
+        } else {
+            PlayingPanel(
+                uiState = uiState,
+                viewModel = viewModel,
+                bottomColor = bottomColor,
+                onExit = onExit,
+                onResignRequest = { confirmingResign = true }
             )
         }
-        BoardSideRow(uiState, sideColor = bottomColor.opposite, capturedFrom = bottomColor)
-        ChessBoard(
-            gameState = gameState,
-            selected = uiState.selected,
-            legalTargets = uiState.legalTargets,
-            flipped = uiState.myColor == PieceColor.BLACK,
-            onSquareTap = viewModel::onSquareTap,
-            modifier = Modifier.weight(1f)
+    }
+
+    if (confirmingResign && gameState.result == null) {
+        AlertDialog(
+            onDismissRequest = { confirmingResign = false },
+            title = { Text("Resign the game?", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Text(
+                    text = if (viewModel.isRemote) {
+                        "Your opponent takes the win."
+                    } else {
+                        "${if (gameState.sideToMove == PieceColor.WHITE) "Black" else "White"} takes the win."
+                    }
+                )
+            },
+            confirmButton = {
+                PillButton(
+                    text = "Resign",
+                    onClick = {
+                        confirmingResign = false
+                        viewModel.resign()
+                    },
+                    compact = true
+                )
+            },
+            dismissButton = {
+                PillButton(
+                    text = "Keep playing",
+                    onClick = { confirmingResign = false },
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
+            }
         )
-        BoardSideRow(uiState, sideColor = bottomColor, capturedFrom = bottomColor.opposite)
-        if (uiState.drawOfferIncoming) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Draw offered")
-                Button(onClick = viewModel::acceptDraw) {
-                    Text("Accept")
-                }
-                OutlinedButton(onClick = viewModel::declineDraw) {
-                    Text("Decline")
-                }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = viewModel::resign, enabled = gameState.result == null) {
-                Text("Resign")
-            }
-            if (viewModel.isRemote) {
-                OutlinedButton(
-                    onClick = viewModel::offerDraw,
-                    enabled = gameState.result == null && !uiState.drawOfferOutgoing
-                ) {
-                    Text(if (uiState.drawOfferOutgoing) "Draw offered" else "Offer draw")
-                }
-            } else {
-                OutlinedButton(onClick = viewModel::newGame) {
-                    Text("New Game")
-                }
-            }
-            OutlinedButton(onClick = onExit) {
-                Text("Exit")
-            }
-        }
     }
 
     if (uiState.showTimePicker && gameState.result == null) {
@@ -146,59 +149,481 @@ fun GameScreen(
             onDismiss = viewModel::onPromotionDismissed
         )
     }
+}
 
-    gameState.result?.let { result ->
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Game over") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(resultText(result))
-                    if (uiState.rematchOfferIncoming) {
+@Composable
+private fun PlayingPanel(
+    uiState: GameUiState,
+    viewModel: GameViewModel,
+    bottomColor: PieceColor,
+    onExit: () -> Unit,
+    onResignRequest: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val gameState = uiState.gameState
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            CircleButton(
+                onClick = onExit,
+                container = scheme.onSurface.copy(alpha = 0.08f)
+            ) {
+                ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+            }
+            PlayerBlock(
+                uiState = uiState,
+                sideColor = bottomColor.opposite,
+                alignEnd = true,
+                clockSize = false
+            )
+        }
+
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            ChessBoard(
+                gameState = gameState,
+                selected = uiState.selected,
+                legalTargets = uiState.legalTargets,
+                flipped = uiState.myColor == PieceColor.BLACK,
+                onSquareTap = viewModel::onSquareTap,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            PlayerBlock(
+                uiState = uiState,
+                sideColor = bottomColor,
+                alignEnd = false,
+                clockSize = true
+            )
+            Column(horizontalAlignment = Alignment.End) {
+                SectionLabel(statusLabel(uiState, viewModel.isRemote), color = accents.onBand)
+                Text(
+                    text = lastMoveLabel(gameState),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = scheme.onSurface
+                )
+            }
+        }
+
+        BottomSheet(
+            uiState = uiState,
+            viewModel = viewModel,
+            onResignRequest = onResignRequest
+        )
+    }
+}
+
+@Composable
+private fun BottomSheet(
+    uiState: GameUiState,
+    viewModel: GameViewModel,
+    onResignRequest: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+            .background(scheme.background)
+            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(44.dp)
+                .height(4.dp)
+                .clip(CircleShape)
+                .background(scheme.onSurface.copy(alpha = 0.2f))
+                .align(Alignment.CenterHorizontally)
+        )
+
+        if (uiState.drawOfferIncoming) {
+            SoftCard(container = accents.band, corner = 20.dp, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Draw offered",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = accents.onBand,
+                        modifier = Modifier.weight(1f)
+                    )
+                    PillButton(
+                        text = "Accept",
+                        onClick = viewModel::acceptDraw,
+                        tone = PillTone.INK,
+                        compact = true
+                    )
+                    PillButton(
+                        text = "Decline",
+                        onClick = viewModel::declineDraw,
+                        tone = PillTone.SOFT,
+                        compact = true
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                val pairs = movePairs(uiState.gameState.uciHistory)
+                for ((index, pair) in pairs.withIndex()) {
+                    Text(
+                        text = pair,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (index == pairs.lastIndex) scheme.onSurface else scheme.onSurfaceVariant
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (viewModel.isRemote) {
+                    CircleButton(
+                        onClick = viewModel::offerDraw,
+                        enabled = !uiState.drawOfferOutgoing
+                    ) {
                         Text(
-                            "${uiState.opponentName ?: "Opponent"} wants a rematch",
-                            color = MaterialTheme.colorScheme.primary
+                            text = "½",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = scheme.onSurface
+                        )
+                    }
+                } else {
+                    CircleButton(onClick = viewModel::newGame) {
+                        Text(
+                            text = "↺",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = scheme.onSurface
                         )
                     }
                 }
-            },
-            confirmButton = {
-                when {
-                    !viewModel.isRemote -> Button(onClick = viewModel::newGame) {
-                        Text("New Game")
-                    }
-                    viewModel.supportsRematch && uiState.rematchOfferIncoming ->
-                        Button(onClick = viewModel::acceptRematch) {
-                            Text("Accept rematch")
-                        }
-                    viewModel.supportsRematch ->
-                        Button(
-                            onClick = viewModel::offerRematch,
-                            enabled = !uiState.rematchOfferOutgoing
-                        ) {
-                            Text(if (uiState.rematchOfferOutgoing) "Rematch offered" else "Rematch")
-                        }
-                    else -> {}
+                CircleButton(onClick = onResignRequest) {
+                    FlagIcon(color = scheme.onPrimaryContainer, size = 17.dp)
                 }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (viewModel.isRemote && uiState.rematchOfferIncoming) {
-                        TextButton(onClick = viewModel::declineRematch) {
-                            Text("Decline")
+            }
+        }
+
+        val connectionNote = connectionNote(uiState)
+        if (connectionNote != null) {
+            Text(
+                text = connectionNote,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun GameOverPanel(
+    uiState: GameUiState,
+    viewModel: GameViewModel,
+    bottomColor: PieceColor,
+    onExit: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val result = uiState.gameState.result ?: return
+    val shareText = rememberShareText()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            SectionLabel(
+                text = "${reasonLabel(result.reason)} · move ${(uiState.gameState.uciHistory.size + 1) / 2}",
+                color = accents.onBand
+            )
+            Text(
+                text = headlineText(result, uiState.myColor, viewModel.isRemote),
+                style = MaterialTheme.typography.displayMedium,
+                color = scheme.onBackground
+            )
+            if (uiState.rematchOfferIncoming) {
+                Text(
+                    text = "${uiState.opponentName ?: "Opponent"} wants a rematch",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.primary
+                )
+            }
+        }
+
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+            ChessBoard(
+                gameState = uiState.gameState,
+                selected = null,
+                legalTargets = emptySet(),
+                flipped = bottomColor == PieceColor.BLACK,
+                onSquareTap = {},
+                modifier = Modifier.fillMaxWidth().alpha(0.9f).clip(RoundedCornerShape(20.dp)),
+                showCoordinates = false
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatTile(
+                    value = "${uiState.gameState.uciHistory.size}",
+                    label = "Moves played",
+                    modifier = Modifier.weight(1f)
+                )
+                StatTile(
+                    value = seriesValue(uiState),
+                    label = if (viewModel.isRemote) "You · them · drawn" else "White · black · drawn",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            SectionLabel("The game", color = accents.bandStrong)
+            SoftCard(
+                container = scheme.background,
+                corner = 20.dp,
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val pairs = allMovePairs(uiState.gameState.uciHistory)
+                    if (pairs.isEmpty()) {
+                        Text(
+                            text = "No moves were played.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant
+                        )
+                    } else {
+                        for (pair in pairs) {
+                            Text(
+                                text = pair,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = scheme.onSurface
+                            )
                         }
-                    }
-                    val shareText = rememberShareText()
-                    TextButton(onClick = { shareText(viewModel.buildPgn()) }) {
-                        Text("PGN")
-                    }
-                    TextButton(onClick = onExit) {
-                        Text("Exit")
                     }
                 }
             }
-        )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 26.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            when {
+                !viewModel.isRemote -> PillButton(
+                    text = "New game",
+                    onClick = viewModel::newGame,
+                    modifier = Modifier.weight(1f)
+                )
+
+                viewModel.supportsRematch && uiState.rematchOfferIncoming -> PillButton(
+                    text = "Accept rematch",
+                    onClick = viewModel::acceptRematch,
+                    modifier = Modifier.weight(1f)
+                )
+
+                viewModel.supportsRematch -> PillButton(
+                    text = if (uiState.rematchOfferOutgoing) "Rematch offered" else "Rematch",
+                    onClick = viewModel::offerRematch,
+                    enabled = !uiState.rematchOfferOutgoing,
+                    modifier = Modifier.weight(1f)
+                )
+
+                else -> Spacer(modifier = Modifier.weight(1f))
+            }
+            if (viewModel.isRemote && uiState.rematchOfferIncoming) {
+                PillButton(
+                    text = "Decline",
+                    onClick = viewModel::declineRematch,
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
+            }
+            PillButton(
+                text = "PGN",
+                onClick = { shareText(viewModel.buildPgn()) },
+                tone = PillTone.SOFT,
+                compact = true
+            )
+            PillButton(
+                text = "Exit",
+                onClick = onExit,
+                tone = PillTone.SOFT,
+                compact = true
+            )
+        }
     }
+}
+
+@Composable
+private fun PlayerBlock(
+    uiState: GameUiState,
+    sideColor: PieceColor,
+    alignEnd: Boolean,
+    clockSize: Boolean
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val millis = if (sideColor == PieceColor.WHITE) uiState.whiteMillis else uiState.blackMillis
+    val active = uiState.gameState.result == null && uiState.gameState.sideToMove == sideColor
+    val alignment = if (alignEnd) Alignment.End else Alignment.Start
+    val isMine = uiState.myColor == null || uiState.myColor == sideColor
+
+    val name = playerName(uiState, sideColor, isMine)
+
+    Column(
+        horizontalAlignment = alignment,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (!clockSize) {
+            if (millis != null) {
+                ClockText(millis = millis, active = active, big = false)
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accents.bandStrong
+                )
+            } else {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = if (active) scheme.onSurface else accents.onBand
+                )
+            }
+            CapturedRow(uiState.gameState, capturedFrom = sideColor.opposite)
+        } else {
+            CapturedRow(uiState.gameState, capturedFrom = sideColor.opposite)
+            if (millis != null) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accents.bandStrong
+                )
+                ClockText(millis = millis, active = active, big = true)
+            } else {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = if (active) scheme.onSurface else accents.onBand
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClockText(millis: Long, active: Boolean, big: Boolean) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val totalSeconds = millis / 1000
+    val text = if (totalSeconds < 20) {
+        val tenths = (millis % 1000) / 100
+        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}.$tenths"
+    } else {
+        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
+    }
+    Text(
+        text = text,
+        style = if (big) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineMedium,
+        color = when {
+            millis <= 20_000 && active -> scheme.error
+            active -> scheme.primary
+            else -> accents.onBand
+        }
+    )
+}
+
+private fun playerName(uiState: GameUiState, sideColor: PieceColor, isMine: Boolean): String {
+    if (uiState.myColor == null) {
+        return if (sideColor == PieceColor.WHITE) "White" else "Black"
+    }
+    return if (isMine) "You" else uiState.opponentName ?: "Opponent"
+}
+
+private fun statusLabel(uiState: GameUiState, isRemote: Boolean): String = when {
+    isRemote && uiState.myColor == uiState.gameState.sideToMove -> "Your move"
+    isRemote -> "Their move"
+    uiState.gameState.sideToMove == PieceColor.WHITE -> "White to move"
+    else -> "Black to move"
+}
+
+private fun lastMoveLabel(gameState: GameState): String {
+    val last = gameState.uciHistory.lastOrNull() ?: return "Opening move"
+    return "$last played"
+}
+
+private fun connectionNote(uiState: GameUiState): String? = when {
+    uiState.connectionState is TransportConnectionState.Reconnecting -> "Reconnecting…"
+    uiState.connectionState is TransportConnectionState.Closed -> "Connection lost"
+    !uiState.opponentConnected && uiState.myColor != null ->
+        "${uiState.opponentName ?: "Opponent"} reconnecting…"
+
+    else -> null
+}
+
+private fun allMovePairs(history: List<String>): List<String> {
+    val pairs = mutableListOf<String>()
+    var index = 0
+    while (index < history.size) {
+        val number = index / 2 + 1
+        val white = history[index]
+        val black = history.getOrNull(index + 1)
+        pairs.add(if (black != null) "$number. $white  $black" else "$number. $white")
+        index += 2
+    }
+    return pairs
+}
+
+private fun movePairs(history: List<String>): List<String> {
+    if (history.isEmpty()) {
+        return listOf("No moves yet")
+    }
+    val pairs = mutableListOf<String>()
+    var index = 0
+    while (index < history.size) {
+        val number = index / 2 + 1
+        val white = history[index]
+        val black = history.getOrNull(index + 1)
+        pairs.add(if (black != null) "$number. $white $black" else "$number. $white")
+        index += 2
+    }
+    return pairs.takeLast(2)
+}
+
+private fun seriesValue(uiState: GameUiState): String =
+    "${uiState.seriesMyWins} · ${uiState.seriesOpponentWins} · ${uiState.seriesDraws}"
+
+private fun headlineText(result: GameResult, myColor: PieceColor?, isRemote: Boolean): String = when {
+    result.winner == null -> "Draw"
+    isRemote && myColor != null -> if (result.winner == myColor) "You won" else "You lost"
+    result.winner == PieceColor.WHITE -> "White won"
+    else -> "Black won"
 }
 
 private val timeControlChoices = listOf(
@@ -214,106 +639,22 @@ private val timeControlChoices = listOf(
 private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
     AlertDialog(
         onDismissRequest = { onPick(null) },
-        title = { Text("Time control") },
+        title = { Text("Clock", style = MaterialTheme.typography.titleLarge) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (choice in timeControlChoices) {
-                    OutlinedButton(
+                    PillButton(
+                        text = choice?.label ?: "No clock",
                         onClick = { onPick(choice) },
+                        tone = PillTone.SOFT,
+                        compact = true,
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(choice?.label ?: "No clock")
-                    }
+                    )
                 }
             }
         },
         confirmButton = {}
     )
-}
-
-@Composable
-private fun BoardSideRow(uiState: GameUiState, sideColor: PieceColor, capturedFrom: PieceColor) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(modifier = Modifier.weight(1f)) {
-            CapturedRow(uiState.gameState, capturedFrom = capturedFrom)
-        }
-        val millis = if (sideColor == PieceColor.WHITE) uiState.whiteMillis else uiState.blackMillis
-        if (millis != null) {
-            ClockBadge(
-                millis = millis,
-                active = uiState.gameState.result == null && uiState.gameState.sideToMove == sideColor
-            )
-        }
-    }
-}
-
-@Composable
-private fun ClockBadge(millis: Long, active: Boolean) {
-    val totalSeconds = millis / 1000
-    val text = if (totalSeconds < 20) {
-        val tenths = (millis % 1000) / 100
-        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}.$tenths"
-    } else {
-        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
-    }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-        color = when {
-            millis <= 20_000 && active -> MaterialTheme.colorScheme.error
-            active -> MaterialTheme.colorScheme.onPrimaryContainer
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (active) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-    )
-}
-
-@Composable
-private fun RemoteStatusBar(uiState: GameUiState) {
-    val opponent = uiState.opponentName ?: "Opponent"
-    val status = when {
-        uiState.connectionState is TransportConnectionState.Reconnecting -> "reconnecting…"
-        uiState.connectionState is TransportConnectionState.Closed -> "connection lost"
-        !uiState.opponentConnected -> "$opponent reconnecting…"
-        else -> null
-    }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = "You (${colorName(uiState.myColor)}) vs $opponent",
-            style = MaterialTheme.typography.titleMedium
-        )
-        if (status != null) {
-            Text(
-                text = status,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-    }
-}
-
-private fun colorName(color: PieceColor?): String = when (color) {
-    PieceColor.WHITE -> "White"
-    PieceColor.BLACK -> "Black"
-    null -> "…"
-}
-
-private fun seriesText(uiState: GameUiState, isRemote: Boolean): String {
-    val left = if (isRemote) "You" else "White"
-    val right = if (isRemote) uiState.opponentName ?: "Opponent" else "Black"
-    val base = "Series: $left ${uiState.seriesMyWins} – ${uiState.seriesOpponentWins} $right"
-    return if (uiState.seriesDraws > 0) "$base (${uiState.seriesDraws} drawn)" else base
 }
 
 @Composable
@@ -324,23 +665,50 @@ private fun PromotionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Promote to") },
+        title = { Text("Promote to", style = MaterialTheme.typography.titleLarge) },
         text = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((kind, label) in listOf(
-                    PieceKind.QUEEN to if (color == PieceColor.WHITE) "♕" else "♛",
-                    PieceKind.ROOK to if (color == PieceColor.WHITE) "♖" else "♜",
-                    PieceKind.BISHOP to if (color == PieceColor.WHITE) "♗" else "♝",
-                    PieceKind.KNIGHT to if (color == PieceColor.WHITE) "♘" else "♞"
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (kind in listOf(
+                    PieceKind.QUEEN,
+                    PieceKind.ROOK,
+                    PieceKind.BISHOP,
+                    PieceKind.KNIGHT
                 )) {
-                    Button(onClick = { onChoose(kind) }) {
-                        Text(label, style = MaterialTheme.typography.headlineMedium)
+                    SoftCard(
+                        container = MaterialTheme.colorScheme.surfaceContainer,
+                        corner = 20.dp,
+                        onClick = { onChoose(kind) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(pieceDrawable(pieceCode(color, kind))),
+                                contentDescription = null,
+                                modifier = Modifier.size(34.dp)
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {}
     )
+}
+
+private fun pieceCode(color: PieceColor, kind: PieceKind): String {
+    val prefix = if (color == PieceColor.WHITE) "w" else "b"
+    val suffix = when (kind) {
+        PieceKind.KING -> "k"
+        PieceKind.QUEEN -> "q"
+        PieceKind.ROOK -> "r"
+        PieceKind.BISHOP -> "b"
+        PieceKind.KNIGHT -> "n"
+        PieceKind.PAWN -> "p"
+    }
+    return prefix + suffix
 }
 
 private val pieceValues = mapOf(
@@ -360,7 +728,7 @@ private val initialCounts = mapOf(
 )
 
 @Composable
-private fun CapturedRow(gameState: dev.hawk0f.checkmates.shared.domain.GameState, capturedFrom: PieceColor) {
+private fun CapturedRow(gameState: GameState, capturedFrom: PieceColor) {
     val remaining = gameState.pieces.values
         .filter { it.color == capturedFrom }
         .groupingBy { it.kind }
@@ -373,36 +741,31 @@ private fun CapturedRow(gameState: dev.hawk0f.checkmates.shared.domain.GameState
         }
     }.sortedByDescending { pieceValues[it] }
     if (captured.isEmpty()) {
+        Spacer(modifier = Modifier.height(15.dp))
         return
     }
-    val glyphs = captured.joinToString("") { kind ->
-        when (kind) {
-            PieceKind.QUEEN -> if (capturedFrom == PieceColor.WHITE) "♕" else "♛"
-            PieceKind.ROOK -> if (capturedFrom == PieceColor.WHITE) "♖" else "♜"
-            PieceKind.BISHOP -> if (capturedFrom == PieceColor.WHITE) "♗" else "♝"
-            PieceKind.KNIGHT -> if (capturedFrom == PieceColor.WHITE) "♘" else "♞"
-            else -> if (capturedFrom == PieceColor.WHITE) "♙" else "♟"
+    Row(
+        modifier = Modifier.alpha(0.65f),
+        horizontalArrangement = Arrangement.spacedBy(1.dp)
+    ) {
+        for (kind in captured.take(10)) {
+            Image(
+                painter = painterResource(pieceDrawable(pieceCode(capturedFrom, kind))),
+                contentDescription = null,
+                modifier = Modifier.size(15.dp)
+            )
         }
     }
-    Text(text = glyphs, style = MaterialTheme.typography.titleMedium)
 }
 
-private fun resultText(result: GameResult): String {
-    val winner = when (result.winner) {
-        PieceColor.WHITE -> "White wins"
-        PieceColor.BLACK -> "Black wins"
-        null -> "Draw"
-    }
-    val reason = when (result.reason) {
-        GameOverReason.CHECKMATE -> "checkmate"
-        GameOverReason.STALEMATE -> "stalemate"
-        GameOverReason.DRAW_AGREED -> "agreement"
-        GameOverReason.RESIGNATION -> "resignation"
-        GameOverReason.INSUFFICIENT_MATERIAL -> "insufficient material"
-        GameOverReason.REPETITION -> "threefold repetition"
-        GameOverReason.FIFTY_MOVE -> "fifty-move rule"
-        GameOverReason.TIMEOUT -> "time out"
-        GameOverReason.DISCONNECTION -> "disconnection"
-    }
-    return "$winner — $reason"
+private fun reasonLabel(reason: GameOverReason): String = when (reason) {
+    GameOverReason.CHECKMATE -> "Checkmate"
+    GameOverReason.STALEMATE -> "Stalemate"
+    GameOverReason.DRAW_AGREED -> "Draw agreed"
+    GameOverReason.RESIGNATION -> "Resignation"
+    GameOverReason.INSUFFICIENT_MATERIAL -> "Insufficient material"
+    GameOverReason.REPETITION -> "Threefold repetition"
+    GameOverReason.FIFTY_MOVE -> "Fifty-move rule"
+    GameOverReason.TIMEOUT -> "Time out"
+    GameOverReason.DISCONNECTION -> "Disconnection"
 }

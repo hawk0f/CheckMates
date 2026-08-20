@@ -115,7 +115,8 @@ fun ChessBoard(
     legalTargets: Set<Square>,
     flipped: Boolean,
     onSquareTap: (Square) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showCoordinates: Boolean = true
 ) {
     var boardSizePx by remember { mutableStateOf(0) }
     var dragFrom by remember(gameState.fen) { mutableStateOf<Square?>(null) }
@@ -186,8 +187,8 @@ fun ChessBoard(
                             isLastMove = gameState.lastMove?.let { square == it.first || square == it.second } == true,
                             isCheckedKing = gameState.inCheck &&
                                 gameState.pieces[square] == Piece(gameState.sideToMove, PieceKind.KING),
-                            showFileLabel = rank == (if (flipped) 7 else 0),
-                            showRankLabel = file == (if (flipped) 7 else 0),
+                            showFileLabel = showCoordinates && rank == (if (flipped) 7 else 0),
+                            showRankLabel = showCoordinates && file == (if (flipped) 7 else 0),
                             onTap = { onSquareTap(square) },
                             modifier = Modifier.weight(1f).fillMaxSize()
                         )
@@ -253,12 +254,15 @@ private fun BoardCell(
     modifier: Modifier = Modifier
 ) {
     val boardColors = LocalBoardColors.current
-    val base = if ((square.file + square.rank) % 2 == 0) boardColors.darkSquare else boardColors.lightSquare
-    val labelColor = if ((square.file + square.rank) % 2 == 0) boardColors.lightSquare else boardColors.darkSquare
+    val isDarkSquare = (square.file + square.rank) % 2 == 0
+    val plain = if (isDarkSquare) boardColors.darkSquare else boardColors.lightSquare
+    val highlight = if (isDarkSquare) boardColors.darkHighlight else boardColors.lightHighlight
+    val base = if (isLastMove && highlight != null) highlight else plain
+    val labelColor = if (isDarkSquare) boardColors.lightSquare else boardColors.darkSquare
     val overlay = when {
         isSelected -> selectedTint
         isCheckedKing -> checkTint
-        isLastMove -> lastMoveTint
+        isLastMove && highlight == null -> lastMoveTint
         else -> Color.Transparent
     }
     Box(

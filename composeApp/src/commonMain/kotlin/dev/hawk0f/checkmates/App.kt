@@ -67,7 +67,8 @@ fun App() {
                         onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
                         onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
                         onOpenSettings = { navController.navigate(SettingsRoute) },
-                        onOpenProfile = { navController.navigate(ProfileRoute) }
+                        onOpenProfile = { navController.navigate(ProfileRoute) },
+                        onResumeGame = { navController.navigate(RemoteGameRoute) }
                     )
                 }
                 composable<SettingsRoute> {
@@ -82,7 +83,9 @@ fun App() {
                 composable<ReplayRoute> {
                     val item = ReplayHolder.current
                     if (item == null) {
-                        navController.popBackStack()
+                        LaunchedEffect(Unit) {
+                            navController.popBackStack(ReplayRoute, inclusive = true)
+                        }
                     } else {
                         ReplayScreen(item = item, onBack = { navController.popBackStack() })
                     }
@@ -118,7 +121,9 @@ fun App() {
                 composable<RemoteGameRoute> {
                     val session = GameSessionHolder.current
                     if (session == null) {
-                        navController.popBackStack()
+                        LaunchedEffect(Unit) {
+                            navController.popBackStack(RemoteGameRoute, inclusive = true)
+                        }
                     } else {
                         GameScreen(
                             mode = GameMode.Remote(session),
