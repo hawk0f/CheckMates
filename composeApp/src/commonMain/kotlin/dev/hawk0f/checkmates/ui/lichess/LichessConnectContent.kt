@@ -27,10 +27,17 @@ import org.jetbrains.compose.resources.painterResource
 import dev.hawk0f.checkmates.ui.theme.CheckIcon
 import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
+import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 
 @Composable
-fun LichessConnectContent(onSignIn: () -> Unit, modifier: Modifier = Modifier) {
+fun LichessConnectContent(
+    onSignIn: () -> Unit,
+    onOpenPuzzle: () -> Unit,
+    onOpenWatch: () -> Unit,
+    onOpenExplorer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     Column(
@@ -77,6 +84,15 @@ fun LichessConnectContent(onSignIn: () -> Unit, modifier: Modifier = Modifier) {
             }
             for ((scope, purpose) in LichessAuth.SCOPE_DECLINED) {
                 ScopeRow(scope = scope, purpose = purpose, granted = false)
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionLabel("Open without an account", color = accents.bandStrong)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                PillButton("Puzzle", onOpenPuzzle, tone = PillTone.SOFT, compact = true)
+                PillButton("Watch", onOpenWatch, tone = PillTone.SOFT, compact = true)
+                PillButton("Explorer", onOpenExplorer, tone = PillTone.SOFT, compact = true)
             }
         }
 

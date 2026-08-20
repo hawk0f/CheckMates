@@ -293,6 +293,12 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
             parameter("clocks", false)
         }.body()
 
+    fun gamesOfUser(username: String, max: Int): Flow<JsonObject> =
+        ndjson(
+            "$LICHESS_BASE_URL/api/games/user/$username?max=$max&finished=true&sort=dateDesc",
+            null
+        )
+
     suspend fun explorerLichess(
         fen: String,
         speeds: List<String>,
