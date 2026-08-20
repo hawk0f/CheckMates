@@ -20,7 +20,7 @@ object PgnReader {
         .lines()
         .filterNot { it.trimStart().startsWith("[") }
         .joinToString(" ")
-        .replace(Regex("\\{[^}]*}"), " ")
+        .replace(Regex("\\{[^}]*\\}"), " ")
         .replace(Regex("\\d+\\.(\\.\\.)?"), " ")
         .replace(Regex("[?!]+"), " ")
         .replace(Regex("\\b(1-0|0-1|1/2-1/2|\\*)\\b"), " ")
