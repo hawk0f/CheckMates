@@ -64,6 +64,15 @@ fun App() {
                     }
                 }
             }
+            LaunchedEffect(Unit) {
+                DeepLinkHandler.pendingLichessAuth.collect { callback ->
+                    if (callback != null) {
+                        navController.navigate(LichessLobbyRoute) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            }
             NavHost(navController = navController, startDestination = HomeRoute) {
                 composable<HomeRoute> {
                     HomeScreen(

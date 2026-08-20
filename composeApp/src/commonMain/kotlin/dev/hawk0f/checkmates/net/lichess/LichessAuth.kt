@@ -21,13 +21,12 @@ object LichessAuth {
 
     private const val KEY_TOKEN = "lichess.token"
     private const val KEY_USERNAME = "lichess.username"
+    private const val KEY_VERIFIER = "lichess.verifier"
+    private const val KEY_STATE = "lichess.state"
 
     private val settings = Settings()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val api = LichessApi()
-
-    private var codeVerifier: String? = null
-    private var expectedState: String? = null
 
     private val _username = MutableStateFlow(settings.getStringOrNull(KEY_USERNAME))
     val username: StateFlow<String?> = _username.asStateFlow()
@@ -40,8 +39,8 @@ object LichessAuth {
     fun buildAuthorizeUrl(): String {
         val verifier = base64UrlNoPadding(secureRandomBytes(48))
         val state = base64UrlNoPadding(secureRandomBytes(16))
-        codeVerifier = verifier
-        expectedState = state
+        settings.putString(KEY_VERIFIER, verifier)
+        settings.putString(KEY_STATE, state)
         val challenge = base64UrlNoPadding(sha256(verifier.encodeToByteArray()))
         return "$LICHESS_BASE_URL/oauth" +
             "?response_type=code" +
@@ -54,7 +53,9 @@ object LichessAuth {
     }
 
     suspend fun completeLogin(code: String, state: String?): Result<String> {
-        val verifier = codeVerifier ?: return Result.failure(LichessException("login was not started"))
+        val verifier = settings.getStringOrNull(KEY_VERIFIER)
+            ?: return Result.failure(LichessException("login was not started"))
+        val expectedState = settings.getStringOrNull(KEY_STATE)
         if (expectedState != null && state != expectedState) {
             return Result.failure(LichessException("state mismatch"))
         }
@@ -65,8 +66,8 @@ object LichessAuth {
             settings.putString(KEY_TOKEN, newToken)
             settings.putString(KEY_USERNAME, account.username)
             _username.value = account.username
-            codeVerifier = null
-            expectedState = null
+            settings.remove(KEY_VERIFIER)
+            settings.remove(KEY_STATE)
             account.username
         }
     }
