@@ -253,7 +253,7 @@ private fun PlayContent(
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                text = "Rapid and classical only — lichess keeps faster pools for its own apps.",
+                text = "Rapid and classical only. Blitz works for friend challenges and Stockfish below.",
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.outline
             )

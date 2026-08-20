@@ -54,6 +54,7 @@ val QUICK_CLOCKS = listOf(
 )
 
 val FRIEND_CLOCKS = listOf(
+    LichessClockOption("3+2", 3, 2),
     LichessClockOption("5+0", 5, 0),
     LichessClockOption("10+0", 10, 0),
     LichessClockOption("15+10", 15, 10)
