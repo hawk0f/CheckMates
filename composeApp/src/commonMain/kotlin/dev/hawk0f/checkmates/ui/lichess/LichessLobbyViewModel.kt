@@ -43,6 +43,7 @@ data class LichessLobbyUiState(
     val quickClock: LichessClockOption = QUICK_CLOCKS[0],
     val friendClock: LichessClockOption = FRIEND_CLOCKS[0],
     val aiLevel: Int = 3,
+    val rated: Boolean = false,
     val incoming: List<LichessChallengeItem> = emptyList(),
     val ongoing: List<LichessOngoingGame> = emptyList()
 )
@@ -131,16 +132,21 @@ class LichessLobbyViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(aiLevel = level)
     }
 
+    fun onRatedChange(rated: Boolean) {
+        _uiState.value = _uiState.value.copy(rated = rated)
+    }
+
     fun seek() {
         val token = LichessAuth.token ?: return
-        val option = _uiState.value.quickClock
+        val state = _uiState.value
+        val option = state.quickClock
         awaitingGame = true
         _uiState.value = _uiState.value.copy(step = LichessStep.Seeking(option.label))
         seekJob?.cancel()
         seekJob = viewModelScope.launch {
             while (awaitingGame) {
                 val kept = runCatching {
-                    api.seek(token, option.minutes, option.incrementSeconds, rated = false)
+                    api.seek(token, option.minutes, option.incrementSeconds, rated = state.rated)
                 }
                 if (!awaitingGame) {
                     break
@@ -166,7 +172,13 @@ class LichessLobbyViewModel : ViewModel() {
         _uiState.value = state.copy(step = LichessStep.Waiting("Waiting for $name"))
         viewModelScope.launch {
             runCatching {
-                api.challengeUser(token, name, state.friendClock.limitSeconds, state.friendClock.incrementSeconds)
+                api.challengeUser(
+                    token = token,
+                    username = name,
+                    clockLimitSeconds = state.friendClock.limitSeconds,
+                    incrementSeconds = state.friendClock.incrementSeconds,
+                    rated = state.rated
+                )
             }.onSuccess { pendingChallengeId = it }
                 .onFailure { fail(it.message ?: "challenge failed") }
         }

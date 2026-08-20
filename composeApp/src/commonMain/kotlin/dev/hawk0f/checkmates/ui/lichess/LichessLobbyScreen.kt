@@ -234,6 +234,31 @@ private fun PlayContent(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            SectionLabel("Stakes")
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                SelectPill(
+                    text = "Casual",
+                    selected = !uiState.rated,
+                    onClick = { viewModel.onRatedChange(false) }
+                )
+                SelectPill(
+                    text = "Rated",
+                    selected = uiState.rated,
+                    onClick = { viewModel.onRatedChange(true) }
+                )
+            }
+            Text(
+                text = if (uiState.rated) {
+                    "Results change your lichess rating. Stockfish games stay casual."
+                } else {
+                    "Nothing at stake, your rating stays untouched."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.outline
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
             SectionLabel("Quick pairing")
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),

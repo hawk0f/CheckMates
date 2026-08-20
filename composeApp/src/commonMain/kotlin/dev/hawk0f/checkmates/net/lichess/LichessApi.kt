@@ -102,12 +102,13 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
         token: String,
         username: String,
         clockLimitSeconds: Int,
-        incrementSeconds: Int
+        incrementSeconds: Int,
+        rated: Boolean
     ): String {
         val body: JsonObject = client.submitForm(
             url = "$LICHESS_BASE_URL/api/challenge/$username",
             formParameters = parameters {
-                append("rated", "false")
+                append("rated", rated.toString())
                 append("clock.limit", clockLimitSeconds.toString())
                 append("clock.increment", incrementSeconds.toString())
                 append("color", "random")
