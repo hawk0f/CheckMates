@@ -104,7 +104,9 @@ fun LichessWatchScreen(
                 }
             }
 
-            PlayerLine(player = uiState.black, alignEnd = false)
+            val topPlayer = if (uiState.flipped) uiState.white else uiState.black
+            val bottomPlayer = if (uiState.flipped) uiState.black else uiState.white
+            PlayerLine(player = topPlayer, alignEnd = false)
 
             uiState.gameState?.let { state ->
                 Box(modifier = Modifier.clip(RoundedCornerShape(20.dp))) {
@@ -120,7 +122,7 @@ fun LichessWatchScreen(
                 }
             }
 
-            PlayerLine(player = uiState.white, alignEnd = true)
+            PlayerLine(player = bottomPlayer, alignEnd = true)
 
             uiState.gameId?.let { id ->
                 PillButton(
