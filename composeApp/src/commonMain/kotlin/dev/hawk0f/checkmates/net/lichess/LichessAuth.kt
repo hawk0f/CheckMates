@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
 
 object LichessAuth {
 
-    const val CLIENT_ID = "checkmates"
-    const val REDIRECT_URI = "chess://lichess-auth"
+    const val CLIENT_ID = "dev.hawk0f.checkmates"
+    const val REDIRECT_URI = "dev.hawk0f.checkmates://lichess-auth"
     const val SCOPE = "board:play"
 
     private const val KEY_TOKEN = "lichess.token"

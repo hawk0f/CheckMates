@@ -59,6 +59,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>chess</string>
+				<string>dev.hawk0f.checkmates</string>
 			</array>
 		</dict>
 	</array>
