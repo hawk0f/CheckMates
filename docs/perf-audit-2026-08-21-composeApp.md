@@ -74,11 +74,14 @@ No performance improvement is claimed. The compiler-report deltas above prove th
 1. **ColorOS blocks AOT control.** `cmd package compile` on RMX3357 answers `Error: Failed to cpmpile !` (vendor message, vendor typo) for `-m speed-profile`, `-m verify` and `--reset` alike. Consequences: `CompilationMode.Partial(BaselineProfileMode.Require)` is impossible, so the benchmarks use `CompilationMode.Ignore()`, and `BaselineProfileRule` cannot run there at all because it resets compilation before collecting.
 2. **Gradle-driven install fails on the phone.** `connectedBenchmarkReleaseAndroidTest` dies in ddmlib's split-install commit, while `adb install -r` of the same APK succeeds. Workaround is to install both APKs manually and drive the run with `am instrument`.
 3. **Emulator fallback for profile generation fails.** `UiAutomationService … already registered` from `IUiAutomationConnection.connect`, surviving a force-stop of `androidx.test.services`, an emulator reboot and a cold boot; looks like a UTP/orchestrator interaction rather than a leftover process.
-4. **Phone currently invisible to the host.** `adb devices` lists only the emulator and `system_profiler SPUSBDataType` shows no realme/Android device, so the phone is not reaching USB enumeration. Check the USB mode (ColorOS silently blocks ADB in charge-only), the "USB debugging" and separate "Install via USB" toggles, the RSA prompt, and the cable.
+4. **Wireless ADB drops mid-run.** With the phone attached over `_adb-tls-connect._tcp`, the install and the test start succeed, then the run dies: `Test run failed to complete. Expected 1 tests, received 0`, ddmlib `device 'adb-CYQCA6Z5RGKVROJR-…' not found` during `onAfterAll`, and inside the app process `RuntimeException: Error while disconnecting UiAutomation … Caused by DeadObjectException`. The earlier `Perfetto tracing failed to start` is the same failure seen one step earlier — `perfetto --background-wait` works fine from a shell on this device (v25), so what fails is the command channel, not Perfetto. Use a USB cable for measurement runs.
+5. **ROM refuses ART profile preparation.** Device logcat during every install: `ArtManagerService: Failed to prepare profile for dev.hawk0f.checkmates:/data/app/…/base.apk`. Same family as blocker 1 — this device grants no AOT or profile control to ADB.
+
+No application crash was observed on the phone at any point: device logcat over the whole session contains no `FATAL EXCEPTION` for `dev.hawk0f.checkmates`, only OEM noise (`VerityUtils` fs-verity, `heytap.accessory`, `com.android.vending` reading a stale APK path).
 
 ## Open items / follow-ups
 
-1. Run the two benchmarks on the phone once it is visible and paste the numbers into Baseline and Verification above:
+1. Run the two benchmarks over a USB cable (not wireless ADB) and paste the numbers into Baseline and Verification above:
 
    ```
    ANDROID_SERIAL=<serial> ./gradlew :benchmark:connectedBenchmarkReleaseAndroidTest \
