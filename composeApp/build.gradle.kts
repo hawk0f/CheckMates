@@ -76,6 +76,16 @@ kotlin {
     }
 }
 
+composeCompiler {
+    stabilityConfigurationFiles.add(
+        rootProject.layout.projectDirectory.file("stability_config.conf")
+    )
+    if (providers.gradleProperty("composeCompilerReports").orNull == "true") {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
+    }
+}
+
 compose.resources {
     packageOfResClass = "dev.hawk0f.checkmates.resources"
 }

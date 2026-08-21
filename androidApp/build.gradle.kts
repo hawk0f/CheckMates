@@ -61,6 +61,13 @@ android {
     }
 }
 
+composeCompiler {
+    if (providers.gradleProperty("composeCompilerReports").orNull == "true") {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11

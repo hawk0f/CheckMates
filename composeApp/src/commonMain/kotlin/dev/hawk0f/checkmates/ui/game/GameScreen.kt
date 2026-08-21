@@ -190,12 +190,15 @@ private fun PlayingPanel(
             )
         }
 
+        val selected = uiState.selected
+        val legalTargets = uiState.legalTargets
+        val flipped = uiState.myColor == PieceColor.BLACK
         BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
             ChessBoard(
                 gameState = gameState,
-                selected = uiState.selected,
-                legalTargets = uiState.legalTargets,
-                flipped = uiState.myColor == PieceColor.BLACK,
+                selected = selected,
+                legalTargets = legalTargets,
+                flipped = flipped,
                 onSquareTap = viewModel::onSquareTap,
                 modifier = boardModifier
             )
