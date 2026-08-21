@@ -55,20 +55,17 @@ import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
-import dev.hawk0f.checkmates.ui.about.AboutDialog
 import dev.hawk0f.checkmates.ui.theme.StatTile
 
 @Composable
 fun ProfileScreen(
     onOpenReplay: () -> Unit,
-    onOpenSettings: () -> Unit,
     onBack: () -> Unit,
     viewModel: ProfileViewModel = viewModel { ProfileViewModel() }
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentProfile = profile
-    var showAbout by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (currentProfile == null) {
@@ -76,27 +73,6 @@ fun ProfileScreen(
         } else {
             LoggedInContent(currentProfile, uiState, viewModel, onOpenReplay, onBack)
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            PillButton(
-                text = "Settings",
-                onClick = onOpenSettings,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-            PillButton(
-                text = "About",
-                onClick = { showAbout = true },
-                tone = PillTone.SOFT,
-                compact = true
-            )
-        }
-    }
-
-    if (showAbout) {
-        AboutDialog(onDismiss = { showAbout = false })
     }
 
     uiState.error?.let { message ->

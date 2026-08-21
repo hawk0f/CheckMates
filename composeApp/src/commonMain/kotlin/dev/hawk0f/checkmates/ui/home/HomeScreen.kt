@@ -52,6 +52,7 @@ fun HomeScreen(
     onPlayBluetooth: () -> Unit = {},
     onPlayLichess: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onResumeGame: () -> Unit = {},
     viewModel: HomeViewModel = viewModel { HomeViewModel() }
 ) {
@@ -65,6 +66,7 @@ fun HomeScreen(
             opponentName = liveSession?.opponentName?.value,
             hasLiveGame = liveSession != null,
             onOpenProfile = onOpenProfile,
+            onOpenSettings = onOpenSettings,
             onPrimaryAction = if (liveSession != null) onResumeGame else onPassAndPlay
         )
         Column(
@@ -96,6 +98,7 @@ private fun HeroCard(
     opponentName: String?,
     hasLiveGame: Boolean,
     onOpenProfile: () -> Unit,
+    onOpenSettings: () -> Unit,
     onPrimaryAction: () -> Unit
 ) {
     val accents = LocalAppAccents.current
@@ -113,28 +116,47 @@ private fun HeroCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onOpenProfile)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (profile != null) {
-                    AvatarBadge(profile.avatarKind, profile.avatarValue, size = 44.dp, fontSize = 20.sp)
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(accents.onBand),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "♞",
-                            fontSize = 22.sp,
-                            color = accents.band
-                        )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onOpenProfile)
+                ) {
+                    if (profile != null) {
+                        AvatarBadge(profile.avatarKind, profile.avatarValue, size = 44.dp, fontSize = 20.sp)
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(accents.onBand),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "♞",
+                                fontSize = 22.sp,
+                                color = accents.band
+                            )
+                        }
                     }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(accents.pageAlt)
+                        .clickable(onClick = onOpenSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "⚙",
+                        fontSize = 18.sp,
+                        color = accents.onBand
+                    )
                 }
             }
             Row(

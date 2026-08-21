@@ -113,6 +113,7 @@ fun App() {
                         onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
                         onPlayLichess = { navController.navigate(LichessHomeRoute) },
                         onOpenProfile = { navController.navigate(ProfileRoute) },
+                        onOpenSettings = { navController.navigate(SettingsRoute) },
                         onResumeGame = { navController.navigate(RemoteGameRoute) }
                     )
                 }
@@ -122,7 +123,6 @@ fun App() {
                 composable<ProfileRoute> {
                     ProfileScreen(
                         onOpenReplay = { navController.navigate(ReplayRoute) },
-                        onOpenSettings = { navController.navigate(SettingsRoute) },
                         onBack = { navController.popBackStack() }
                     )
                 }
