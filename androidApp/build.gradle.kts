@@ -5,10 +5,12 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.baselineProfile)
 }
 
 dependencies {
     implementation(projects.composeApp)
+    baselineProfile(projects.benchmark)
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.foundation)
     implementation(platform(libs.firebase.bom))
@@ -52,7 +54,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
+        signingConfigs.findByName("release")?.let { release ->
+            configureEach {
+                if (name != "debug") {
+                    signingConfig = release
+                }
+            }
         }
     }
     compileOptions {
