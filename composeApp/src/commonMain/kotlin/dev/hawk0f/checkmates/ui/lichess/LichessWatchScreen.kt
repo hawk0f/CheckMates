@@ -110,12 +110,13 @@ fun LichessWatchScreen(
             PlayerLine(player = topPlayer, alignEnd = false)
 
             uiState.gameState?.let { state ->
+                val flipped = uiState.flipped
                 BoardBox(modifier = Modifier.fillMaxWidth()) { boardModifier ->
                     ChessBoard(
                         gameState = state,
                         selected = null,
                         legalTargets = emptySet(),
-                        flipped = uiState.flipped,
+                        flipped = flipped,
                         onSquareTap = {},
                         interactive = false,
                         showCoordinates = false,

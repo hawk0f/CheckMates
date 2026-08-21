@@ -101,12 +101,13 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
             }
         }
 
+        val flipped = item.myColor == PieceColor.BLACK
         BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
             ChessBoard(
                 gameState = gameState,
                 selected = null,
                 legalTargets = emptySet(),
-                flipped = item.myColor == PieceColor.BLACK,
+                flipped = flipped,
                 onSquareTap = {},
                 interactive = false,
                 modifier = boardModifier

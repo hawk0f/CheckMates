@@ -108,12 +108,15 @@ fun LichessPuzzleScreen(
                     CircularProgressIndicator(color = scheme.primary)
                 }
             } else {
+                val selected = uiState.selected
+                val legalTargets = uiState.legalTargets
+                val flipped = uiState.flipped
                 BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
                     ChessBoard(
                         gameState = state,
-                        selected = uiState.selected,
-                        legalTargets = uiState.legalTargets,
-                        flipped = uiState.flipped,
+                        selected = selected,
+                        legalTargets = legalTargets,
+                        flipped = flipped,
                         onSquareTap = viewModel::onSquareTap,
                         modifier = boardModifier
                     )
