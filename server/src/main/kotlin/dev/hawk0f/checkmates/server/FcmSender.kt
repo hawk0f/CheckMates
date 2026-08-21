@@ -51,8 +51,9 @@ object FcmSender {
         }
         scope.launch {
             runCatching {
-                credentials!!.refreshIfExpired()
-                val accessToken = credentials.accessToken.tokenValue
+                val activeCredentials = credentials ?: return@launch
+                activeCredentials.refreshIfExpired()
+                val accessToken = activeCredentials.accessToken?.tokenValue ?: return@launch
                 val payload = buildJsonObject {
                     putJsonObject("message") {
                         put("token", token)
