@@ -342,23 +342,13 @@ private fun BottomSheet(
                         color = scheme.onSurfaceVariant
                     )
                 }
-                for ((index, pair) in allPairs.withIndex()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "${index + 1}.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = scheme.onSurfaceVariant,
-                            modifier = Modifier.width(26.dp)
-                        )
-                        Text(
-                            text = pair,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = scheme.onSurface
-                        )
-                    }
+                for (pair in allPairs) {
+                    Text(
+                        text = pair,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurface,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -458,7 +448,7 @@ private fun BottomSheet(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                val pairs = movePairs(uiState.gameState.uciHistory)
+                val pairs = if (expanded) emptyList() else movePairs(uiState.gameState.uciHistory)
                 for ((index, pair) in pairs.withIndex()) {
                     Text(
                         text = pair,
