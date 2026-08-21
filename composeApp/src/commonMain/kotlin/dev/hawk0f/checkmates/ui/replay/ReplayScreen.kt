@@ -16,7 +16,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -44,15 +43,13 @@ import dev.hawk0f.checkmates.ui.theme.SectionLabel
 
 @Composable
 fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
-    var moveIndex by remember { mutableIntStateOf(item.uciHistory.size) }
-    val gameState by remember {
-        derivedStateOf {
-            val game = ChessGame()
-            for (uci in item.uciHistory.take(moveIndex)) {
-                game.applyUci(uci)
-            }
-            game.state()
+    var moveIndex by remember(item) { mutableIntStateOf(item.uciHistory.size) }
+    val gameState = remember(item, moveIndex) {
+        val game = ChessGame()
+        for (uci in item.uciHistory.take(moveIndex)) {
+            game.applyUci(uci)
         }
+        game.state()
     }
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
