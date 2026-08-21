@@ -190,14 +190,14 @@ private fun PlayingPanel(
             )
         }
 
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
             ChessBoard(
                 gameState = gameState,
                 selected = uiState.selected,
                 legalTargets = uiState.legalTargets,
                 flipped = uiState.myColor == PieceColor.BLACK,
                 onSquareTap = viewModel::onSquareTap,
-                modifier = Modifier.fillMaxWidth()
+                modifier = boardModifier
             )
         }
 
@@ -553,14 +553,18 @@ private fun GameOverPanel(
             }
         }
 
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+        BoardBox(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            maxSize = 360.dp
+        ) { boardModifier ->
             ChessBoard(
                 gameState = uiState.gameState,
                 selected = null,
                 legalTargets = emptySet(),
                 flipped = bottomColor == PieceColor.BLACK,
                 onSquareTap = {},
-                modifier = Modifier.fillMaxWidth().alpha(0.9f).clip(RoundedCornerShape(20.dp)),
+                interactive = false,
+                modifier = boardModifier.alpha(0.9f).clip(RoundedCornerShape(20.dp)),
                 showCoordinates = false
             )
         }

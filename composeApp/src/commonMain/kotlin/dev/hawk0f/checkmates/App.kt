@@ -1,8 +1,11 @@
 package dev.hawk0f.checkmates
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -29,6 +32,7 @@ import dev.hawk0f.checkmates.ui.profile.ReplayHolder
 import dev.hawk0f.checkmates.ui.replay.ReplayScreen
 import dev.hawk0f.checkmates.ui.settings.SettingsScreen
 import dev.hawk0f.checkmates.ui.theme.AppTheme
+import dev.hawk0f.checkmates.ui.theme.MaxContentWidth
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -101,134 +105,139 @@ fun App() {
                     }
                 }
             }
-            NavHost(
-                navController = navController,
-                startDestination = HomeRoute,
-                modifier = Modifier.safeDrawingPadding()
+            Box(
+                modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+                contentAlignment = Alignment.TopCenter
             ) {
-                composable<HomeRoute> {
-                    HomeScreen(
-                        onPassAndPlay = { navController.navigate(HotseatGameRoute) },
-                        onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
-                        onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
-                        onPlayLichess = { navController.navigate(LichessHomeRoute) },
-                        onOpenProfile = { navController.navigate(ProfileRoute) },
-                        onOpenSettings = { navController.navigate(SettingsRoute) },
-                        onResumeGame = { navController.navigate(RemoteGameRoute) }
-                    )
-                }
-                composable<SettingsRoute> {
-                    SettingsScreen(onBack = { navController.popBackStack() })
-                }
-                composable<ProfileRoute> {
-                    ProfileScreen(
-                        onOpenReplay = { navController.navigate(ReplayRoute) },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<ReplayRoute> {
-                    val item = ReplayHolder.current
-                    if (item == null) {
-                        LaunchedEffect(Unit) {
-                            navController.popBackStack(ReplayRoute, inclusive = true)
-                        }
-                    } else {
-                        ReplayScreen(item = item, onBack = { navController.popBackStack() })
-                    }
-                }
-                composable<HotseatGameRoute> {
-                    GameScreen(
-                        mode = GameMode.Hotseat,
-                        onExit = { navController.popBackStack() }
-                    )
-                }
-                composable<OnlineLobbyRoute> { entry ->
-                    val route = entry.toRoute<OnlineLobbyRoute>()
-                    OnlineLobbyScreen(
-                        prefillCode = route.prefillCode,
-                        onGameReady = {
-                            navController.navigate(RemoteGameRoute) {
-                                popUpTo<HomeRoute>()
-                            }
-                        },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<BleLobbyRoute> {
-                    BleLobbyScreen(
-                        onGameReady = {
-                            navController.navigate(RemoteGameRoute) {
-                                popUpTo<HomeRoute>()
-                            }
-                        },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<LichessHomeRoute> {
-                    LichessHomeScreen(
-                        onGameReady = {
-                            navController.navigate(RemoteGameRoute) {
-                                popUpTo<HomeRoute>()
-                            }
-                        },
-                        onOpenSeek = { navController.navigate(LichessSeekRoute) },
-                        onOpenPuzzle = { navController.navigate(LichessPuzzleRoute) },
-                        onOpenWatch = { navController.navigate(LichessWatchRoute) },
-                        onOpenArenas = { navController.navigate(LichessArenasRoute) },
-                        onOpenExplorer = { navController.navigate(LichessExplorerRoute) },
-                        onOpenPlayers = { navController.navigate(LichessPlayersRoute) },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<LichessPuzzleRoute> {
-                    LichessPuzzleScreen(onBack = { navController.popBackStack() })
-                }
-                composable<LichessWatchRoute> {
-                    LichessWatchScreen(
-                        onReview = { gameId -> navController.navigate(LichessReviewRoute(gameId)) },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<LichessArenasRoute> {
-                    LichessArenasScreen(onBack = { navController.popBackStack() })
-                }
-                composable<LichessPlayersRoute> {
-                    LichessPlayersScreen(onBack = { navController.popBackStack() })
-                }
-                composable<LichessReviewRoute> { entry ->
-                    val route = entry.toRoute<LichessReviewRoute>()
-                    LichessReviewScreen(
-                        gameId = route.gameId,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<LichessExplorerRoute> {
-                    LichessExplorerScreen(onBack = { navController.popBackStack() })
-                }
-                composable<LichessSeekRoute> {
-                    LichessSeekScreen(
-                        onGameReady = {
-                            navController.navigate(RemoteGameRoute) {
-                                popUpTo<HomeRoute>()
-                            }
-                        },
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-                composable<RemoteGameRoute> {
-                    val session = GameSessionHolder.current
-                    if (session == null) {
-                        LaunchedEffect(Unit) {
-                            navController.popBackStack(RemoteGameRoute, inclusive = true)
-                        }
-                    } else {
-                        GameScreen(
-                            mode = GameMode.Remote(session),
-                            onExit = {
-                                GameSessionHolder.clear()
-                                navController.popBackStack()
-                            }
+                NavHost(
+                    navController = navController,
+                    startDestination = HomeRoute,
+                    modifier = Modifier.widthIn(max = MaxContentWidth).fillMaxSize()
+                ) {
+                    composable<HomeRoute> {
+                        HomeScreen(
+                            onPassAndPlay = { navController.navigate(HotseatGameRoute) },
+                            onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
+                            onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
+                            onPlayLichess = { navController.navigate(LichessHomeRoute) },
+                            onOpenProfile = { navController.navigate(ProfileRoute) },
+                            onOpenSettings = { navController.navigate(SettingsRoute) },
+                            onResumeGame = { navController.navigate(RemoteGameRoute) }
                         )
+                    }
+                    composable<SettingsRoute> {
+                        SettingsScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable<ProfileRoute> {
+                        ProfileScreen(
+                            onOpenReplay = { navController.navigate(ReplayRoute) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<ReplayRoute> {
+                        val item = ReplayHolder.current
+                        if (item == null) {
+                            LaunchedEffect(Unit) {
+                                navController.popBackStack(ReplayRoute, inclusive = true)
+                            }
+                        } else {
+                            ReplayScreen(item = item, onBack = { navController.popBackStack() })
+                        }
+                    }
+                    composable<HotseatGameRoute> {
+                        GameScreen(
+                            mode = GameMode.Hotseat,
+                            onExit = { navController.popBackStack() }
+                        )
+                    }
+                    composable<OnlineLobbyRoute> { entry ->
+                        val route = entry.toRoute<OnlineLobbyRoute>()
+                        OnlineLobbyScreen(
+                            prefillCode = route.prefillCode,
+                            onGameReady = {
+                                navController.navigate(RemoteGameRoute) {
+                                    popUpTo<HomeRoute>()
+                                }
+                            },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<BleLobbyRoute> {
+                        BleLobbyScreen(
+                            onGameReady = {
+                                navController.navigate(RemoteGameRoute) {
+                                    popUpTo<HomeRoute>()
+                                }
+                            },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<LichessHomeRoute> {
+                        LichessHomeScreen(
+                            onGameReady = {
+                                navController.navigate(RemoteGameRoute) {
+                                    popUpTo<HomeRoute>()
+                                }
+                            },
+                            onOpenSeek = { navController.navigate(LichessSeekRoute) },
+                            onOpenPuzzle = { navController.navigate(LichessPuzzleRoute) },
+                            onOpenWatch = { navController.navigate(LichessWatchRoute) },
+                            onOpenArenas = { navController.navigate(LichessArenasRoute) },
+                            onOpenExplorer = { navController.navigate(LichessExplorerRoute) },
+                            onOpenPlayers = { navController.navigate(LichessPlayersRoute) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<LichessPuzzleRoute> {
+                        LichessPuzzleScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable<LichessWatchRoute> {
+                        LichessWatchScreen(
+                            onReview = { gameId -> navController.navigate(LichessReviewRoute(gameId)) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<LichessArenasRoute> {
+                        LichessArenasScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable<LichessPlayersRoute> {
+                        LichessPlayersScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable<LichessReviewRoute> { entry ->
+                        val route = entry.toRoute<LichessReviewRoute>()
+                        LichessReviewScreen(
+                            gameId = route.gameId,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<LichessExplorerRoute> {
+                        LichessExplorerScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable<LichessSeekRoute> {
+                        LichessSeekScreen(
+                            onGameReady = {
+                                navController.navigate(RemoteGameRoute) {
+                                    popUpTo<HomeRoute>()
+                                }
+                            },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<RemoteGameRoute> {
+                        val session = GameSessionHolder.current
+                        if (session == null) {
+                            LaunchedEffect(Unit) {
+                                navController.popBackStack(RemoteGameRoute, inclusive = true)
+                            }
+                        } else {
+                            GameScreen(
+                                mode = GameMode.Remote(session),
+                                onExit = {
+                                    GameSessionHolder.clear()
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
                     }
                 }
             }

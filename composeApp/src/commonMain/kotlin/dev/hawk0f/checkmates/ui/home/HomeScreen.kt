@@ -37,6 +37,7 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.ProfileResponse
+import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.profile.AvatarBadge
 import dev.hawk0f.checkmates.ui.theme.Hairline
@@ -196,7 +197,10 @@ private fun HeroCard(
             )
         }
 
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+        BoardBox(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            maxSize = 420.dp
+        ) { boardModifier ->
             ChessBoard(
                 gameState = previewState,
                 selected = null,
@@ -204,7 +208,7 @@ private fun HeroCard(
                 flipped = false,
                 onSquareTap = {},
                 interactive = false,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)),
+                modifier = boardModifier.clip(RoundedCornerShape(24.dp)),
                 showCoordinates = false
             )
         }

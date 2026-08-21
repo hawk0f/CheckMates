@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.hawk0f.checkmates.resources.Res
@@ -108,6 +110,24 @@ private class PieceTracker {
         }
         current = result
         return result
+    }
+}
+
+val DefaultMaxBoardSize = 520.dp
+
+@Composable
+fun BoardBox(
+    modifier: Modifier = Modifier,
+    maxSize: Dp = DefaultMaxBoardSize,
+    board: @Composable (Modifier) -> Unit
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val available = if (constraints.hasBoundedHeight) {
+            minOf(maxWidth, maxHeight)
+        } else {
+            maxWidth
+        }
+        board(Modifier.size(minOf(available, maxSize)))
     }
 }
 

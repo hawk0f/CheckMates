@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.CloseIcon
@@ -109,16 +110,16 @@ fun LichessWatchScreen(
             PlayerLine(player = topPlayer, alignEnd = false)
 
             uiState.gameState?.let { state ->
-                Box(modifier = Modifier.clip(RoundedCornerShape(20.dp))) {
+                BoardBox(modifier = Modifier.fillMaxWidth()) { boardModifier ->
                     ChessBoard(
                         gameState = state,
                         selected = null,
                         legalTargets = emptySet(),
                         flipped = uiState.flipped,
                         onSquareTap = {},
-                interactive = false,
+                        interactive = false,
                         showCoordinates = false,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = boardModifier.clip(RoundedCornerShape(20.dp))
                     )
                 }
             }

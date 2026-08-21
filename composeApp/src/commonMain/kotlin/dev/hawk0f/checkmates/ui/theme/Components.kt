@@ -38,6 +38,8 @@ enum class PillTone {
     BAND
 }
 
+val MaxContentWidth = 640.dp
+
 @Composable
 private fun toneColors(tone: PillTone, enabled: Boolean): Pair<Color, Color> {
     val scheme = MaterialTheme.colorScheme

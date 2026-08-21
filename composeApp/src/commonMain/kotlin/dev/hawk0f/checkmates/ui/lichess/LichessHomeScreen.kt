@@ -32,6 +32,7 @@ import dev.hawk0f.checkmates.net.lichess.LichessChallenge
 import dev.hawk0f.checkmates.net.lichess.LichessOngoingGame
 import dev.hawk0f.checkmates.platform.rememberOpenUrl
 import dev.hawk0f.checkmates.shared.domain.ChessGame
+import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.CloseIcon
@@ -286,7 +287,7 @@ private fun LiveGameCard(game: LichessOngoingGame, onResume: () -> Unit) {
             }
             CodeChip("gameId ${game.gameId}")
         }
-        Box(modifier = Modifier.clip(RoundedCornerShape(18.dp))) {
+        BoardBox(modifier = Modifier.fillMaxWidth(), maxSize = 320.dp) { boardModifier ->
             ChessBoard(
                 gameState = boardState,
                 selected = null,
@@ -295,7 +296,7 @@ private fun LiveGameCard(game: LichessOngoingGame, onResume: () -> Unit) {
                 onSquareTap = {},
                 interactive = false,
                 showCoordinates = false,
-                modifier = Modifier.fillMaxWidth()
+                modifier = boardModifier.clip(RoundedCornerShape(18.dp))
             )
         }
         Row(

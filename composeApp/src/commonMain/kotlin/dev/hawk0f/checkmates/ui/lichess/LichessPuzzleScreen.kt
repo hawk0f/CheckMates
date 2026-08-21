@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.CloseIcon
@@ -107,14 +108,14 @@ fun LichessPuzzleScreen(
                     CircularProgressIndicator(color = scheme.primary)
                 }
             } else {
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
                     ChessBoard(
                         gameState = state,
                         selected = uiState.selected,
                         legalTargets = uiState.legalTargets,
                         flipped = uiState.flipped,
                         onSquareTap = viewModel::onSquareTap,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = boardModifier
                     )
                 }
             }

@@ -31,6 +31,7 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.PgnBuilder
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
+import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
 import dev.hawk0f.checkmates.ui.theme.ChevronIcon
@@ -103,7 +104,7 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
             }
         }
 
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
             ChessBoard(
                 gameState = gameState,
                 selected = null,
@@ -111,7 +112,7 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                 flipped = item.myColor == PieceColor.BLACK,
                 onSquareTap = {},
                 interactive = false,
-                modifier = Modifier.fillMaxWidth()
+                modifier = boardModifier
             )
         }
 
