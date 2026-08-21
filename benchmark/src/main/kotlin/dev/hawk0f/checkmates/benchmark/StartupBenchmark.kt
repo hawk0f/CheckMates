@@ -25,6 +25,9 @@ class StartupBenchmark {
         startupMode = StartupMode.COLD,
         compilationMode = CompilationMode.Ignore()
     ) {
+        device.executeShellCommand(
+            "pm grant $TARGET_PACKAGE android.permission.POST_NOTIFICATIONS"
+        )
         pressHome()
         startActivityAndWait()
     }

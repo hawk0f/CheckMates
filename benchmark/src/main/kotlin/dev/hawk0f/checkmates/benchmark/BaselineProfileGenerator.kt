@@ -14,9 +14,7 @@ class BaselineProfileGenerator {
 
     @Test
     fun startupAndBoard() = rule.collect(packageName = TARGET_PACKAGE) {
-        pressHome()
-        startActivityAndWait()
-        device.openHotseatBoard()
+        launchToBoard()
         device.playOpeningMoves()
     }
 }

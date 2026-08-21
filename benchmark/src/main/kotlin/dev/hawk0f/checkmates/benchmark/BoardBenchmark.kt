@@ -25,9 +25,7 @@ class BoardBenchmark {
         startupMode = StartupMode.COLD,
         compilationMode = CompilationMode.Ignore(),
         setupBlock = {
-            pressHome()
-            startActivityAndWait()
-            device.openHotseatBoard()
+            launchToBoard()
         }
     ) {
         device.playOpeningMoves()

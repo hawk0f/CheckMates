@@ -1,12 +1,13 @@
 package dev.hawk0f.checkmates.benchmark
 
+import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 
 const val TARGET_PACKAGE = "dev.hawk0f.checkmates"
 
-private const val TIMEOUT_MS = 10_000L
+private const val TIMEOUT_MS = 20_000L
 private const val DRAG_STEPS = 24
 
 class BoardGeometry(private val fileX: IntArray, private val rankY: IntArray) {
@@ -14,6 +15,15 @@ class BoardGeometry(private val fileX: IntArray, private val rankY: IntArray) {
     fun x(file: Char): Int = fileX[file - 'a']
 
     fun y(rank: Int): Int = rankY[rank - 1]
+}
+
+fun MacrobenchmarkScope.launchToBoard() {
+    device.executeShellCommand(
+        "pm grant $TARGET_PACKAGE android.permission.POST_NOTIFICATIONS"
+    )
+    pressHome()
+    startActivityAndWait()
+    device.openHotseatBoard()
 }
 
 fun UiDevice.openHotseatBoard() {
