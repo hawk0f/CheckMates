@@ -249,15 +249,14 @@ fun ChessBoard(
                     val row = if (flipped) tracked.square.rank else 7 - tracked.square.rank
                     val landedInstantly = droppedOn != null && tracked.square == droppedOn
                     val squareOffset = IntOffset(column * cell, row * cell)
-                    val animatedOffset by animateIntOffsetAsState(
+                    val animatedOffset = animateIntOffsetAsState(
                         targetValue = squareOffset,
                         animationSpec = if (landedInstantly) snap() else tween(durationMillis = 180)
                     )
-                    val renderedOffset = if (landedInstantly) squareOffset else animatedOffset
                     if (tracked.square != dragFrom) {
                         Box(
                             modifier = Modifier
-                                .offset { renderedOffset }
+                                .offset { if (landedInstantly) squareOffset else animatedOffset.value }
                                 .size(cellDp),
                             contentAlignment = Alignment.Center
                         ) {
