@@ -15,6 +15,9 @@ object BleCodec {
         GameMessage.DeclineDraw -> "X"
         GameMessage.Resign -> "R"
         GameMessage.RequestResync -> "F"
+        GameMessage.OfferTakeback -> "T"
+        GameMessage.AcceptTakeback -> "Y"
+        GameMessage.DeclineTakeback -> "Z"
         else -> null
     }?.encodeChecked()
 
@@ -27,11 +30,14 @@ object BleCodec {
         return when (text[0]) {
             'M' -> GameMessage.MakeMove(payload)
             'N' -> GameMessage.JoinGame(code = "", playerName = payload)
-            'D' -> GameMessage.OfferDraw
-            'A' -> GameMessage.AcceptDraw
-            'X' -> GameMessage.DeclineDraw
-            'R' -> GameMessage.Resign
-            'F' -> GameMessage.RequestResync
+            'D' -> GameMessage.OfferDraw.onlyIfBare(payload)
+            'A' -> GameMessage.AcceptDraw.onlyIfBare(payload)
+            'X' -> GameMessage.DeclineDraw.onlyIfBare(payload)
+            'R' -> GameMessage.Resign.onlyIfBare(payload)
+            'F' -> GameMessage.RequestResync.onlyIfBare(payload)
+            'T' -> GameMessage.OfferTakeback.onlyIfBare(payload)
+            'Y' -> GameMessage.AcceptTakeback.onlyIfBare(payload)
+            'Z' -> GameMessage.DeclineTakeback.onlyIfBare(payload)
             else -> null
         }
     }
@@ -43,6 +49,9 @@ object BleCodec {
         is GameMessage.MoveRejected -> "!${message.uci.take(18)}"
         GameMessage.DrawOffered -> "D"
         GameMessage.DrawDeclined -> "X"
+        GameMessage.TakebackOffered -> "T"
+        GameMessage.TakebackDeclined -> "Z"
+        is GameMessage.TakebackApplied -> "U${message.plies}"
         is GameMessage.GameOver -> "E${message.reason.toWireChar()}${message.winner.toWireChar()}"
         else -> null
     }?.encodeChecked()
@@ -58,8 +67,11 @@ object BleCodec {
             'C' -> GameMessage.ColorAssigned(if (payload == "w") PieceColor.WHITE else PieceColor.BLACK)
             'N' -> GameMessage.OpponentJoined(payload)
             '!' -> GameMessage.MoveRejected(payload, "ILLEGAL")
-            'D' -> GameMessage.DrawOffered
-            'X' -> GameMessage.DrawDeclined
+            'D' -> GameMessage.DrawOffered.onlyIfBare(payload)
+            'X' -> GameMessage.DrawDeclined.onlyIfBare(payload)
+            'T' -> GameMessage.TakebackOffered.onlyIfBare(payload)
+            'Z' -> GameMessage.TakebackDeclined.onlyIfBare(payload)
+            'U' -> payload.toIntOrNull()?.takeIf { it > 0 }?.let { GameMessage.TakebackApplied(it) }
             'E' -> decodeGameOver(payload)
             else -> null
         }
@@ -108,6 +120,9 @@ object BleCodec {
         PieceColor.BLACK -> 'b'
         null -> 'n'
     }
+
+    private fun GameMessage.onlyIfBare(payload: String): GameMessage? =
+        if (payload.isEmpty()) this else null
 
     private fun String.encodeChecked(): ByteArray {
         val bytes = encodeToByteArray()

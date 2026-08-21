@@ -239,6 +239,10 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 _uiState.value = _uiState.value.copy(takebackOfferOutgoing = false)
             }
 
+            is GameMessage.TakebackApplied -> {
+                rebuildWithoutLastPlies(message.plies)
+            }
+
             GameMessage.DrawDeclined -> {
                 _uiState.value = _uiState.value.copy(drawOfferOutgoing = false)
             }
@@ -490,11 +494,15 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     }
 
     private fun undoLocalMove() {
+        rebuildWithoutLastPlies(1)
+    }
+
+    private fun rebuildWithoutLastPlies(plies: Int) {
         val history = game.state().uciHistory
-        if (history.isEmpty()) {
+        if (plies <= 0 || history.isEmpty()) {
             return
         }
-        val kept = history.dropLast(1)
+        val kept = history.dropLast(plies.coerceAtMost(history.size))
         val rebuilt = ChessGame()
         for (uci in kept) {
             rebuilt.applyUci(uci)
@@ -502,6 +510,8 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         game = rebuilt
         _uiState.value = _uiState.value.copy(
             gameState = game.state(),
+            takebackOfferIncoming = false,
+            takebackOfferOutgoing = false,
             selected = null,
             legalTargets = emptySet(),
             pendingPromotion = null

@@ -57,6 +57,10 @@ sealed interface GameMessage {
     data object TakebackDeclined : GameMessage
 
     @Serializable
+    @SerialName("takebackApplied")
+    data class TakebackApplied(val plies: Int) : GameMessage
+
+    @Serializable
     @SerialName("requestResync")
     data object RequestResync : GameMessage
 

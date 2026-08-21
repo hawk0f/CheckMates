@@ -27,10 +27,11 @@ class BleHostEngine(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val game = ChessGame()
+    private var game = ChessGame()
     private val hostColor: PieceColor = if (Random.nextBoolean()) PieceColor.WHITE else PieceColor.BLACK
     private var guestName: String? = null
     private var drawOfferedBy: PieceColor? = null
+    private var takebackOfferedBy: PieceColor? = null
     private var finished = false
 
     private val localIncoming = MutableSharedFlow<GameMessage>(extraBufferCapacity = 64)
@@ -105,6 +106,23 @@ class BleHostEngine(
                     deliverTo(sender.opposite, GameMessage.DrawDeclined)
                 }
             }
+            GameMessage.OfferTakeback -> {
+                if (!finished && takebackOfferedBy == null && game.state().uciHistory.isNotEmpty()) {
+                    takebackOfferedBy = sender
+                    deliverTo(sender.opposite, GameMessage.TakebackOffered)
+                }
+            }
+            GameMessage.AcceptTakeback -> {
+                if (takebackOfferedBy == sender.opposite) {
+                    applyTakeback(sender.opposite)
+                }
+            }
+            GameMessage.DeclineTakeback -> {
+                if (takebackOfferedBy == sender.opposite) {
+                    takebackOfferedBy = null
+                    deliverTo(sender.opposite, GameMessage.TakebackDeclined)
+                }
+            }
             GameMessage.RequestResync -> {
                 if (sender == hostColor) {
                     localIncoming.emit(GameMessage.Resync(game.fen(), game.state().uciHistory, drawOfferedBy != null))
@@ -122,6 +140,7 @@ class BleHostEngine(
         when (val outcome = game.applyUci(uci)) {
             is MoveOutcome.Applied -> {
                 drawOfferedBy = null
+                takebackOfferedBy = null
                 broadcast(GameMessage.MoveApplied(uci, outcome.state.fen, outcome.state.uciHistory.size))
                 outcome.state.result?.let { result ->
                     finished = true
@@ -130,6 +149,24 @@ class BleHostEngine(
             }
             MoveOutcome.Illegal -> deliverTo(sender, GameMessage.MoveRejected(uci, "ILLEGAL"))
         }
+    }
+
+    private suspend fun applyTakeback(requester: PieceColor) {
+        takebackOfferedBy = null
+        val history = game.state().uciHistory
+        if (history.isEmpty()) {
+            return
+        }
+        val drop = if (game.sideToMove() == requester) 2 else 1
+        val kept = history.dropLast(drop.coerceAtMost(history.size))
+        val rebuilt = ChessGame()
+        for (uci in kept) {
+            rebuilt.applyUci(uci)
+        }
+        game = rebuilt
+        drawOfferedBy = null
+        localIncoming.emit(GameMessage.Resync(game.fen(), game.state().uciHistory, drawOfferPending = false))
+        sendToGuest(GameMessage.TakebackApplied(history.size - kept.size))
     }
 
     private suspend fun finish(reason: GameOverReason, winner: PieceColor?) {

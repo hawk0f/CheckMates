@@ -21,7 +21,10 @@ class BleCodecTest {
             GameMessage.AcceptDraw,
             GameMessage.DeclineDraw,
             GameMessage.Resign,
-            GameMessage.RequestResync
+            GameMessage.RequestResync,
+            GameMessage.OfferTakeback,
+            GameMessage.AcceptTakeback,
+            GameMessage.DeclineTakeback
         )
         for (message in messages) {
             val bytes = BleCodec.encodeToHost(message)!!
@@ -40,6 +43,10 @@ class BleCodecTest {
             GameMessage.MoveRejected("e2e5", "ILLEGAL"),
             GameMessage.DrawOffered,
             GameMessage.DrawDeclined,
+            GameMessage.TakebackOffered,
+            GameMessage.TakebackDeclined,
+            GameMessage.TakebackApplied(1),
+            GameMessage.TakebackApplied(2),
             GameMessage.GameOver(GameOverReason.CHECKMATE, PieceColor.WHITE),
             GameMessage.GameOver(GameOverReason.STALEMATE, null),
             GameMessage.GameOver(GameOverReason.DRAW_AGREED, null),
@@ -69,5 +76,8 @@ class BleCodecTest {
     fun garbageDecodesToNull() {
         assertNull(BleCodec.decodeFromGuest(byteArrayOf()))
         assertNull(BleCodec.decodeFromHost("Zjunk".encodeToByteArray()))
+        assertNull(BleCodec.decodeFromGuest("Tjunk".encodeToByteArray()))
+        assertNull(BleCodec.decodeFromHost("Ujunk".encodeToByteArray()))
+        assertNull(BleCodec.decodeFromHost("U0".encodeToByteArray()))
     }
 }
