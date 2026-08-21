@@ -45,6 +45,7 @@ class GameRoom(
         private set
     private var drawOfferedBy: PieceColor? = null
     private var rematchOfferedBy: PieceColor? = null
+    private var takebackOfferedBy: PieceColor? = null
     private val remainingMillis = mutableMapOf<PieceColor, Long>()
     private var turnStartedAtMillis: Long = 0
 
@@ -113,6 +114,31 @@ class GameRoom(
                         opponentOf(color)?.session?.sendMessage(GameMessage.DrawDeclined)
                     }
                 }
+                GameMessage.OfferTakeback -> {
+                    if (status == RoomStatus.IN_PROGRESS &&
+                        takebackOfferedBy == null &&
+                        game.state().uciHistory.isNotEmpty()
+                    ) {
+                        takebackOfferedBy = color
+                        opponentOf(color)?.session?.sendMessage(GameMessage.TakebackOffered)
+                        pushIfOffline(
+                            color.opposite,
+                            "Takeback?",
+                            "${players[color]?.name ?: "Opponent"} asks to undo a move in game $shortCode"
+                        )
+                    }
+                }
+                GameMessage.AcceptTakeback -> {
+                    if (takebackOfferedBy == color.opposite) {
+                        applyTakeback(takebackOfferedBy!!)
+                    }
+                }
+                GameMessage.DeclineTakeback -> {
+                    if (takebackOfferedBy == color.opposite) {
+                        takebackOfferedBy = null
+                        opponentOf(color)?.session?.sendMessage(GameMessage.TakebackDeclined)
+                    }
+                }
                 GameMessage.RequestResync -> players[color]?.session?.sendMessage(resyncMessage())
                 GameMessage.ClaimTimeout -> handleTimeoutClaim()
                 is GameMessage.RegisterPush -> {
@@ -161,10 +187,31 @@ class GameRoom(
         }
     }
 
+    private suspend fun applyTakeback(requester: PieceColor) {
+        takebackOfferedBy = null
+        val history = game.state().uciHistory
+        if (history.isEmpty()) {
+            return
+        }
+        val drop = if (game.sideToMove() == requester) 2 else 1
+        val kept = history.dropLast(drop.coerceAtMost(history.size))
+        val rebuilt = ChessGame()
+        for (uci in kept) {
+            rebuilt.applyUci(uci)
+        }
+        game = rebuilt
+        drawOfferedBy = null
+        if (timeControl != null) {
+            turnStartedAtMillis = System.currentTimeMillis()
+        }
+        broadcast(resyncMessage())
+    }
+
     private suspend fun startRematch() {
         game = ChessGame()
         drawOfferedBy = null
         rematchOfferedBy = null
+        takebackOfferedBy = null
         status = RoomStatus.IN_PROGRESS
         val swapped = players.entries.associate { (color, slot) -> color.opposite to slot }
         players.clear()
@@ -214,6 +261,7 @@ class GameRoom(
         when (val outcome = game.applyUci(uci)) {
             is MoveOutcome.Applied -> {
                 drawOfferedBy = null
+                takebackOfferedBy = null
                 chargeClock(color)
                 val state = outcome.state
                 broadcast(

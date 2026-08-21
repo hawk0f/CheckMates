@@ -293,6 +293,7 @@ private fun LiveGameCard(game: LichessOngoingGame, onResume: () -> Unit) {
                 legalTargets = emptySet(),
                 flipped = game.color == "black",
                 onSquareTap = {},
+                interactive = false,
                 showCoordinates = false,
                 modifier = Modifier.fillMaxWidth()
             )

@@ -1,6 +1,7 @@
 package dev.hawk0f.checkmates.ui.game
 
 import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,11 +20,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -116,11 +119,13 @@ fun ChessBoard(
     flipped: Boolean,
     onSquareTap: (Square) -> Unit,
     modifier: Modifier = Modifier,
-    showCoordinates: Boolean = true
+    showCoordinates: Boolean = true,
+    interactive: Boolean = true
 ) {
     var boardSizePx by remember { mutableStateOf(0) }
     var dragFrom by remember(gameState.fen) { mutableStateOf<Square?>(null) }
     var dragPosition by remember { mutableStateOf(Offset.Zero) }
+    var droppedOn by remember { mutableStateOf<Square?>(null) }
     val tracker = remember { PieceTracker() }
     val trackedPieces = remember(gameState) { tracker.update(gameState) }
 
@@ -136,11 +141,23 @@ fun ChessBoard(
         return Square.of(file, rank)
     }
 
+    LaunchedEffect(droppedOn) {
+        if (droppedOn != null) {
+            withFrameNanos { }
+            withFrameNanos { }
+            droppedOn = null
+        }
+    }
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .onSizeChanged { boardSizePx = it.width }
-            .pointerInput(flipped, gameState.fen) {
+            .then(
+                if (!interactive) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(flipped, gameState.fen) {
                 detectDragGestures(
                     onDragStart = { position ->
                         squareAt(position)?.let { square ->
@@ -161,6 +178,7 @@ fun ChessBoard(
                         if (from != null) {
                             squareAt(dragPosition)?.let { target ->
                                 if (target != from) {
+                                    droppedOn = target
                                     onSquareTap(target)
                                 }
                             }
@@ -170,7 +188,9 @@ fun ChessBoard(
                         dragFrom = null
                     }
                 )
-            }
+                    }
+                }
+            )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             val ranks = if (flipped) 0..7 else 7 downTo 0
@@ -189,7 +209,11 @@ fun ChessBoard(
                                 gameState.pieces[square] == Piece(gameState.sideToMove, PieceKind.KING),
                             showFileLabel = showCoordinates && rank == (if (flipped) 7 else 0),
                             showRankLabel = showCoordinates && file == (if (flipped) 7 else 0),
-                            onTap = { onSquareTap(square) },
+                            onTap = if (interactive) {
+                                { onSquareTap(square) }
+                            } else {
+                                null
+                            },
                             modifier = Modifier.weight(1f).fillMaxSize()
                         )
                     }
@@ -203,9 +227,10 @@ fun ChessBoard(
                 key(tracked.id) {
                     val column = if (flipped) 7 - tracked.square.file else tracked.square.file
                     val row = if (flipped) tracked.square.rank else 7 - tracked.square.rank
+                    val landedInstantly = droppedOn != null && tracked.square == droppedOn
                     val animatedOffset by animateIntOffsetAsState(
                         targetValue = IntOffset(column * cell, row * cell),
-                        animationSpec = tween(durationMillis = 180)
+                        animationSpec = if (landedInstantly) snap() else tween(durationMillis = 180)
                     )
                     if (tracked.square != dragFrom) {
                         Box(
@@ -250,7 +275,7 @@ private fun BoardCell(
     isCheckedKing: Boolean,
     showFileLabel: Boolean,
     showRankLabel: Boolean,
-    onTap: () -> Unit,
+    onTap: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val boardColors = LocalBoardColors.current
@@ -266,7 +291,10 @@ private fun BoardCell(
         else -> Color.Transparent
     }
     Box(
-        modifier = modifier.background(base).background(overlay).clickable(onClick = onTap),
+        modifier = modifier
+            .background(base)
+            .background(overlay)
+            .then(if (onTap != null) Modifier.clickable(onClick = onTap) else Modifier),
         contentAlignment = Alignment.Center
     ) {
         if (showRankLabel) {

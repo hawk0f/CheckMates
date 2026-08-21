@@ -37,6 +37,26 @@ sealed interface GameMessage {
     data object Resign : GameMessage
 
     @Serializable
+    @SerialName("offerTakeback")
+    data object OfferTakeback : GameMessage
+
+    @Serializable
+    @SerialName("acceptTakeback")
+    data object AcceptTakeback : GameMessage
+
+    @Serializable
+    @SerialName("declineTakeback")
+    data object DeclineTakeback : GameMessage
+
+    @Serializable
+    @SerialName("takebackOffered")
+    data object TakebackOffered : GameMessage
+
+    @Serializable
+    @SerialName("takebackDeclined")
+    data object TakebackDeclined : GameMessage
+
+    @Serializable
     @SerialName("requestResync")
     data object RequestResync : GameMessage
 

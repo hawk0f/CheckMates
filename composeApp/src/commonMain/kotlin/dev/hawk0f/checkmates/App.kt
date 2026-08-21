@@ -82,7 +82,7 @@ object ReplayRoute
 @Composable
 fun App() {
     AppTheme {
-        Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+        Surface(modifier = Modifier.fillMaxSize()) {
             val navController = rememberNavController()
             LaunchedEffect(Unit) {
                 DeepLinkHandler.pendingCode.collect { code ->
@@ -101,14 +101,17 @@ fun App() {
                     }
                 }
             }
-            NavHost(navController = navController, startDestination = HomeRoute) {
+            NavHost(
+                navController = navController,
+                startDestination = HomeRoute,
+                modifier = Modifier.safeDrawingPadding()
+            ) {
                 composable<HomeRoute> {
                     HomeScreen(
                         onPassAndPlay = { navController.navigate(HotseatGameRoute) },
                         onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
                         onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
                         onPlayLichess = { navController.navigate(LichessHomeRoute) },
-                        onOpenSettings = { navController.navigate(SettingsRoute) },
                         onOpenProfile = { navController.navigate(ProfileRoute) },
                         onResumeGame = { navController.navigate(RemoteGameRoute) }
                     )
@@ -119,6 +122,7 @@ fun App() {
                 composable<ProfileRoute> {
                     ProfileScreen(
                         onOpenReplay = { navController.navigate(ReplayRoute) },
+                        onOpenSettings = { navController.navigate(SettingsRoute) },
                         onBack = { navController.popBackStack() }
                     )
                 }

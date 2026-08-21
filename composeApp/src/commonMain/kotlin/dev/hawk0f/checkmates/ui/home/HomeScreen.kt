@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,14 +51,12 @@ fun HomeScreen(
     onPlayOnline: () -> Unit = {},
     onPlayBluetooth: () -> Unit = {},
     onPlayLichess: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onResumeGame: () -> Unit = {},
     viewModel: HomeViewModel = viewModel { HomeViewModel() }
 ) {
     val profile by AuthManager.profile.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
-    var showAbout by remember { mutableStateOf(false) }
     val liveSession = GameSessionHolder.current
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -82,23 +79,15 @@ fun HomeScreen(
                 onPlayOnline = onPlayOnline,
                 onPassAndPlay = onPassAndPlay,
                 onPlayBluetooth = onPlayBluetooth,
-                onPlayLichess = onPlayLichess,
-                onOpenProfile = onOpenProfile,
-                onOpenSettings = onOpenSettings,
-                onAbout = { showAbout = true }
+                onPlayLichess = onPlayLichess
             )
-            Hairline()
-            if (profile == null) {
-                SignInRow(onOpenProfile)
-            } else {
+            if (profile != null && recent.isNotEmpty()) {
+                Hairline()
                 RecentSection(recent, onOpenProfile)
             }
         }
     }
 
-    if (showAbout) {
-        AboutDialog(onDismiss = { showAbout = false })
-    }
 }
 
 @Composable
@@ -124,7 +113,12 @@ private fun HeroCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.clickable(onClick = onOpenProfile)) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onOpenProfile)
+            ) {
                 if (profile != null) {
                     AvatarBadge(profile.avatarKind, profile.avatarValue, size = 44.dp, fontSize = 20.sp)
                 } else {
@@ -187,6 +181,7 @@ private fun HeroCard(
                 legalTargets = emptySet(),
                 flipped = false,
                 onSquareTap = {},
+                interactive = false,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)),
                 showCoordinates = false
             )
@@ -217,10 +212,7 @@ private fun ModeRail(
     onPlayOnline: () -> Unit,
     onPassAndPlay: () -> Unit,
     onPlayBluetooth: () -> Unit,
-    onPlayLichess: () -> Unit,
-    onOpenProfile: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onAbout: () -> Unit
+    onPlayLichess: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -250,58 +242,6 @@ private fun ModeRail(
                 tone = PillTone.SOFT,
                 compact = true
             )
-            PillButton(
-                text = "Profile",
-                onClick = onOpenProfile,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            PillButton(
-                text = "Settings",
-                onClick = onOpenSettings,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-            PillButton(
-                text = "About",
-                onClick = onAbout,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-        }
-    }
-}
-
-@Composable
-private fun SignInRow(onOpenProfile: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionLabel("Your account")
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenProfile),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(scheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("👤", fontSize = 18.sp)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Sign in", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "Keep your games and stats",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant
-                )
-            }
-            Text("›", style = MaterialTheme.typography.titleLarge, color = scheme.outline)
         }
     }
 }
@@ -384,24 +324,4 @@ private fun modeLabel(mode: String): String = when (mode) {
     "ble" -> "Nearby"
     "hotseat" -> "Pass & Play"
     else -> mode
-}
-
-@Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("About", style = MaterialTheme.typography.titleLarge) },
-        text = {
-            Text(
-                "CheckMates — chess for two players, online or nearby.\n\n" +
-                    "Chess pieces: \"cburnett\" set by Colin M.L. Burnett, " +
-                    "CC BY-SA 3.0, via lichess.org.\n\n" +
-                    "Chess rules engine: kchesslib (Apache-2.0).\n\n" +
-                    "Type: Caprasimo and Figtree, SIL Open Font License."
-            )
-        },
-        confirmButton = {
-            PillButton(text = "OK", onClick = onDismiss, compact = true)
-        }
-    )
 }

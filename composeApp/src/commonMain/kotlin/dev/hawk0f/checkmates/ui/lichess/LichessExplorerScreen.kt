@@ -94,6 +94,7 @@ fun LichessExplorerScreen(
                         legalTargets = emptySet(),
                         flipped = false,
                         onSquareTap = {},
+                interactive = false,
                         showCoordinates = false,
                         modifier = Modifier.fillMaxWidth()
                     )

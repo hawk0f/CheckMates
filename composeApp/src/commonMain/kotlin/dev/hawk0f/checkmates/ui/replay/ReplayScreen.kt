@@ -110,6 +110,7 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                 legalTargets = emptySet(),
                 flipped = item.myColor == PieceColor.BLACK,
                 onSquareTap = {},
+                interactive = false,
                 modifier = Modifier.fillMaxWidth()
             )
         }

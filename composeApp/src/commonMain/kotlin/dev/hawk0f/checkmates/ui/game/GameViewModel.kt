@@ -48,6 +48,8 @@ data class GameUiState(
     val showTimePicker: Boolean = false,
     val rematchOfferIncoming: Boolean = false,
     val rematchOfferOutgoing: Boolean = false,
+    val takebackOfferIncoming: Boolean = false,
+    val takebackOfferOutgoing: Boolean = false,
     val seriesMyWins: Int = 0,
     val seriesOpponentWins: Int = 0,
     val seriesDraws: Int = 0
@@ -179,6 +181,8 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                     pendingPromotion = null,
                     drawOfferIncoming = false,
                     drawOfferOutgoing = false,
+                    takebackOfferIncoming = false,
+                    takebackOfferOutgoing = false,
                     whiteMillis = message.whiteMillis ?: _uiState.value.whiteMillis,
                     blackMillis = message.blackMillis ?: _uiState.value.blackMillis
                 )
@@ -198,6 +202,8 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 }
                 _uiState.value = _uiState.value.copy(
                     gameState = game.state(),
+                    takebackOfferIncoming = false,
+                    takebackOfferOutgoing = false,
                     drawOfferIncoming = message.drawOfferPending && _uiState.value.drawOfferIncoming,
                     selected = null,
                     legalTargets = emptySet(),
@@ -223,6 +229,14 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
 
             GameMessage.DrawOffered -> {
                 _uiState.value = _uiState.value.copy(drawOfferIncoming = true)
+            }
+
+            GameMessage.TakebackOffered -> {
+                _uiState.value = _uiState.value.copy(takebackOfferIncoming = true)
+            }
+
+            GameMessage.TakebackDeclined -> {
+                _uiState.value = _uiState.value.copy(takebackOfferOutgoing = false)
             }
 
             GameMessage.DrawDeclined -> {
@@ -439,14 +453,59 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     val lichessTransport: LichessGameTransport?
         get() = (mode as? GameMode.Remote)?.session?.transport as? LichessGameTransport
 
+    val supportsTakeback: Boolean
+        get() = mode is GameMode.Hotseat || (mode as? GameMode.Remote)?.session != null
+
     fun offerTakeback() {
-        val transport = lichessTransport ?: return
-        viewModelScope.launch { transport.offerTakeback() }
+        val lichess = lichessTransport
+        if (lichess != null) {
+            viewModelScope.launch { lichess.offerTakeback() }
+            return
+        }
+        when (mode) {
+            GameMode.Hotseat -> undoLocalMove()
+            is GameMode.Remote -> {
+                if (_uiState.value.takebackOfferOutgoing || _uiState.value.gameState.uciHistory.isEmpty()) {
+                    return
+                }
+                _uiState.value = _uiState.value.copy(takebackOfferOutgoing = true)
+                viewModelScope.launch { mode.session.send(GameMessage.OfferTakeback) }
+            }
+        }
     }
 
     fun answerTakeback(accept: Boolean) {
-        val transport = lichessTransport ?: return
-        viewModelScope.launch { transport.answerTakeback(accept) }
+        val lichess = lichessTransport
+        if (lichess != null) {
+            viewModelScope.launch { lichess.answerTakeback(accept) }
+            return
+        }
+        val session = (mode as? GameMode.Remote)?.session ?: return
+        _uiState.value = _uiState.value.copy(takebackOfferIncoming = false)
+        viewModelScope.launch {
+            session.send(
+                if (accept) GameMessage.AcceptTakeback else GameMessage.DeclineTakeback
+            )
+        }
+    }
+
+    private fun undoLocalMove() {
+        val history = game.state().uciHistory
+        if (history.isEmpty()) {
+            return
+        }
+        val kept = history.dropLast(1)
+        val rebuilt = ChessGame()
+        for (uci in kept) {
+            rebuilt.applyUci(uci)
+        }
+        game = rebuilt
+        _uiState.value = _uiState.value.copy(
+            gameState = game.state(),
+            selected = null,
+            legalTargets = emptySet(),
+            pendingPromotion = null
+        )
     }
 
     fun claimVictory() {

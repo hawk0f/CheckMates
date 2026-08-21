@@ -116,6 +116,7 @@ fun LichessWatchScreen(
                         legalTargets = emptySet(),
                         flipped = uiState.flipped,
                         onSquareTap = {},
+                interactive = false,
                         showCoordinates = false,
                         modifier = Modifier.fillMaxWidth()
                     )

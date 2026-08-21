@@ -119,6 +119,7 @@ fun LichessReviewScreen(
                         legalTargets = emptySet(),
                         flipped = false,
                         onSquareTap = {},
+                interactive = false,
                         showCoordinates = false,
                         modifier = Modifier.fillMaxWidth()
                     )

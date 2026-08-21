@@ -1,6 +1,7 @@
 package dev.hawk0f.checkmates.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import dev.hawk0f.checkmates.platform.SystemBarsAppearance
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -32,6 +33,7 @@ fun AppTheme(content: @Composable () -> Unit) {
     val boardColors = if (useDark) palette.boardDark else palette.boardLight
     val accents = (if (useDark) palette.accentsDark else palette.accentsLight)
         ?: derivedAccents(colorScheme)
+    SystemBarsAppearance(darkIcons = !useDark)
     CompositionLocalProvider(
         LocalBoardColors provides boardColors,
         LocalAppAccents provides accents

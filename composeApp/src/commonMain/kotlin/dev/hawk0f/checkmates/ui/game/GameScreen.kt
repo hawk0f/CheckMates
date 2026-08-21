@@ -2,6 +2,7 @@ package dev.hawk0f.checkmates.ui.game
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
@@ -182,7 +185,8 @@ private fun PlayingPanel(
                 uiState = uiState,
                 sideColor = bottomColor.opposite,
                 alignEnd = true,
-                clockSize = false
+                clockSize = false,
+                rotated = !viewModel.isRemote
             )
         }
 
@@ -206,7 +210,8 @@ private fun PlayingPanel(
                 uiState = uiState,
                 sideColor = bottomColor,
                 alignEnd = false,
-                clockSize = true
+                clockSize = true,
+                rotated = false
             )
             Column(horizontalAlignment = Alignment.End) {
                 SectionLabel(statusLabel(uiState, viewModel.isRemote), color = accents.onBand)
@@ -243,6 +248,7 @@ private fun BottomSheet(
         .collectAsStateWithLifecycle()
     var chatOpen by remember { mutableStateOf(false) }
     var chatDraft by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
 
     if (chatOpen && lichess != null) {
         AlertDialog(
@@ -305,12 +311,57 @@ private fun BottomSheet(
     ) {
         Box(
             modifier = Modifier
-                .width(44.dp)
-                .height(4.dp)
-                .clip(CircleShape)
-                .background(scheme.onSurface.copy(alpha = 0.2f))
                 .align(Alignment.CenterHorizontally)
-        )
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 22.dp, vertical = 8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(44.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(scheme.onSurface.copy(alpha = 0.2f))
+            )
+        }
+
+        if (expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                SectionLabel("Moves", color = accents.bandStrong)
+                val allPairs = allMovePairs(uiState.gameState.uciHistory)
+                if (allPairs.isEmpty()) {
+                    Text(
+                        text = "No moves yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
+                for ((index, pair) in allPairs.withIndex()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "${index + 1}.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.width(26.dp)
+                        )
+                        Text(
+                            text = pair,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
 
         if (uiState.drawOfferIncoming) {
             SoftCard(container = accents.band, corner = 20.dp, modifier = Modifier.fillMaxWidth()) {
@@ -341,7 +392,7 @@ private fun BottomSheet(
             }
         }
 
-        if (lichess != null && takebackIncoming) {
+        if (takebackIncoming || uiState.takebackOfferIncoming) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -417,10 +468,12 @@ private fun BottomSheet(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (lichess != null) {
+                if (viewModel.supportsTakeback) {
                     CircleButton(
                         onClick = viewModel::offerTakeback,
-                        enabled = !takebackOutgoing
+                        enabled = !takebackOutgoing &&
+                            !uiState.takebackOfferOutgoing &&
+                            uiState.gameState.uciHistory.isNotEmpty()
                     ) {
                         Text(
                             text = "↩",
@@ -428,6 +481,8 @@ private fun BottomSheet(
                             color = scheme.onSurface
                         )
                     }
+                }
+                if (lichess != null) {
                     CircleButton(onClick = { chatOpen = true }) {
                         Text(
                             text = "…",
@@ -625,7 +680,8 @@ private fun PlayerBlock(
     uiState: GameUiState,
     sideColor: PieceColor,
     alignEnd: Boolean,
-    clockSize: Boolean
+    clockSize: Boolean,
+    rotated: Boolean = false
 ) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
@@ -638,7 +694,8 @@ private fun PlayerBlock(
 
     Column(
         horizontalAlignment = alignment,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = if (rotated) Modifier.rotate(180f) else Modifier
     ) {
         if (!clockSize) {
             if (millis != null) {
