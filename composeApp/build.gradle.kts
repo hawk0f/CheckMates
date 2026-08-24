@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinxSerialization)
+    alias(libs.plugins.roborazzi)
 }
 
 kotlin {
@@ -30,7 +31,9 @@ kotlin {
         androidResources {
             enable = true
         }
-        withHostTest {}
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
     }
 
     sourceSets {
@@ -71,6 +74,13 @@ kotlin {
             implementation(libs.kable.core)
             implementation(libs.multiplatform.settings)
         }
+        getByName("androidHostTest").dependencies {
+            implementation(libs.robolectric)
+            implementation(libs.roborazzi)
+            implementation(libs.roborazzi.compose)
+            implementation(libs.roborazzi.junit.rule)
+            implementation(libs.compose.ui.test.junit4)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
@@ -79,6 +89,12 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
         }
     }
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("roborazzi.test.record", providers.gradleProperty("roborazzi.test.record").getOrElse("false"))
+    systemProperty("roborazzi.test.verify", providers.gradleProperty("roborazzi.test.verify").getOrElse("false"))
+    systemProperty("roborazzi.output.dir", layout.projectDirectory.dir("screenshots").asFile.path)
 }
 
 composeCompiler {

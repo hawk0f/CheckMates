@@ -33,8 +33,8 @@ jobs:
       - name: Server tests
         run: ./gradlew :server:test --no-daemon
 
-      - name: Client view-model tests
-        run: ./gradlew :composeApp:testAndroidHostTest --no-daemon
+      - name: Client view-model and screenshot tests
+        run: ./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.verify=true --no-daemon
 
       - name: Release build with R8
         run: ./gradlew :androidApp:assembleRelease --no-daemon
@@ -48,6 +48,7 @@ jobs:
             shared/build/reports/tests
             server/build/reports/tests
             composeApp/build/reports/tests
+            composeApp/build/outputs/roborazzi
           retention-days: 7
 
   ios:

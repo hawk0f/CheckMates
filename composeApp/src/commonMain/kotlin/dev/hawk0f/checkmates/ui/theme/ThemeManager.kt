@@ -10,21 +10,21 @@ object ThemeManager {
     private const val KEY_PALETTE = "theme.palette"
     private const val KEY_DARK_MODE = "theme.darkMode"
 
-    private val settings = Settings()
+    private val settings: Settings? by lazy { runCatching { Settings() }.getOrNull() }
 
-    var palette by mutableStateOf(ThemePalette.byId(settings.getStringOrNull(KEY_PALETTE)))
+    var palette by mutableStateOf(ThemePalette.byId(settings?.getStringOrNull(KEY_PALETTE)))
         private set
 
-    var darkMode by mutableStateOf(DarkModePreference.byId(settings.getStringOrNull(KEY_DARK_MODE)))
+    var darkMode by mutableStateOf(DarkModePreference.byId(settings?.getStringOrNull(KEY_DARK_MODE)))
         private set
 
     fun selectPalette(value: ThemePalette) {
         palette = value
-        settings.putString(KEY_PALETTE, value.id)
+        settings?.putString(KEY_PALETTE, value.id)
     }
 
     fun selectDarkMode(value: DarkModePreference) {
         darkMode = value
-        settings.putString(KEY_DARK_MODE, value.id)
+        settings?.putString(KEY_DARK_MODE, value.id)
     }
 }
