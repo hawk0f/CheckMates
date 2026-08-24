@@ -32,6 +32,7 @@ import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
 import dev.hawk0f.checkmates.ui.leaderboard.LeaderboardScreen
+import dev.hawk0f.checkmates.ui.puzzle.PuzzleScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessHomeScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessArenasScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessExplorerScreen
@@ -96,6 +97,9 @@ data class LichessReviewRoute(val gameId: String)
 
 @Serializable
 object RemoteGameRoute
+
+@Serializable
+object PuzzleRoute
 
 @Serializable
 object LeaderboardRoute
@@ -181,11 +185,15 @@ fun App() {
                             onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
                             onPlayComputer = { navController.navigate(ComputerSetupRoute) },
                             onSwitchFlow = { openFlowHome(AppFlow.LICHESS) },
+                            onOpenPuzzles = { navController.navigate(PuzzleRoute) },
                             onOpenLeaderboard = { navController.navigate(LeaderboardRoute) },
                             onOpenProfile = { navController.navigate(ProfileRoute) },
                             onOpenSettings = { navController.navigate(SettingsRoute) },
                             onResumeGame = { navController.navigate(RemoteGameRoute) }
                         )
+                    }
+                    composable<PuzzleRoute> {
+                        PuzzleScreen(onBack = { navController.popBackStack() })
                     }
                     composable<LeaderboardRoute> {
                         LeaderboardScreen(onBack = { navController.popBackStack() })

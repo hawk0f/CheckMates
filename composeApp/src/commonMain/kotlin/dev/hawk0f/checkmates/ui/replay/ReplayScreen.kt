@@ -6,7 +6,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.hawk0f.checkmates.shared.engine.GameAnalyzer
+import dev.hawk0f.checkmates.shared.engine.MoveQuality
+import dev.hawk0f.checkmates.ui.theme.AppAccents
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -37,7 +49,16 @@ import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.PlayIcon
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.replay_accuracy
+import dev.hawk0f.checkmates.resources.replay_analyse
+import dev.hawk0f.checkmates.resources.replay_analysing
 import dev.hawk0f.checkmates.resources.replay_back_to_history
+import dev.hawk0f.checkmates.resources.replay_best_was
+import dev.hawk0f.checkmates.resources.replay_quality_best
+import dev.hawk0f.checkmates.resources.replay_quality_blunder
+import dev.hawk0f.checkmates.resources.replay_quality_good
+import dev.hawk0f.checkmates.resources.replay_quality_inaccuracy
+import dev.hawk0f.checkmates.resources.replay_quality_mistake
 import dev.hawk0f.checkmates.resources.replay_move_of_total
 import dev.hawk0f.checkmates.resources.replay_numbered_move
 import dev.hawk0f.checkmates.resources.replay_phase_middlegame
@@ -55,8 +76,13 @@ import dev.hawk0f.checkmates.resources.a11y_previous_move
 import dev.hawk0f.checkmates.resources.a11y_share
 
 @Composable
-fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
+fun ReplayScreen(
+    item: GameHistoryItem,
+    onBack: () -> Unit,
+    analysisViewModel: ReplayAnalysisViewModel = viewModel { ReplayAnalysisViewModel() }
+) {
     var moveIndex by remember(item) { mutableIntStateOf(item.uciHistory.size) }
+    val analysis by analysisViewModel.uiState.collectAsStateWithLifecycle()
     val gameState = remember(item, moveIndex) {
         val game = ChessGame()
         for (uci in item.uciHistory.take(moveIndex)) {
@@ -121,16 +147,28 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
         }
 
         val flipped = item.myColor == PieceColor.BLACK
-        BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
-            ChessBoard(
-                gameState = gameState,
-                selected = null,
-                legalTargets = emptySet(),
-                flipped = flipped,
-                onSquareTap = {},
-                interactive = false,
-                modifier = boardModifier
-            )
+        val currentAnalysis = analysis.summary?.moves?.getOrNull(moveIndex - 1)
+        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (analysis.summary != null) {
+                EvaluationBar(
+                    whiteScore = currentAnalysis?.let { move ->
+                        if (move.ply % 2 == 0) move.scoreAfter else -move.scoreAfter
+                    } ?: 0,
+                    flipped = flipped,
+                    modifier = Modifier.fillMaxHeight().padding(start = 20.dp, top = 8.dp, bottom = 8.dp)
+                )
+            }
+            BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
+                ChessBoard(
+                    gameState = gameState,
+                    selected = null,
+                    legalTargets = emptySet(),
+                    flipped = flipped,
+                    onSquareTap = {},
+                    interactive = false,
+                    modifier = boardModifier
+                )
+            }
         }
 
         Column(
@@ -246,6 +284,50 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                 }
             }
 
+            if (currentAnalysis != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = qualityLabel(currentAnalysis.quality),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = qualityColor(currentAnalysis.quality, accents, scheme)
+                    )
+                    if (currentAnalysis.bestMove != null && currentAnalysis.bestMove != currentAnalysis.uci) {
+                        Text(
+                            text = stringResource(Res.string.replay_best_was, currentAnalysis.bestMove.orEmpty()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = accents.bandStrong
+                        )
+                    }
+                }
+            }
+
+            analysis.summary?.let { summary ->
+                Text(
+                    text = stringResource(
+                        Res.string.replay_accuracy,
+                        summary.whiteAverageLoss,
+                        summary.blackAverageLoss
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accents.bandStrong
+                )
+            }
+
+            if (total > 0 && analysis.summary == null) {
+                PillButton(
+                    text = if (analysis.running) {
+                        stringResource(Res.string.replay_analysing, analysis.analysedPlies, analysis.totalPlies)
+                    } else {
+                        stringResource(Res.string.replay_analyse)
+                    },
+                    onClick = { analysisViewModel.analyse(item.uciHistory) },
+                    enabled = !analysis.running,
+                    tone = PillTone.ACCENT,
+                    compact = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             PillButton(
                 text = stringResource(Res.string.replay_back_to_history),
                 onClick = onBack,
@@ -255,6 +337,46 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun EvaluationBar(whiteScore: Int, flipped: Boolean, modifier: Modifier = Modifier) {
+    val fraction = GameAnalyzer.evaluationBarFraction(whiteScore)
+    val whiteShare = if (flipped) 1f - fraction else fraction
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier = modifier.width(10.dp).clip(RoundedCornerShape(5.dp)).background(scheme.inverseSurface)
+    ) {
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight((1f - whiteShare).coerceIn(0.01f, 0.99f))
+                .background(scheme.inverseSurface)
+        )
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(whiteShare.coerceIn(0.01f, 0.99f))
+                .background(scheme.surface)
+        )
+    }
+}
+
+@Composable
+private fun qualityLabel(quality: MoveQuality): String = stringResource(
+    when (quality) {
+        MoveQuality.BEST -> Res.string.replay_quality_best
+        MoveQuality.GOOD -> Res.string.replay_quality_good
+        MoveQuality.INACCURACY -> Res.string.replay_quality_inaccuracy
+        MoveQuality.MISTAKE -> Res.string.replay_quality_mistake
+        MoveQuality.BLUNDER -> Res.string.replay_quality_blunder
+    }
+)
+
+private fun qualityColor(quality: MoveQuality, accents: AppAccents, scheme: ColorScheme): Color = when (quality) {
+    MoveQuality.BEST, MoveQuality.GOOD -> accents.positive
+    MoveQuality.INACCURACY -> accents.bandStrong
+    MoveQuality.MISTAKE, MoveQuality.BLUNDER -> accents.negative
 }
 
 private fun scoreLabel(item: GameHistoryItem): String = when (item.winner) {
