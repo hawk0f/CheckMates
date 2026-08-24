@@ -8,6 +8,7 @@ import androidx.test.uiautomator.Until
 const val TARGET_PACKAGE = "dev.hawk0f.checkmates"
 
 private const val TIMEOUT_MS = 20_000L
+private const val SHORT_TIMEOUT_MS = 3_000L
 private const val DRAG_STEPS = 24
 
 class BoardGeometry(private val fileX: IntArray, private val rankY: IntArray) {
@@ -26,7 +27,15 @@ fun MacrobenchmarkScope.launchToBoard() {
     device.openHotseatBoard()
 }
 
+fun UiDevice.chooseCheckMatesFlowIfAsked() {
+    val flowCard = wait(Until.findObject(By.textStartsWith("CheckMates")), SHORT_TIMEOUT_MS) ?: return
+    flowCard.click()
+    wait(Until.findObject(By.text("Continue")), TIMEOUT_MS)?.click()
+    waitForIdle()
+}
+
 fun UiDevice.openHotseatBoard() {
+    chooseCheckMatesFlowIfAsked()
     wait(Until.findObject(By.text("Pass & Play")), TIMEOUT_MS).click()
     wait(Until.findObject(By.text("No clock")), TIMEOUT_MS).click()
     wait(Until.hasObject(By.text("h")), TIMEOUT_MS)
