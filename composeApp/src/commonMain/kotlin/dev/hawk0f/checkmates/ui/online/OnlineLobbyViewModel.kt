@@ -3,6 +3,7 @@ package dev.hawk0f.checkmates.ui.online
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hawk0f.checkmates.net.ApiClient
+import dev.hawk0f.checkmates.net.SeekClient
 import dev.hawk0f.checkmates.net.ServerConfig
 import dev.hawk0f.checkmates.net.WebSocketGameTransport
 import dev.hawk0f.checkmates.net.configuredHttpClient
@@ -11,12 +12,14 @@ import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
+import dev.hawk0f.checkmates.shared.protocol.SeekMessage
 import dev.hawk0f.checkmates.shared.protocol.ShortCode
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -26,6 +29,7 @@ sealed interface LobbyStep {
     data object Idle : LobbyStep
     data object Working : LobbyStep
     data class WaitingForOpponent(val shortCode: String, val joinUrl: String) : LobbyStep
+    data class Searching(val queued: Int, val rating: Int) : LobbyStep
     data object GameReady : LobbyStep
     data class Failed(val message: String) : LobbyStep
 }
@@ -42,6 +46,8 @@ class OnlineLobbyViewModel : ViewModel() {
     private val httpClient = configuredHttpClient()
     private val socketClient = configuredWebSocketClient()
     private val api = ApiClient(httpClient)
+    private val seekClient = SeekClient(socketClient)
+    private var seekJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         OnlineLobbyUiState(playerName = AuthManager.profile.value?.displayName.orEmpty().take(30))
@@ -145,6 +151,60 @@ class OnlineLobbyViewModel : ViewModel() {
         }
     }
 
+    fun quickPair() {
+        val state = _uiState.value
+        if (state.step is LobbyStep.Working || state.step is LobbyStep.Searching) {
+            return
+        }
+        val timeControl = state.timeControl ?: DEFAULT_SEEK_TIME_CONTROL
+        val name = state.playerName.ifBlank { "Player" }
+        _uiState.value = state.copy(step = LobbyStep.Searching(queued = 0, rating = 0))
+        seekJob = viewModelScope.launch {
+            try {
+                seekClient.seek(name, timeControl, AuthManager.token).collect { message ->
+                    when (message) {
+                        is SeekMessage.Waiting -> {
+                            _uiState.value = _uiState.value.copy(
+                                step = LobbyStep.Searching(message.queued, message.rating)
+                            )
+                        }
+
+                        is SeekMessage.Matched -> startPairedGame(message, name)
+                        is SeekMessage.Error -> {
+                            _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(message.message))
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                GameSessionHolder.clear()
+                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(e.message ?: "matchmaking failed"))
+            }
+        }
+    }
+
+    private suspend fun startPairedGame(matched: SeekMessage.Matched, name: String) {
+        val transport = WebSocketGameTransport(
+            client = socketClient,
+            url = ServerConfig.wsGameUrl(matched.gameId, matched.playerToken),
+            gameId = matched.gameId,
+            playerToken = matched.playerToken
+        )
+        val session = ActiveGameSession(transport, kind = "online", myName = name)
+        GameSessionHolder.install(session)
+        transport.start(session.scope)
+        session.myColor.filter { it != null }.first()
+        _uiState.value = _uiState.value.copy(step = LobbyStep.GameReady)
+    }
+
+    fun cancelSearch() {
+        seekJob?.cancel()
+        seekJob = null
+        GameSessionHolder.clear()
+        _uiState.value = _uiState.value.copy(step = LobbyStep.Idle)
+    }
+
     fun cancelWaiting() {
         GameSessionHolder.clear()
         _uiState.value = _uiState.value.copy(step = LobbyStep.Idle)
@@ -160,5 +220,9 @@ class OnlineLobbyViewModel : ViewModel() {
 
     override fun onCleared() {
         httpClient.close()
+    }
+
+    companion object {
+        val DEFAULT_SEEK_TIME_CONTROL = TimeControl(180, 2)
     }
 }

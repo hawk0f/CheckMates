@@ -8,7 +8,10 @@ import dev.hawk0f.checkmates.shared.protocol.GameHistoryResponse
 import dev.hawk0f.checkmates.shared.protocol.GameInfoResponse
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
 import dev.hawk0f.checkmates.shared.protocol.GameRecordResponse
+import dev.hawk0f.checkmates.shared.protocol.GameSpeed
+import dev.hawk0f.checkmates.shared.protocol.LeaderboardResponse
 import dev.hawk0f.checkmates.shared.protocol.LoginRequest
+import dev.hawk0f.checkmates.shared.protocol.RatingsResponse
 import dev.hawk0f.checkmates.shared.protocol.ProfileResponse
 import dev.hawk0f.checkmates.shared.protocol.RegisterRequest
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
@@ -85,6 +88,14 @@ class ApiClient(private val client: HttpClient) {
         client.get("${ServerConfig.baseUrl}/api/me/games") {
             bearerAuth(token)
         }.bodyOrError()
+
+    suspend fun ratings(token: String): RatingsResponse =
+        client.get("${ServerConfig.baseUrl}/api/me/ratings") {
+            bearerAuth(token)
+        }.bodyOrError()
+
+    suspend fun leaderboard(speed: GameSpeed, limit: Int = 50): LeaderboardResponse =
+        client.get("${ServerConfig.baseUrl}/api/leaderboard?speed=${speed.id}&limit=$limit").bodyOrError()
 
     suspend fun uploadGame(token: String, request: GameRecordRequest): GameRecordResponse =
         client.post("${ServerConfig.baseUrl}/api/me/games") {

@@ -63,6 +63,17 @@ object GameRooms : Table("game_rooms") {
     override val primaryKey = PrimaryKey(gameId)
 }
 
+object UserRatings : Table("user_ratings") {
+    val userId = long("user_id").references(Users.id)
+    val speed = varchar("speed", 12)
+    val rating = double("rating")
+    val deviation = double("deviation")
+    val volatility = double("volatility")
+    val games = integer("games").default(0)
+    val lastPlayedMillis = long("last_played_millis").default(0)
+    override val primaryKey = PrimaryKey(userId, speed)
+}
+
 object SchemaVersion : Table("schema_version") {
     val id = integer("id")
     val version = integer("version")
@@ -71,7 +82,7 @@ object SchemaVersion : Table("schema_version") {
 
 object Db {
 
-    const val LATEST_VERSION = 3
+    const val LATEST_VERSION = 4
 
     fun init(path: String): Database {
         File(path).parentFile?.mkdirs()
@@ -79,7 +90,7 @@ object Db {
         val database = Database.connect("jdbc:sqlite:$path?busy_timeout=5000", driver = "org.sqlite.JDBC")
         TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
         transaction(database) {
-            SchemaUtils.create(Users, AuthSessions, GameRecords, SchemaVersion, GameRooms)
+            SchemaUtils.create(Users, AuthSessions, GameRecords, SchemaVersion, GameRooms, UserRatings)
             migrate()
         }
         return database
@@ -108,6 +119,9 @@ object Db {
         if (current < 3) {
             exec("CREATE INDEX IF NOT EXISTS game_rooms_activity ON game_rooms(last_activity_millis)")
             exec("CREATE INDEX IF NOT EXISTS game_rooms_short_code ON game_rooms(short_code)")
+        }
+        if (current < 4) {
+            exec("CREATE INDEX IF NOT EXISTS user_ratings_board ON user_ratings(speed, rating)")
         }
         writeVersion(LATEST_VERSION)
     }

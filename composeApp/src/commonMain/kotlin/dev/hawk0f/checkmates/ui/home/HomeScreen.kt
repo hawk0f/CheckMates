@@ -52,6 +52,7 @@ import dev.hawk0f.checkmates.resources.home_computer
 import dev.hawk0f.checkmates.resources.flow_switch_to
 import dev.hawk0f.checkmates.resources.home_moves_with_mode
 import dev.hawk0f.checkmates.resources.home_nearby
+import dev.hawk0f.checkmates.resources.leaderboard_title
 import dev.hawk0f.checkmates.resources.home_new_game
 import dev.hawk0f.checkmates.resources.home_no_finished_games
 import dev.hawk0f.checkmates.resources.home_online_in_progress
@@ -86,6 +87,7 @@ fun HomeScreen(
     onPlayOnline: () -> Unit = {},
     onPlayBluetooth: () -> Unit = {},
     onPlayComputer: () -> Unit = {},
+    onOpenLeaderboard: () -> Unit = {},
     onSwitchFlow: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -118,6 +120,7 @@ fun HomeScreen(
                 onPassAndPlay = onPassAndPlay,
                 onPlayBluetooth = onPlayBluetooth,
                 onPlayComputer = onPlayComputer,
+                onOpenLeaderboard = onOpenLeaderboard,
                 onSwitchFlow = onSwitchFlow
             )
             if (profile != null && recent.isNotEmpty()) {
@@ -297,6 +300,7 @@ private fun ModeRail(
     onPassAndPlay: () -> Unit,
     onPlayBluetooth: () -> Unit,
     onPlayComputer: () -> Unit,
+    onOpenLeaderboard: () -> Unit,
     onSwitchFlow: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -324,6 +328,12 @@ private fun ModeRail(
             PillButton(
                 text = stringResource(Res.string.home_nearby),
                 onClick = onPlayBluetooth,
+                tone = PillTone.SOFT,
+                compact = true
+            )
+            PillButton(
+                text = stringResource(Res.string.leaderboard_title),
+                onClick = onOpenLeaderboard,
                 tone = PillTone.SOFT,
                 compact = true
             )

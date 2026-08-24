@@ -108,6 +108,7 @@ import dev.hawk0f.checkmates.resources.game_resign_local_body
 import dev.hawk0f.checkmates.resources.game_resign_remote_body
 import dev.hawk0f.checkmates.resources.game_resign_title
 import dev.hawk0f.checkmates.resources.game_result_and_move
+import dev.hawk0f.checkmates.resources.rating_changed
 import dev.hawk0f.checkmates.resources.game_result_black_won
 import dev.hawk0f.checkmates.resources.game_result_draw
 import dev.hawk0f.checkmates.resources.game_result_white_won
@@ -974,6 +975,18 @@ private fun GameOverPanel(
                 style = MaterialTheme.typography.displayMedium,
                 color = scheme.onBackground
             )
+            uiState.ratingChange?.let { change ->
+                val delta = change.after - change.before
+                Text(
+                    text = stringResource(
+                        Res.string.rating_changed,
+                        change.after,
+                        if (delta >= 0) "+$delta" else delta.toString()
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (delta >= 0) accents.positive else accents.negative
+                )
+            }
             if (uiState.rematchOfferIncoming) {
                 Text(
                     text = stringResource(

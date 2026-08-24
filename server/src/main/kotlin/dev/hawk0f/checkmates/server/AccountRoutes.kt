@@ -5,6 +5,7 @@ import dev.hawk0f.checkmates.shared.protocol.GameHistoryResponse
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
 import dev.hawk0f.checkmates.shared.protocol.GameRecordResponse
 import dev.hawk0f.checkmates.shared.protocol.LoginRequest
+import dev.hawk0f.checkmates.shared.protocol.RatingsResponse
 import dev.hawk0f.checkmates.shared.protocol.RegisterRequest
 import dev.hawk0f.checkmates.shared.protocol.UpdateProfileRequest
 import dev.hawk0f.checkmates.shared.protocol.AuthResponse
@@ -18,7 +19,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 
-fun Route.accountRoutes(users: UserRepository) {
+fun Route.accountRoutes(users: UserRepository, ratings: RatingRepository? = null) {
     rateLimit(AuthRateLimit) {
         post("/api/auth/register") {
             val request = call.receive<RegisterRequest>()
@@ -57,6 +58,13 @@ fun Route.accountRoutes(users: UserRepository) {
             call.respond(HttpStatusCode.NotFound, ApiError("NO_PROFILE", "profile not found"))
         } else {
             call.respond(profile)
+        }
+    }
+
+    if (ratings != null) {
+        get("/api/me/ratings") {
+            val userId = call.authenticatedUserId(users) ?: return@get
+            call.respond(RatingsResponse(ratings.ratingsOf(userId)))
         }
     }
 

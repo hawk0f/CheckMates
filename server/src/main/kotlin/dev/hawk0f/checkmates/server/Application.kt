@@ -47,7 +47,13 @@ fun Application.module() {
     val database = Db.init(dbPath)
     val users = UserRepository(database)
     val roomStore = SqliteRoomStore(database)
-    val registry = RoomRegistry(publicBaseUrl, GameRecorder(users::insertGame), roomStore)
+    val ratings = RatingRepository(database)
+    val registry = RoomRegistry(
+        publicBaseUrl = publicBaseUrl,
+        recorder = GameRecorder(users::insertGame),
+        store = roomStore,
+        ratings = ratings::applyResult
+    )
 
     install(XForwardedHeaders) {
         useLastProxy()
@@ -114,5 +120,5 @@ fun Application.module() {
         }
     }
 
-    configureRouting(registry, users)
+    configureRouting(registry, users, ratings, SeekPool(registry))
 }

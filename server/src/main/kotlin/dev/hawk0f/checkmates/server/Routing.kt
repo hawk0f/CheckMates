@@ -16,12 +16,23 @@ import io.ktor.server.websocket.webSocket
 import dev.hawk0f.checkmates.shared.protocol.CreateGameRequest
 import dev.hawk0f.checkmates.shared.protocol.CreateGameResponse
 import dev.hawk0f.checkmates.shared.protocol.GameInfoResponse
+import dev.hawk0f.checkmates.shared.protocol.GameSpeed
+import dev.hawk0f.checkmates.shared.protocol.LeaderboardResponse
+import dev.hawk0f.checkmates.shared.protocol.SeekJson
+import dev.hawk0f.checkmates.shared.protocol.SeekMessage
+import dev.hawk0f.checkmates.shared.protocol.TimeControl
+import kotlinx.coroutines.CancellationException
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 
-fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) {
+fun Application.configureRouting(
+    registry: RoomRegistry,
+    users: UserRepository,
+    ratings: RatingRepository? = null,
+    seekPool: SeekPool? = null
+) {
     routing {
-        accountRoutes(users)
+        accountRoutes(users, ratings)
 
         get("/health") {
             call.respondText("ok")
@@ -70,6 +81,48 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
                     timeControl = room?.timeControl
                 )
             )
+        }
+
+        if (ratings != null) {
+            get("/api/leaderboard") {
+                val speed = GameSpeed.byId(call.request.queryParameters["speed"]) ?: GameSpeed.BLITZ
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                call.respond(LeaderboardResponse(speed, ratings.leaderboard(speed, limit)))
+            }
+        }
+
+        if (seekPool != null) {
+            webSocket("/ws/seek") {
+                val initialSeconds = call.request.queryParameters["initial"]?.toIntOrNull()
+                val incrementSeconds = call.request.queryParameters["increment"]?.toIntOrNull() ?: 0
+                if (initialSeconds == null || initialSeconds !in 10..86400 || incrementSeconds !in 0..600) {
+                    sendSeek(SeekMessage.Error("BAD_TIME_CONTROL", "unsupported time control"))
+                    return@webSocket
+                }
+                val timeControl = TimeControl(initialSeconds, incrementSeconds)
+                val userId = call.request.queryParameters["token"]?.let { users.userIdByToken(it) }
+                val name = call.request.queryParameters["name"]?.trim()?.take(30).orEmpty().ifEmpty { "Player" }
+                val speed = GameSpeed.of(timeControl)
+                val rating = if (userId != null && ratings != null) {
+                    ratings.ratingValue(userId, speed)
+                } else {
+                    Glicko2.DEFAULT_RATING.toInt()
+                }
+                val (seekId, result) = seekPool.enqueue(name, userId, timeControl, rating)
+                try {
+                    if (!result.isCompleted) {
+                        sendSeek(SeekMessage.Waiting(seekPool.queuedFor(timeControl), rating, speed))
+                    }
+                    val matched = result.await()
+                    sendSeek(matched)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    sendSeek(SeekMessage.Error("SEEK_FAILED", error.message ?: "seek failed"))
+                } finally {
+                    seekPool.cancel(seekId)
+                }
+            }
         }
 
         webSocket("/ws/game/{gameId}") {
@@ -154,4 +207,8 @@ private suspend fun WebSocketServerSession.dispatch(
             null
         }
     }
+}
+
+private suspend fun WebSocketServerSession.sendSeek(message: SeekMessage) {
+    send(Frame.Text(SeekJson.encode(message)))
 }

@@ -19,6 +19,7 @@ import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
+import dev.hawk0f.checkmates.shared.protocol.GameSpeed
 import dev.hawk0f.checkmates.shared.transport.TransportConnectionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,8 @@ sealed interface GameMode {
     data class Remote(val session: ActiveGameSession) : GameMode
 }
 
+data class RatingChangeUi(val speed: GameSpeed, val before: Int, val after: Int)
+
 data class GameUiState(
     val gameState: GameState,
     val selected: Square?,
@@ -71,6 +74,7 @@ data class GameUiState(
     val chat: List<ChatLine> = emptyList(),
     val engineThinking: Boolean = false,
     val hint: String? = null,
+    val ratingChange: RatingChangeUi? = null,
     val premoveState: GameState? = null,
     val seriesMyWins: Int = 0,
     val seriesOpponentWins: Int = 0,
@@ -381,6 +385,12 @@ class GameViewModel(
                 val line = ChatLine(author = author, text = message.text)
                 _uiState.value = _uiState.value.copy(
                     chat = (_uiState.value.chat + line).takeLast(MAX_CHAT_LINES)
+                )
+            }
+
+            is GameMessage.RatingChanged -> {
+                _uiState.value = _uiState.value.copy(
+                    ratingChange = RatingChangeUi(message.speed, message.before, message.after)
                 )
             }
 

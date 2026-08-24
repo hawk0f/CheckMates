@@ -65,6 +65,16 @@
     <string name="lobby_clock">Clock</string>
     <string name="lobby_join_game">Join game</string>
     <string name="lobby_create_game">Create game</string>
+    <string name="lobby_quick_pair">Quick pair</string>
+    <string name="lobby_quick_pair_hint">We find an opponent near your rating</string>
+    <string name="lobby_searching">Looking for an opponent</string>
+    <string name="lobby_searching_detail">%1$d in queue · your rating %2$d</string>
+    <string name="leaderboard_title">Leaderboard</string>
+    <string name="leaderboard_empty">No ranked players yet</string>
+    <string name="leaderboard_games">%1$d games</string>
+    <string name="ratings_title">Ratings</string>
+    <string name="rating_provisional">provisional</string>
+    <string name="rating_changed">Rating %1$d (%2$s)</string>
     <string name="lobby_colours_drawn_at_random">Colours are drawn at random when you join</string>
     <string name="lobby_friend_joins_with_code">Your friend joins with the code or the link</string>
     <string name="lobby_qr_content_description">QR code for %1$s</string>

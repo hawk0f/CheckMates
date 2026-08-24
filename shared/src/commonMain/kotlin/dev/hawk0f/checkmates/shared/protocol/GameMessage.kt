@@ -41,6 +41,14 @@ sealed interface GameMessage {
     data class ChatSaid(val author: String, val text: String) : GameMessage
 
     @Serializable
+    @SerialName("ratingChanged")
+    data class RatingChanged(
+        val speed: GameSpeed,
+        val before: Int,
+        val after: Int
+    ) : GameMessage
+
+    @Serializable
     @SerialName("offerDraw")
     data object OfferDraw : GameMessage
 

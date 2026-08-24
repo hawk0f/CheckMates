@@ -5,6 +5,7 @@ import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
+import dev.hawk0f.checkmates.shared.protocol.GameSpeed
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
 import dev.hawk0f.checkmates.shared.protocol.ProtocolJson
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
@@ -30,6 +31,15 @@ fun interface GameRecorder {
     suspend fun record(userId: Long, request: GameRecordRequest)
 }
 
+fun interface RatingUpdater {
+    suspend fun apply(
+        speed: GameSpeed,
+        whiteUserId: Long,
+        blackUserId: Long,
+        whiteScore: Double
+    ): List<RatingChange>
+}
+
 class PlayerSlot(
     val token: String,
     val name: String,
@@ -47,6 +57,7 @@ class GameRoom(
     val timeControl: TimeControl? = null,
     hostUserId: Long? = null,
     private val recorder: GameRecorder? = null,
+    private val ratings: RatingUpdater? = null,
     private val recorderScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     private val store: RoomStore = NoopRoomStore
 ) {
@@ -113,6 +124,25 @@ class GameRoom(
         persist()
         guestColor
     }
+
+    suspend fun seatGuest(guestToken: String, guestName: String, guestUserId: Long? = null): PieceColor? =
+        mutex.withLock {
+            touch()
+            if (status != RoomStatus.WAITING_FOR_GUEST) {
+                return null
+            }
+            val hostColor = players.keys.first()
+            val guestColor = hostColor.opposite
+            players[guestColor] = PlayerSlot(guestToken, guestName, null, guestUserId)
+            status = RoomStatus.IN_PROGRESS
+            if (timeControl != null) {
+                remainingMillis[PieceColor.WHITE] = timeControl.initialSeconds * 1000L
+                remainingMillis[PieceColor.BLACK] = timeControl.initialSeconds * 1000L
+                turnStartedAtMillis = System.currentTimeMillis()
+            }
+            persist()
+            guestColor
+        }
 
     fun snapshot(): RoomSnapshot = RoomSnapshot(
         gameId = gameId,
@@ -382,6 +412,7 @@ class GameRoom(
         premoves.clear()
         broadcast(GameMessage.GameOver(reason, winner))
         recordFinishedGame(reason, winner)
+        updateRatings(winner)
         val resultText = when (winner) {
             PieceColor.WHITE -> "White wins"
             PieceColor.BLACK -> "Black wins"
@@ -419,6 +450,35 @@ class GameRoom(
                 runCatching { recorder.record(userId, request) }
                     .onFailure { error -> log.error("failed to record game $gameId for user $userId", error) }
             }
+        }
+    }
+
+    private fun updateRatings(winner: PieceColor?) {
+        val ratings = ratings ?: return
+        val timeControl = timeControl ?: return
+        val white = players[PieceColor.WHITE] ?: return
+        val black = players[PieceColor.BLACK] ?: return
+        val whiteUserId = white.userId ?: return
+        val blackUserId = black.userId ?: return
+        if (game.state().uciHistory.size < MIN_RATED_PLIES) {
+            return
+        }
+        val whiteScore = when (winner) {
+            PieceColor.WHITE -> 1.0
+            PieceColor.BLACK -> 0.0
+            null -> 0.5
+        }
+        val speed = GameSpeed.of(timeControl)
+        recorderScope.launch {
+            runCatching {
+                val changes = ratings.apply(speed, whiteUserId, blackUserId, whiteScore)
+                for (change in changes) {
+                    val slot = if (change.userId == whiteUserId) white else black
+                    slot.session?.sendMessage(
+                        GameMessage.RatingChanged(change.speed, change.before, change.after)
+                    )
+                }
+            }.onFailure { error -> log.error("failed to update ratings for game $gameId", error) }
         }
     }
 
@@ -586,6 +646,7 @@ class GameRoom(
 
     companion object {
         const val PREMOVE_ELAPSED_MILLIS = 100L
+        const val MIN_RATED_PLIES = 4
         const val MAX_CHAT_CHARS = 140
         const val MAX_CHAT_PER_WINDOW = 5
         const val CHAT_WINDOW_MILLIS = 10_000L

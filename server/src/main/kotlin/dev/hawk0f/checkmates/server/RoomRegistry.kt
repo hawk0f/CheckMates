@@ -19,7 +19,8 @@ data class CreatedGame(
 class RoomRegistry(
     private val publicBaseUrl: String,
     private val recorder: GameRecorder? = null,
-    private val store: RoomStore = NoopRoomStore
+    private val store: RoomStore = NoopRoomStore,
+    private val ratings: RatingUpdater? = null
 ) {
 
     private val roomsById = ConcurrentHashMap<String, GameRoom>()
@@ -44,6 +45,7 @@ class RoomRegistry(
                     timeControl = timeControl,
                     hostUserId = hostUserId,
                     recorder = recorder,
+                    ratings = ratings,
                     store = store
                 )
                 roomsById[gameId] = room
@@ -69,6 +71,7 @@ class RoomRegistry(
                 timeControl = snapshot.timeControl,
                 hostUserId = host.userId,
                 recorder = recorder,
+                ratings = ratings,
                 store = store
             )
             room.restoreFrom(snapshot)

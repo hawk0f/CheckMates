@@ -55,6 +55,9 @@ import dev.hawk0f.checkmates.resources.lobby_clock
 import dev.hawk0f.checkmates.resources.lobby_colours_drawn_at_random
 import dev.hawk0f.checkmates.resources.lobby_could_not_start
 import dev.hawk0f.checkmates.resources.lobby_create_game
+import dev.hawk0f.checkmates.resources.lobby_quick_pair
+import dev.hawk0f.checkmates.resources.lobby_searching
+import dev.hawk0f.checkmates.resources.lobby_searching_detail
 import dev.hawk0f.checkmates.resources.lobby_friend_joins_with_code
 import dev.hawk0f.checkmates.resources.lobby_game_code
 import dev.hawk0f.checkmates.resources.lobby_invite_a_friend
@@ -141,6 +144,12 @@ fun OnlineLobbyScreen(
             step is LobbyStep.WaitingForOpponent -> WaitingContent(
                 step = step,
                 onCancel = viewModel::cancelWaiting,
+                modifier = Modifier.weight(1f)
+            )
+
+            step is LobbyStep.Searching -> SearchingContent(
+                step = step,
+                onCancel = viewModel::cancelSearch,
                 modifier = Modifier.weight(1f)
             )
 
@@ -266,6 +275,14 @@ private fun SetupContent(
                 enabled = !joining || uiState.codeInput.length == 6,
                 modifier = Modifier.fillMaxWidth()
             )
+            if (!joining) {
+                PillButton(
+                    text = stringResource(Res.string.lobby_quick_pair),
+                    onClick = viewModel::quickPair,
+                    tone = PillTone.ACCENT,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             Text(
                 text = if (joining) {
                     stringResource(Res.string.lobby_colours_drawn_at_random)
@@ -278,6 +295,36 @@ private fun SetupContent(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+}
+
+@Composable
+private fun SearchingContent(
+    step: LobbyStep.Searching,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 26.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
+    ) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        Text(
+            text = stringResource(Res.string.lobby_searching),
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            text = stringResource(Res.string.lobby_searching_detail, step.queued, step.rating),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        PillButton(
+            text = stringResource(Res.string.common_cancel),
+            onClick = onCancel,
+            tone = PillTone.INK
+        )
     }
 }
 
