@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.http.HttpStatusCode
@@ -267,6 +268,23 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
         client.post("$LICHESS_BASE_URL/api/board/game/$gameId/claim-victory") {
             bearerAuth(token)
         }.status.isSuccess()
+
+    suspend fun chatHistory(token: String, gameId: String): List<LichessChatLine> = runCatching {
+        val response = client.get("$LICHESS_BASE_URL/api/board/game/$gameId/chat") {
+            bearerAuth(token)
+        }
+        if (!response.status.isSuccess()) {
+            return emptyList()
+        }
+        response.body<JsonArray>().mapNotNull { element ->
+            val entry = element as? JsonObject ?: return@mapNotNull null
+            if (entry.stringAt("room") !in listOf(null, "player")) {
+                return@mapNotNull null
+            }
+            val text = entry.stringAt("text")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            LichessChatLine(author = entry.stringAt("user") ?: "?", text = text)
+        }
+    }.getOrDefault(emptyList())
 
     suspend fun sendChat(token: String, gameId: String, text: String): Boolean =
         client.submitForm(

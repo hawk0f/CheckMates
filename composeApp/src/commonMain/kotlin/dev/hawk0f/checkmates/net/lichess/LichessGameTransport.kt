@@ -49,6 +49,7 @@ class LichessGameTransport(
     private val _takebackOutgoing = MutableStateFlow(false)
     val takebackOutgoing: StateFlow<Boolean> = _takebackOutgoing.asStateFlow()
 
+    private var chatHistoryLoaded = false
     private val _chat = MutableStateFlow<List<LichessChatLine>>(emptyList())
     val chat: StateFlow<List<LichessChatLine>> = _chat.asStateFlow()
 
@@ -91,9 +92,10 @@ class LichessGameTransport(
             "gameFull" -> handleGameFull(event)
             "gameState" -> handleGameState(event, resyncing = false)
             "chatLine" -> {
+                val room = event.stringAt("room")
                 val author = event.stringAt("username") ?: "?"
                 val text = event.stringAt("text").orEmpty()
-                if (text.isNotBlank()) {
+                if (text.isNotBlank() && (room == null || room == "player")) {
                     _chat.value = _chat.value + LichessChatLine(author, text)
                 }
             }
@@ -123,10 +125,24 @@ class LichessGameTransport(
         _incoming.emit(GameMessage.ColorAssigned(color))
         val opponent = if (color == PieceColor.WHITE) black else white
         _incoming.emit(GameMessage.OpponentJoined(opponent.displayName()))
+        loadChatHistory()
         val state = event.objectAt("state")
         if (state != null) {
             handleGameState(state, resyncing = true)
         }
+    }
+
+    private suspend fun loadChatHistory() {
+        if (chatHistoryLoaded) {
+            return
+        }
+        chatHistoryLoaded = true
+        val history = api.chatHistory(token, gameId)
+        if (history.isEmpty()) {
+            return
+        }
+        val live = _chat.value
+        _chat.value = history + live.filterNot { line -> history.any { it.author == line.author && it.text == line.text } }
     }
 
     private suspend fun handleGameState(state: JsonObject, resyncing: Boolean) {
