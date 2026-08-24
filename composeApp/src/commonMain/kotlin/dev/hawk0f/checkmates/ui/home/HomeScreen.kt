@@ -53,6 +53,7 @@ import dev.hawk0f.checkmates.resources.flow_switch_to
 import dev.hawk0f.checkmates.resources.home_moves_with_mode
 import dev.hawk0f.checkmates.resources.home_nearby
 import dev.hawk0f.checkmates.resources.editor_title
+import dev.hawk0f.checkmates.resources.openings_title
 import dev.hawk0f.checkmates.resources.leaderboard_title
 import dev.hawk0f.checkmates.resources.puzzles_title
 import dev.hawk0f.checkmates.resources.home_new_game
@@ -91,6 +92,7 @@ fun HomeScreen(
     onPlayComputer: () -> Unit = {},
     onOpenPuzzles: () -> Unit = {},
     onOpenEditor: () -> Unit = {},
+    onOpenOpenings: () -> Unit = {},
     onOpenLeaderboard: () -> Unit = {},
     onSwitchFlow: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -126,6 +128,7 @@ fun HomeScreen(
                 onPlayComputer = onPlayComputer,
                 onOpenPuzzles = onOpenPuzzles,
                 onOpenEditor = onOpenEditor,
+                onOpenOpenings = onOpenOpenings,
                 onOpenLeaderboard = onOpenLeaderboard,
                 onSwitchFlow = onSwitchFlow
             )
@@ -308,6 +311,7 @@ private fun ModeRail(
     onPlayComputer: () -> Unit,
     onOpenPuzzles: () -> Unit,
     onOpenEditor: () -> Unit,
+    onOpenOpenings: () -> Unit,
     onOpenLeaderboard: () -> Unit,
     onSwitchFlow: () -> Unit
 ) {
@@ -353,6 +357,12 @@ private fun ModeRail(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            PillButton(
+                text = stringResource(Res.string.openings_title),
+                onClick = onOpenOpenings,
+                tone = PillTone.LEAF,
+                compact = true
+            )
             PillButton(
                 text = stringResource(Res.string.editor_title),
                 onClick = onOpenEditor,

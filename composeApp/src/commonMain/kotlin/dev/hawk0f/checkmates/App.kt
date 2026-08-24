@@ -36,6 +36,8 @@ import dev.hawk0f.checkmates.shared.domain.PositionEditor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.ui.editor.BoardEditorScreen
 import dev.hawk0f.checkmates.ui.leaderboard.LeaderboardScreen
+import dev.hawk0f.checkmates.ui.openings.OpeningDrillScreen
+import dev.hawk0f.checkmates.ui.openings.OpeningsScreen
 import dev.hawk0f.checkmates.ui.puzzle.PuzzleScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessHomeScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessArenasScreen
@@ -104,6 +106,12 @@ object RemoteGameRoute
 
 @Serializable
 data class EditorRoute(val startFen: String? = null)
+
+@Serializable
+object OpeningsRoute
+
+@Serializable
+data class OpeningDrillRoute(val lineId: String)
 
 @Serializable
 object PuzzleRoute
@@ -194,10 +202,24 @@ fun App() {
                             onSwitchFlow = { openFlowHome(AppFlow.LICHESS) },
                             onOpenPuzzles = { navController.navigate(PuzzleRoute) },
                             onOpenEditor = { navController.navigate(EditorRoute()) },
+                            onOpenOpenings = { navController.navigate(OpeningsRoute) },
                             onOpenLeaderboard = { navController.navigate(LeaderboardRoute) },
                             onOpenProfile = { navController.navigate(ProfileRoute) },
                             onOpenSettings = { navController.navigate(SettingsRoute) },
                             onResumeGame = { navController.navigate(RemoteGameRoute) }
+                        )
+                    }
+                    composable<OpeningsRoute> {
+                        OpeningsScreen(
+                            onOpenLine = { lineId -> navController.navigate(OpeningDrillRoute(lineId)) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<OpeningDrillRoute> { entry ->
+                        val route = entry.toRoute<OpeningDrillRoute>()
+                        OpeningDrillScreen(
+                            lineId = route.lineId,
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable<PuzzleRoute> {

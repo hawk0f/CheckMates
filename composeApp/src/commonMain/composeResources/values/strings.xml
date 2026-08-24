@@ -75,6 +75,14 @@
     <string name="clock_mode_fischer">Fischer</string>
     <string name="clock_mode_bronstein">Bronstein</string>
     <string name="clock_mode_delay">Delay</string>
+    <string name="openings_title">Openings</string>
+    <string name="openings_white_lines">Play as white</string>
+    <string name="openings_black_lines">Play as black</string>
+    <string name="openings_line_moves">%1$d moves · best streak %2$d</string>
+    <string name="openings_your_move">Your move</string>
+    <string name="openings_wrong">Not the book move. Expected %1$s</string>
+    <string name="openings_completed">Line completed with %1$d mistakes</string>
+    <string name="openings_restart">Try again</string>
     <string name="editor_title">Board editor</string>
     <string name="editor_side_to_move">Side to move</string>
     <string name="editor_brush">Piece</string>
