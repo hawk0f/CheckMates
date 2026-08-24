@@ -3,6 +3,13 @@ package dev.hawk0f.checkmates
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.getValue
+import dev.hawk0f.checkmates.platform.SystemBarsAppearance
+import dev.hawk0f.checkmates.ui.theme.appUsesDarkTheme
+import dev.hawk0f.checkmates.ui.lichess.WatchSurface
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Alignment
@@ -13,8 +20,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import dev.hawk0f.checkmates.session.AppFlow
+import dev.hawk0f.checkmates.session.FlowManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
+import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.shared.engine.EngineLevel
 import dev.hawk0f.checkmates.ui.ble.BleLobbyScreen
+import dev.hawk0f.checkmates.ui.computer.ComputerSetupScreen
+import dev.hawk0f.checkmates.ui.flow.FlowPickerScreen
 import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
@@ -36,10 +49,19 @@ import dev.hawk0f.checkmates.ui.theme.MaxContentWidth
 import kotlinx.serialization.Serializable
 
 @Serializable
+object FlowPickerRoute
+
+@Serializable
 object HomeRoute
 
 @Serializable
 object HotseatGameRoute
+
+@Serializable
+object ComputerSetupRoute
+
+@Serializable
+data class ComputerGameRoute(val level: Int, val playsWhite: Boolean)
 
 @Serializable
 data class OnlineLobbyRoute(val prefillCode: String? = null)
@@ -57,7 +79,7 @@ object LichessSeekRoute
 object LichessPuzzleRoute
 
 @Serializable
-object LichessExplorerRoute
+data class LichessExplorerRoute(val fen: String? = null)
 
 @Serializable
 object LichessWatchRoute
@@ -92,6 +114,9 @@ fun App() {
                 DeepLinkHandler.pendingCode.collect { code ->
                     if (code != null) {
                         DeepLinkHandler.consume()
+                        if (FlowManager.current != AppFlow.CHECKMATES) {
+                            FlowManager.select(AppFlow.CHECKMATES)
+                        }
                         navController.navigate(OnlineLobbyRoute(prefillCode = code))
                     }
                 }
@@ -99,34 +124,69 @@ fun App() {
             LaunchedEffect(Unit) {
                 DeepLinkHandler.pendingLichessAuth.collect { callback ->
                     if (callback != null) {
+                        if (FlowManager.current != AppFlow.LICHESS) {
+                            FlowManager.select(AppFlow.LICHESS)
+                        }
                         navController.navigate(LichessHomeRoute) {
                             launchSingleTop = true
                         }
                     }
                 }
             }
+            val currentEntry by navController.currentBackStackEntryAsState()
+            val darkPage = currentEntry?.destination?.route?.contains("LichessWatchRoute") == true
+            SystemBarsAppearance(darkIcons = !darkPage && !appUsesDarkTheme())
             Box(
-                modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(if (darkPage) WatchSurface else MaterialTheme.colorScheme.background)
+                    .safeDrawingPadding(),
                 contentAlignment = Alignment.TopCenter
             ) {
+                val flow = FlowManager.current
+                val startDestination: Any = when (flow) {
+                    null -> FlowPickerRoute
+                    AppFlow.CHECKMATES -> HomeRoute
+                    AppFlow.LICHESS -> LichessHomeRoute
+                }
+                val openFlowHome: (AppFlow) -> Unit = { chosen ->
+                    FlowManager.select(chosen)
+                    val destination: Any = if (chosen == AppFlow.LICHESS) LichessHomeRoute else HomeRoute
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.id) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
                 NavHost(
                     navController = navController,
-                    startDestination = HomeRoute,
+                    startDestination = startDestination,
                     modifier = Modifier.widthIn(max = MaxContentWidth).fillMaxSize()
                 ) {
+                    composable<FlowPickerRoute> {
+                        FlowPickerScreen(
+                            initial = FlowManager.current,
+                            onChosen = openFlowHome
+                        )
+                    }
                     composable<HomeRoute> {
                         HomeScreen(
                             onPassAndPlay = { navController.navigate(HotseatGameRoute) },
                             onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
                             onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
-                            onPlayLichess = { navController.navigate(LichessHomeRoute) },
+                            onPlayComputer = { navController.navigate(ComputerSetupRoute) },
+                            onSwitchFlow = { openFlowHome(AppFlow.LICHESS) },
                             onOpenProfile = { navController.navigate(ProfileRoute) },
                             onOpenSettings = { navController.navigate(SettingsRoute) },
                             onResumeGame = { navController.navigate(RemoteGameRoute) }
                         )
                     }
                     composable<SettingsRoute> {
-                        SettingsScreen(onBack = { navController.popBackStack() })
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            onSwitchFlow = { openFlowHome(FlowManager.other()) }
+                        )
                     }
                     composable<ProfileRoute> {
                         ProfileScreen(
@@ -143,6 +203,33 @@ fun App() {
                         } else {
                             ReplayScreen(item = item, onBack = { navController.popBackStack() })
                         }
+                    }
+                    composable<ComputerSetupRoute> {
+                        ComputerSetupScreen(
+                            onStart = { level, color ->
+                                navController.navigate(
+                                    ComputerGameRoute(
+                                        level = level.id,
+                                        playsWhite = color == PieceColor.WHITE
+                                    )
+                                ) {
+                                    popUpTo<ComputerSetupRoute> {
+                                        inclusive = true
+                                    }
+                                }
+                            },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable<ComputerGameRoute> { entry ->
+                        val route = entry.toRoute<ComputerGameRoute>()
+                        GameScreen(
+                            mode = GameMode.Computer(
+                                level = EngineLevel.byId(route.level),
+                                myColor = if (route.playsWhite) PieceColor.WHITE else PieceColor.BLACK
+                            ),
+                            onExit = { navController.popBackStack() }
+                        )
                     }
                     composable<HotseatGameRoute> {
                         GameScreen(
@@ -183,9 +270,10 @@ fun App() {
                             onOpenPuzzle = { navController.navigate(LichessPuzzleRoute) },
                             onOpenWatch = { navController.navigate(LichessWatchRoute) },
                             onOpenArenas = { navController.navigate(LichessArenasRoute) },
-                            onOpenExplorer = { navController.navigate(LichessExplorerRoute) },
+                            onOpenExplorer = { navController.navigate(LichessExplorerRoute()) },
                             onOpenPlayers = { navController.navigate(LichessPlayersRoute) },
-                            onBack = { navController.popBackStack() }
+                            onOpenSettings = { navController.navigate(SettingsRoute) },
+                            onSwitchFlow = { openFlowHome(AppFlow.CHECKMATES) }
                         )
                     }
                     composable<LichessPuzzleRoute> {
@@ -207,11 +295,18 @@ fun App() {
                         val route = entry.toRoute<LichessReviewRoute>()
                         LichessReviewScreen(
                             gameId = route.gameId,
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            onOpenExplorer = { fen ->
+                                navController.navigate(LichessExplorerRoute(fen))
+                            }
                         )
                     }
-                    composable<LichessExplorerRoute> {
-                        LichessExplorerScreen(onBack = { navController.popBackStack() })
+                    composable<LichessExplorerRoute> { entry ->
+                        val route = entry.toRoute<LichessExplorerRoute>()
+                        LichessExplorerScreen(
+                            onBack = { navController.popBackStack() },
+                            startFen = route.fen
+                        )
                     }
                     composable<LichessSeekRoute> {
                         LichessSeekScreen(
@@ -235,6 +330,9 @@ fun App() {
                                 onExit = {
                                     GameSessionHolder.clear()
                                     navController.popBackStack()
+                                },
+                                onOpenReview = { gameId ->
+                                    navController.navigate(LichessReviewRoute(gameId))
                                 }
                             )
                         }

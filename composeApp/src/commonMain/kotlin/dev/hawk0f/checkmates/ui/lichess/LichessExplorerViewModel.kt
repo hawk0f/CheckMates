@@ -27,7 +27,7 @@ data class LichessExplorerUiState(
     val error: String? = null
 )
 
-class LichessExplorerViewModel : ViewModel() {
+class LichessExplorerViewModel(private val startFen: String? = null) : ViewModel() {
 
     private val api = LichessAuth.api
     private val _uiState = MutableStateFlow(
@@ -35,11 +35,17 @@ class LichessExplorerViewModel : ViewModel() {
     )
     val uiState: StateFlow<LichessExplorerUiState> = _uiState.asStateFlow()
 
-    private var game = ChessGame()
+    private var game = freshGame()
 
     init {
         _uiState.value = _uiState.value.copy(gameState = game.state())
         fetch()
+    }
+
+    private fun freshGame(): ChessGame {
+        val chess = ChessGame()
+        startFen?.let { chess.loadFen(it) }
+        return chess
     }
 
     fun onSourceChange(source: ExplorerSource) {
@@ -62,7 +68,7 @@ class LichessExplorerViewModel : ViewModel() {
 
     fun undo() {
         val history = _uiState.value.moves.dropLast(1)
-        game = ChessGame()
+        game = freshGame()
         for (uci in history) {
             game.applyUci(uci)
         }
@@ -71,7 +77,7 @@ class LichessExplorerViewModel : ViewModel() {
     }
 
     fun reset() {
-        game = ChessGame()
+        game = freshGame()
         _uiState.value = _uiState.value.copy(gameState = game.state(), moves = emptyList())
         fetch()
     }

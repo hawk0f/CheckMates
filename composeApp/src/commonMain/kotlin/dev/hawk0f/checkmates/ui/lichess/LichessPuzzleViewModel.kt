@@ -81,11 +81,15 @@ class LichessPuzzleViewModel : ViewModel() {
         }
         val selected = current.selected
         when {
-            selected != null && square in current.legalTargets -> tryMove(selected, square)
+            selected == square -> _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+            selected != null && square in current.legalTargets -> {
+                tryMove(selected, game.castlingRookSquares(selected)[square] ?: square)
+            }
+
             game.pieceAt(square)?.color == game.sideToMove() -> {
                 _uiState.value = current.copy(
                     selected = square,
-                    legalTargets = game.legalDestinations(square)
+                    legalTargets = game.legalDestinations(square) + game.castlingRookSquares(square).keys
                 )
             }
 

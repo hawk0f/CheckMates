@@ -34,6 +34,25 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.arenas_casual
+import dev.hawk0f.checkmates.resources.arenas_clock_and_players
+import dev.hawk0f.checkmates.resources.arenas_in
+import dev.hawk0f.checkmates.resources.arenas_join
+import dev.hawk0f.checkmates.resources.arenas_join_arena
+import dev.hawk0f.checkmates.resources.arenas_joined
+import dev.hawk0f.checkmates.resources.arenas_minutes
+import dev.hawk0f.checkmates.resources.arenas_rated
+import dev.hawk0f.checkmates.resources.arenas_started
+import dev.hawk0f.checkmates.resources.arenas_started_with_time
+import dev.hawk0f.checkmates.resources.arenas_starting_soon
+import dev.hawk0f.checkmates.resources.arenas_starts_in_minutes
+import dev.hawk0f.checkmates.resources.arenas_starts_soon
+import dev.hawk0f.checkmates.resources.arenas_title
+import dev.hawk0f.checkmates.resources.arenas_your_standing
+import dev.hawk0f.checkmates.resources.arenas_your_teams
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_close
 
 @Composable
 fun LichessArenasScreen(
@@ -50,8 +69,8 @@ fun LichessArenasScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text("Tournaments", style = MaterialTheme.typography.displaySmall)
-            CircleButton(onClick = onBack) {
+            Text(stringResource(Res.string.arenas_title), style = MaterialTheme.typography.displaySmall)
+            CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_close)) {
                 CloseIcon(color = scheme.onSurfaceVariant)
             }
         }
@@ -85,8 +104,9 @@ fun LichessArenasScreen(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 SectionLabel(
-                                    text = arena.secondsToFinish?.let { "Started · ${it / 60} min left" }
-                                        ?: "Started",
+                                    text = arena.secondsToFinish?.let {
+                                        stringResource(Res.string.arenas_started_with_time, it / 60)
+                                    } ?: stringResource(Res.string.arenas_started),
                                     color = accents.bandStrong
                                 )
                                 Text(
@@ -94,7 +114,11 @@ fun LichessArenasScreen(
                                     style = MaterialTheme.typography.headlineSmall
                                 )
                                 Text(
-                                    text = clockLabel(arena) + " · ${arena.nbPlayers} players",
+                                    text = stringResource(
+                                        Res.string.arenas_clock_and_players,
+                                        clockLabel(arena),
+                                        arena.nbPlayers
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = scheme.onSurfaceVariant
                                 )
@@ -102,7 +126,13 @@ fun LichessArenasScreen(
                             uiState.myRank?.let { CodeChip("#$it") }
                         }
                         PillButton(
-                            text = if (uiState.joined.contains(arena.id)) "Joined" else "Join arena",
+                            text = stringResource(
+                                if (uiState.joined.contains(arena.id)) {
+                                    Res.string.arenas_joined
+                                } else {
+                                    Res.string.arenas_join_arena
+                                }
+                            ),
                             onClick = { viewModel.join(arena.id) },
                             tone = PillTone.INK,
                             compact = true,
@@ -113,7 +143,7 @@ fun LichessArenasScreen(
 
                 if (uiState.standing.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel("Standing", color = accents.bandStrong)
+                        SectionLabel(stringResource(Res.string.arenas_your_standing), color = accents.bandStrong)
                         for (player in uiState.standing) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -141,7 +171,7 @@ fun LichessArenasScreen(
 
                 if (uiState.starting.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SectionLabel("Starting soon", color = accents.bandStrong)
+                        SectionLabel(stringResource(Res.string.arenas_starting_soon), color = accents.bandStrong)
                         for (arena in uiState.starting) {
                             ListRow(
                                 title = arena.fullName ?: arena.id,
@@ -149,7 +179,13 @@ fun LichessArenasScreen(
                                 leading = { InitialsBadge(text = clockLabel(arena)) },
                                 trailing = {
                                     PillButton(
-                                        text = if (uiState.joined.contains(arena.id)) "In" else "Join",
+                                        text = stringResource(
+                                            if (uiState.joined.contains(arena.id)) {
+                                                Res.string.arenas_in
+                                            } else {
+                                                Res.string.arenas_join
+                                            }
+                                        ),
                                         onClick = { viewModel.join(arena.id) },
                                         tone = PillTone.SOFT,
                                         compact = true
@@ -163,7 +199,7 @@ fun LichessArenasScreen(
 
                 if (uiState.teams.isNotEmpty()) {
                     ListRow(
-                        title = "Your teams · ${uiState.teams.size}",
+                        title = stringResource(Res.string.arenas_your_teams, uiState.teams.size),
                         subtitle = uiState.teams.take(2).mapNotNull { it.name }.joinToString(", "),
                         leading = { InitialsBadge(text = "TM") }
                     )
@@ -175,7 +211,7 @@ fun LichessArenasScreen(
     uiState.message?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissMessage,
-            title = { Text("Tournaments", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.arenas_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
                 PillButton(text = "OK", onClick = viewModel::dismissMessage, compact = true)
@@ -190,9 +226,12 @@ private fun clockLabel(arena: LichessTournament): String {
     return "${limit / 60}+$increment"
 }
 
+@Composable
 private fun startsLabel(arena: LichessTournament): String {
-    val starts = arena.secondsToStart?.let { "in ${it / 60} min" } ?: "soon"
-    val stake = if (arena.rated) "rated" else "casual"
-    val length = arena.minutes?.let { "$it min" }.orEmpty()
+    val starts = arena.secondsToStart?.let {
+        stringResource(Res.string.arenas_starts_in_minutes, it / 60)
+    } ?: stringResource(Res.string.arenas_starts_soon)
+    val stake = stringResource(if (arena.rated) Res.string.arenas_rated else Res.string.arenas_casual)
+    val length = arena.minutes?.let { stringResource(Res.string.arenas_minutes, it) }.orEmpty()
     return listOf(starts, stake, length).filter { it.isNotBlank() }.joinToString(" · ")
 }

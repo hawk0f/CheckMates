@@ -37,8 +37,13 @@ private suspend inline fun <reified T> HttpResponse.bodyOrError(): T {
 
 class ApiClient(private val client: HttpClient) {
 
-    suspend fun createGame(hostName: String, timeControl: TimeControl? = null): CreateGameResponse =
+    suspend fun createGame(
+        hostName: String,
+        timeControl: TimeControl? = null,
+        authToken: String? = null
+    ): CreateGameResponse =
         client.post("${ServerConfig.baseUrl}/api/games") {
+            authToken?.let { bearerAuth(it) }
             contentType(ContentType.Application.Json)
             setBody(CreateGameRequest(hostName, timeControl))
         }.body()

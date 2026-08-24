@@ -3,7 +3,6 @@ package dev.hawk0f.checkmates.ble
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +24,6 @@ import platform.CoreBluetooth.CBMutableCharacteristic
 import platform.CoreBluetooth.CBMutableService
 import platform.CoreBluetooth.CBPeripheralManager
 import platform.CoreBluetooth.CBPeripheralManagerDelegateProtocol
-import platform.CoreBluetooth.CBService
 import platform.CoreBluetooth.CBUUID
 import kotlinx.cinterop.ObjCSignatureOverride
 import platform.Foundation.NSData

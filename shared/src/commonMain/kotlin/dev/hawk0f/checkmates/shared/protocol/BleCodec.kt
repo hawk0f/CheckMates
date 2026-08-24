@@ -18,6 +18,7 @@ object BleCodec {
         GameMessage.OfferTakeback -> "T"
         GameMessage.AcceptTakeback -> "Y"
         GameMessage.DeclineTakeback -> "Z"
+        is GameMessage.SendChat -> "S${message.text.truncateToBytes(MAX_MESSAGE_BYTES - 1)}"
         else -> null
     }?.encodeChecked()
 
@@ -38,6 +39,7 @@ object BleCodec {
             'T' -> GameMessage.OfferTakeback.onlyIfBare(payload)
             'Y' -> GameMessage.AcceptTakeback.onlyIfBare(payload)
             'Z' -> GameMessage.DeclineTakeback.onlyIfBare(payload)
+            'S' -> payload.takeIf { it.isNotBlank() }?.let { GameMessage.SendChat(it) }
             else -> null
         }
     }
@@ -53,6 +55,7 @@ object BleCodec {
         GameMessage.TakebackDeclined -> "Z"
         is GameMessage.TakebackApplied -> "U${message.plies}"
         is GameMessage.GameOver -> "E${message.reason.toWireChar()}${message.winner.toWireChar()}"
+        is GameMessage.ChatSaid -> "S${message.text.truncateToBytes(MAX_MESSAGE_BYTES - 1)}"
         else -> null
     }?.encodeChecked()
 
@@ -73,6 +76,7 @@ object BleCodec {
             'Z' -> GameMessage.TakebackDeclined.onlyIfBare(payload)
             'U' -> payload.toIntOrNull()?.takeIf { it > 0 }?.let { GameMessage.TakebackApplied(it) }
             'E' -> decodeGameOver(payload)
+            'S' -> payload.takeIf { it.isNotBlank() }?.let { GameMessage.ChatSaid(author = "", text = it) }
             else -> null
         }
     }

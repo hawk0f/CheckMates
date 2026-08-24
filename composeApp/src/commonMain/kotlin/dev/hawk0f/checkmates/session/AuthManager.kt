@@ -20,7 +20,7 @@ object AuthManager {
     private const val KEY_TOKEN = "auth.token"
     private const val KEY_PROFILE = "auth.profile"
 
-    private val settings = Settings()
+    private val settings: Settings? by lazy { runCatching { Settings() }.getOrNull() }
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val api = ApiClient(configuredHttpClient())
@@ -28,7 +28,7 @@ object AuthManager {
     private val _profile = MutableStateFlow(loadCachedProfile())
     val profile: StateFlow<ProfileResponse?> = _profile.asStateFlow()
 
-    var token: String? = settings.getStringOrNull(KEY_TOKEN)
+    var token: String? = settings?.getStringOrNull(KEY_TOKEN)
         private set
 
     val isLoggedIn: Boolean get() = token != null
@@ -66,8 +66,8 @@ object AuthManager {
         val oldToken = token
         token = null
         _profile.value = null
-        settings.remove(KEY_TOKEN)
-        settings.remove(KEY_PROFILE)
+        settings?.remove(KEY_TOKEN)
+        settings?.remove(KEY_PROFILE)
         if (oldToken != null) {
             scope.launch {
                 runCatching { api.logout(oldToken) }
@@ -84,17 +84,17 @@ object AuthManager {
 
     private fun storeAuth(newToken: String, profile: ProfileResponse) {
         token = newToken
-        settings.putString(KEY_TOKEN, newToken)
+        settings?.putString(KEY_TOKEN, newToken)
         storeProfile(profile)
     }
 
     private fun storeProfile(profile: ProfileResponse) {
         _profile.value = profile
-        settings.putString(KEY_PROFILE, json.encodeToString(ProfileResponse.serializer(), profile))
+        settings?.putString(KEY_PROFILE, json.encodeToString(ProfileResponse.serializer(), profile))
     }
 
     private fun loadCachedProfile(): ProfileResponse? =
-        settings.getStringOrNull(KEY_PROFILE)?.let { cached ->
+        settings?.getStringOrNull(KEY_PROFILE)?.let { cached ->
             runCatching { json.decodeFromString(ProfileResponse.serializer(), cached) }.getOrNull()
         }
 }

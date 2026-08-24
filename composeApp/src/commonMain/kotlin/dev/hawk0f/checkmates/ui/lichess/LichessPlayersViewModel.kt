@@ -6,6 +6,8 @@ import dev.hawk0f.checkmates.net.lichess.LichessAuth
 import dev.hawk0f.checkmates.net.lichess.LichessLeaderboardUser
 import dev.hawk0f.checkmates.net.lichess.LichessUserRef
 import dev.hawk0f.checkmates.net.lichess.stringAt
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +15,8 @@ import kotlinx.coroutines.launch
 
 data class LichessPlayersUiState(
     val loading: Boolean = true,
+    val query: String = "",
+    val suggestions: List<String> = emptyList(),
     val online: List<LichessUserRef> = emptyList(),
     val offline: List<LichessUserRef> = emptyList(),
     val leaderboard: List<LichessLeaderboardUser> = emptyList(),
@@ -26,8 +30,31 @@ class LichessPlayersViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(LichessPlayersUiState())
     val uiState: StateFlow<LichessPlayersUiState> = _uiState.asStateFlow()
 
+    private var suggestJob: Job? = null
+
     init {
         refresh()
+    }
+
+    fun onQueryChange(value: String) {
+        val query = value.trim().take(30)
+        _uiState.value = _uiState.value.copy(query = value.take(30))
+        suggestJob?.cancel()
+        if (query.length < 3) {
+            _uiState.value = _uiState.value.copy(suggestions = emptyList())
+            return
+        }
+        suggestJob = viewModelScope.launch {
+            delay(300)
+            runCatching { api.autocompletePlayers(query) }
+                .onSuccess { names -> _uiState.value = _uiState.value.copy(suggestions = names.take(6)) }
+                .onFailure { _uiState.value = _uiState.value.copy(suggestions = emptyList()) }
+        }
+    }
+
+    fun clearQuery() {
+        suggestJob?.cancel()
+        _uiState.value = _uiState.value.copy(query = "", suggestions = emptyList())
     }
 
     fun refresh() {

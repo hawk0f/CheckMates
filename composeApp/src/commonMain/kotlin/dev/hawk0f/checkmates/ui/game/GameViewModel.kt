@@ -25,9 +25,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.session.HotseatGameStore
+import dev.hawk0f.checkmates.session.SavedHotseatGame
+import dev.hawk0f.checkmates.session.HotseatGamePersistence
+import dev.hawk0f.checkmates.shared.domain.PremovePlanner
+import dev.hawk0f.checkmates.shared.engine.ChessEngine
+import dev.hawk0f.checkmates.shared.engine.EngineLevel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
+
+data class ChatLine(val author: String, val text: String)
 
 sealed interface GameMode {
     data object Hotseat : GameMode
+
+    data class Computer(
+        val level: EngineLevel = EngineLevel.DEFAULT,
+        val myColor: PieceColor = PieceColor.WHITE
+    ) : GameMode
     data class Remote(val session: ActiveGameSession) : GameMode
 }
 
@@ -50,26 +67,102 @@ data class GameUiState(
     val rematchOfferOutgoing: Boolean = false,
     val takebackOfferIncoming: Boolean = false,
     val takebackOfferOutgoing: Boolean = false,
+    val premoves: List<String> = emptyList(),
+    val chat: List<ChatLine> = emptyList(),
+    val engineThinking: Boolean = false,
+    val hint: String? = null,
+    val premoveState: GameState? = null,
     val seriesMyWins: Int = 0,
     val seriesOpponentWins: Int = 0,
     val seriesDraws: Int = 0
 )
 
-class GameViewModel(private val mode: GameMode) : ViewModel() {
+private const val HINT_DEPTH = 5
+private const val MAX_CHAT_LINES = 50
+private const val MAX_CHAT_CHARS = 140
+
+class GameViewModel(
+    private val mode: GameMode,
+    private val savedGames: HotseatGamePersistence = HotseatGameStore,
+    private val engineContext: CoroutineContext = Dispatchers.Default
+) : ViewModel() {
 
     private var game = ChessGame()
     private var recordUploaded = false
     private var hotseatTimeControl: TimeControl? = null
+    private var pendingRemoteMove: String? = null
+    private var serverSchedulesPremoves = (mode as? GameMode.Remote)?.session?.kind == "online"
+    private var premovesSentToServer: List<String> = emptyList()
     private var timeoutClaimed = false
+    private val engine = ChessEngine()
+    private var engineJob: Job? = null
 
     private val _uiState = MutableStateFlow(initialUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
     init {
-        if (mode is GameMode.Remote) {
-            observeSession(mode.session)
+        when (mode) {
+            is GameMode.Remote -> observeSession(mode.session)
+            is GameMode.Computer -> {
+                _uiState.value = _uiState.value.copy(myColor = mode.myColor, showTimePicker = false)
+                maybeStartEngineTurn()
+            }
+            GameMode.Hotseat -> restoreHotseatGame()
         }
         startClockTicker()
+    }
+
+    private fun restoreHotseatGame() {
+        val saved = savedGames.load() ?: return
+        val restored = ChessGame()
+        val applied = saved.uciHistory.takeWhile { uci -> restored.applyUci(uci) is MoveOutcome.Applied }
+        if (applied.size != saved.uciHistory.size) {
+            savedGames.clear()
+            return
+        }
+        game = restored
+        hotseatTimeControl = saved.timeControl
+        val elapsed = (epochMillis() - saved.savedAtMillis).coerceAtLeast(0)
+        val toMove = game.state().sideToMove
+        val whiteMillis = saved.whiteMillis?.let {
+            if (toMove == PieceColor.WHITE) (it - elapsed).coerceAtLeast(0) else it
+        }
+        val blackMillis = saved.blackMillis?.let {
+            if (toMove == PieceColor.BLACK) (it - elapsed).coerceAtLeast(0) else it
+        }
+        _uiState.value = _uiState.value.copy(
+            gameState = game.state(),
+            timeControl = saved.timeControl,
+            whiteMillis = whiteMillis,
+            blackMillis = blackMillis,
+            showTimePicker = false,
+            seriesMyWins = saved.seriesWhiteWins,
+            seriesOpponentWins = saved.seriesBlackWins,
+            seriesDraws = saved.seriesDraws
+        )
+    }
+
+    private fun persistHotseatGame() {
+        if (mode !is GameMode.Hotseat) {
+            return
+        }
+        val state = _uiState.value
+        if (state.gameState.result != null || state.gameState.uciHistory.isEmpty()) {
+            savedGames.clear()
+            return
+        }
+        savedGames.save(
+            SavedHotseatGame(
+                uciHistory = state.gameState.uciHistory,
+                timeControl = state.timeControl,
+                whiteMillis = state.whiteMillis,
+                blackMillis = state.blackMillis,
+                savedAtMillis = epochMillis(),
+                seriesWhiteWins = state.seriesMyWins,
+                seriesBlackWins = state.seriesOpponentWins,
+                seriesDraws = state.seriesDraws
+            )
+        )
     }
 
     fun selectTimeControl(timeControl: TimeControl?) {
@@ -120,11 +213,12 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
 
     private fun onFlagFall(color: PieceColor) {
         when (mode) {
-            GameMode.Hotseat -> {
+            GameMode.Hotseat, is GameMode.Computer -> {
                 if (game.state().result == null) {
                     game.finish(GameOverReason.TIMEOUT, color.opposite)
                     _uiState.value = clearedSelection()
                     maybeUploadRecord()
+                    persistHotseatGame()
                 }
             }
             is GameMode.Remote -> {
@@ -140,9 +234,19 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         viewModelScope.launch {
             session.messages.collect { message -> handleServerMessage(message) }
         }
+        (session.transport as? LichessGameTransport)?.let { lichess ->
+            viewModelScope.launch {
+                lichess.chat.collect { lines ->
+                    _uiState.value = _uiState.value.copy(
+                        chat = lines.takeLast(MAX_CHAT_LINES).map { ChatLine(it.author, it.text) }
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
             session.myColor.collect { color ->
                 _uiState.value = _uiState.value.copy(myColor = color)
+                playQueuedPremove()
             }
         }
         viewModelScope.launch {
@@ -170,6 +274,8 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     private fun handleServerMessage(message: GameMessage) {
         when (message) {
             is GameMessage.MoveApplied -> {
+                val premoveHead = _uiState.value.premoves.firstOrNull()
+                pendingRemoteMove = null
                 if (game.applyUci(message.uci) is MoveOutcome.Illegal) {
                     rebuildFromFen(message.fenAfter)
                 }
@@ -186,9 +292,15 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                     whiteMillis = message.whiteMillis ?: _uiState.value.whiteMillis,
                     blackMillis = message.blackMillis ?: _uiState.value.blackMillis
                 )
+                val myColor = _uiState.value.myColor
+                if (premoveHead == message.uci && myColor != null && game.sideToMove() != myColor) {
+                    premovesSentToServer = premovesSentToServer.drop(1)
+                    setPremoves(_uiState.value.premoves.drop(1), notifyServer = false)
+                }
             }
 
             is GameMessage.Resync -> {
+                pendingRemoteMove = null
                 game = ChessGame()
                 var replayFailed = false
                 for (uci in message.uciHistory) {
@@ -217,6 +329,8 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 game.finish(message.reason, message.winner)
                 _uiState.value = _uiState.value.copy(
                     gameState = game.state(),
+                    premoves = emptyList(),
+                    premoveState = null,
                     drawOfferIncoming = false,
                     drawOfferOutgoing = false
                 )
@@ -224,6 +338,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
             }
 
             is GameMessage.MoveRejected -> {
+                pendingRemoteMove = null
                 viewModelScope.launch { (mode as GameMode.Remote).session.send(GameMessage.RequestResync) }
             }
 
@@ -259,12 +374,39 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 resetForRematch(message.color)
             }
 
+            is GameMessage.ChatSaid -> {
+                val author = message.author.ifBlank {
+                    _uiState.value.opponentName ?: "Opponent"
+                }
+                val line = ChatLine(author = author, text = message.text)
+                _uiState.value = _uiState.value.copy(
+                    chat = (_uiState.value.chat + line).takeLast(MAX_CHAT_LINES)
+                )
+            }
+
+            is GameMessage.PremovesDropped -> {
+                premovesSentToServer = emptyList()
+                setPremoves(emptyList(), notifyServer = false)
+            }
+
+            is GameMessage.ProtocolError -> {
+                val premovesUnsupported = message.code == "UNEXPECTED_MESSAGE" || message.code == "BAD_MESSAGE"
+                if (premovesUnsupported && serverSchedulesPremoves && premovesSentToServer.isNotEmpty()) {
+                    serverSchedulesPremoves = false
+                    premovesSentToServer = emptyList()
+                }
+            }
+
             is GameMessage.OpponentConnectionChanged -> {
                 _uiState.value = _uiState.value.copy(opponentConnected = message.connected)
             }
 
             else -> {}
         }
+        if (_uiState.value.premoves.isNotEmpty()) {
+            setPremoves(_uiState.value.premoves, notifyServer = false)
+        }
+        playQueuedPremove()
     }
 
     private fun maybeUploadRecord() {
@@ -276,7 +418,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         recordUploaded = true
         recordSeriesResult(result.winner)
         val session = (mode as? GameMode.Remote)?.session
-        if (session?.kind == "lichess") {
+        if (session?.kind == "lichess" || session?.kind == "online") {
             return
         }
         val myColor = if (session == null) null else _uiState.value.myColor
@@ -351,6 +493,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     private fun rebuildFromFen(fen: String) {
         game = ChessGame()
         game.loadFen(fen)
+        pendingRemoteMove = null
     }
 
     fun onSquareTap(square: Square) {
@@ -359,26 +502,150 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
             return
         }
         if (mode is GameMode.Remote && current.myColor != game.sideToMove()) {
+            onPremoveTap(square, current)
             return
         }
+        if (mode is GameMode.Computer && game.sideToMove() != mode.myColor) {
+            return
+        }
+        clearHint()
         val selected = current.selected
         when {
+            selected == square -> {
+                _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+            }
+
             selected != null && square in current.legalTargets -> {
-                if (game.isPromotionMove(selected, square)) {
-                    _uiState.value = current.copy(pendingPromotion = selected to square)
+                val target = game.castlingRookSquares(selected)[square] ?: square
+                if (game.isPromotionMove(selected, target)) {
+                    _uiState.value = current.copy(pendingPromotion = selected to target)
                 } else {
-                    submitMove("${selected.toUci()}${square.toUci()}")
+                    submitMove("${selected.toUci()}${target.toUci()}")
                 }
             }
 
             game.pieceAt(square)?.color == game.sideToMove() -> {
-                _uiState.value = current.copy(selected = square, legalTargets = game.legalDestinations(square))
+                _uiState.value = current.copy(
+                    selected = square,
+                    legalTargets = game.legalDestinations(square) + game.castlingRookSquares(square).keys
+                )
             }
 
             else -> {
                 _uiState.value = current.copy(selected = null, legalTargets = emptySet())
             }
         }
+    }
+
+    private fun onPremoveTap(square: Square, current: GameUiState) {
+        val myColor = current.myColor ?: return
+        val planningFen = planningFen() ?: return
+        val planned = PremovePlanner.project(planningFen, current.premoves) ?: return
+        val selected = current.selected
+        when {
+            selected == square -> {
+                _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+            }
+
+            selected != null && square in current.legalTargets -> {
+                val target = planned.castlingRookSquares(selected)[square] ?: square
+                val promotion = if (planned.isPromotionMove(selected, target)) "q" else ""
+                val uci = "${selected.toUci()}${target.toUci()}$promotion"
+                if (PremovePlanner.canAppend(planningFen, current.premoves, uci)) {
+                    setPremoves(current.premoves + uci)
+                } else {
+                    _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+                }
+            }
+
+            planned.pieceAt(square)?.color == myColor -> {
+                _uiState.value = current.copy(
+                    selected = square,
+                    legalTargets = planned.legalDestinations(square) + planned.castlingRookSquares(square).keys
+                )
+            }
+
+            current.premoves.isNotEmpty() -> {
+                setPremoves(emptyList())
+            }
+
+            else -> {
+                _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+            }
+        }
+    }
+
+    fun clearPremoves() {
+        if (_uiState.value.premoves.isNotEmpty()) {
+            setPremoves(emptyList())
+        }
+    }
+
+    private fun planningFen(): String? {
+        val myColor = _uiState.value.myColor ?: return null
+        val base = ChessGame()
+        if (runCatching { base.loadFen(game.fen()) }.isFailure) {
+            return null
+        }
+        pendingRemoteMove?.let { uci ->
+            if (base.applyUci(uci) is MoveOutcome.Illegal) {
+                return null
+            }
+        }
+        return if (base.sideToMove() == myColor) base.fen() else PremovePlanner.planningFen(base.fen())
+    }
+
+    private fun setPremoves(premoves: List<String>, notifyServer: Boolean = true) {
+        val live = game.state()
+        val projected = if (premoves.isEmpty()) {
+            null
+        } else {
+            planningFen()
+                ?.let { planningFen -> PremovePlanner.project(planningFen, premoves) }
+                ?.state()
+                ?.copy(lastMove = live.lastMove, result = live.result)
+        }
+        val accepted = if (projected == null) emptyList() else premoves
+        _uiState.value = _uiState.value.copy(
+            premoves = accepted,
+            premoveState = projected,
+            selected = null,
+            legalTargets = emptySet()
+        )
+        if (notifyServer || accepted != premoves) {
+            sendPremovesToServer(accepted)
+        }
+    }
+
+    private fun sendPremovesToServer(premoves: List<String>) {
+        val remote = mode as? GameMode.Remote ?: return
+        if (!serverSchedulesPremoves || premoves == premovesSentToServer) {
+            return
+        }
+        premovesSentToServer = premoves
+        viewModelScope.launch { remote.session.send(GameMessage.SetPremoves(premoves)) }
+    }
+
+    private fun playQueuedPremove() {
+        if (mode !is GameMode.Remote || serverSchedulesPremoves) {
+            return
+        }
+        val current = _uiState.value
+        val next = current.premoves.firstOrNull() ?: return
+        val myColor = current.myColor
+        if (current.gameState.result != null || myColor == null) {
+            setPremoves(emptyList())
+            return
+        }
+        if (game.sideToMove() != myColor) {
+            return
+        }
+        if (!PremovePlanner.isPlayableNow(game, next)) {
+            setPremoves(emptyList())
+            return
+        }
+        submitMove(next)
+        setPremoves(current.premoves.drop(1))
     }
 
     fun onPromotionChosen(kind: PieceKind) {
@@ -399,6 +666,17 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
 
     fun resign() {
         when (mode) {
+            is GameMode.Computer -> {
+                val state = _uiState.value.gameState
+                if (state.result != null) {
+                    return
+                }
+                engineJob?.cancel()
+                game.finish(GameOverReason.RESIGNATION, mode.myColor.opposite)
+                _uiState.value = clearedSelection().copy(engineThinking = false)
+                maybeUploadRecord()
+            }
+
             GameMode.Hotseat -> {
                 val state = _uiState.value.gameState
                 if (state.result != null) {
@@ -407,6 +685,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 game.finish(GameOverReason.RESIGNATION, state.sideToMove.opposite)
                 _uiState.value = clearedSelection()
                 maybeUploadRecord()
+                persistHotseatGame()
             }
 
             is GameMode.Remote -> viewModelScope.launch { mode.session.send(GameMessage.Resign) }
@@ -447,6 +726,7 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
                 seriesOpponentWins = series.seriesOpponentWins,
                 seriesDraws = series.seriesDraws
             )
+            savedGames.clear()
         }
     }
 
@@ -468,6 +748,13 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         }
         when (mode) {
             GameMode.Hotseat -> undoLocalMove()
+            is GameMode.Computer -> {
+                engineJob?.cancel()
+                val history = game.state().uciHistory
+                val plies = if (game.sideToMove() == mode.myColor) 2 else 1
+                rebuildWithoutLastPlies(plies.coerceAtMost(history.size))
+                _uiState.value = _uiState.value.copy(engineThinking = false, hint = null)
+            }
             is GameMode.Remote -> {
                 if (_uiState.value.takebackOfferOutgoing || _uiState.value.gameState.uciHistory.isEmpty()) {
                     return
@@ -510,12 +797,15 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
         game = rebuilt
         _uiState.value = _uiState.value.copy(
             gameState = game.state(),
+            premoves = emptyList(),
+            premoveState = null,
             takebackOfferIncoming = false,
             takebackOfferOutgoing = false,
             selected = null,
             legalTargets = emptySet(),
             pendingPromotion = null
         )
+        persistHotseatGame()
     }
 
     fun claimVictory() {
@@ -524,12 +814,20 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
     }
 
     fun sendChat(text: String) {
-        val transport = lichessTransport ?: return
-        if (text.isBlank()) {
+        val clean = text.trim().take(MAX_CHAT_CHARS)
+        if (clean.isEmpty()) {
             return
         }
-        viewModelScope.launch { transport.sendChat(text.trim()) }
+        val lichess = lichessTransport
+        if (lichess != null) {
+            viewModelScope.launch { lichess.sendChat(clean) }
+            return
+        }
+        val remote = mode as? GameMode.Remote ?: return
+        viewModelScope.launch { remote.session.send(GameMessage.SendChat(clean)) }
     }
+
+    val supportsChat: Boolean get() = mode is GameMode.Remote
 
     fun buildPgn(): String {
         val state = game.state()
@@ -551,11 +849,13 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
 
     private fun submitMove(uci: String) {
         when (mode) {
-            GameMode.Hotseat -> {
+            GameMode.Hotseat, is GameMode.Computer -> {
                 when (game.applyUci(uci)) {
                     is MoveOutcome.Applied -> {
-                        _uiState.value = clearedSelection()
+                        _uiState.value = clearedSelection().copy(hint = null)
                         maybeUploadRecord()
+                        persistHotseatGame()
+                        maybeStartEngineTurn()
                     }
                     MoveOutcome.Illegal -> _uiState.value = _uiState.value.copy(
                         selected = null,
@@ -566,11 +866,59 @@ class GameViewModel(private val mode: GameMode) : ViewModel() {
             }
 
             is GameMode.Remote -> {
+                pendingRemoteMove = uci
                 _uiState.value = _uiState.value.copy(selected = null, legalTargets = emptySet(), pendingPromotion = null)
                 viewModelScope.launch { mode.session.send(GameMessage.MakeMove(uci)) }
             }
         }
     }
+
+    private fun maybeStartEngineTurn() {
+        val computer = mode as? GameMode.Computer ?: return
+        engineJob?.cancel()
+        val state = game.state()
+        if (state.result != null || state.sideToMove == computer.myColor) {
+            _uiState.value = _uiState.value.copy(engineThinking = false)
+            return
+        }
+        val fen = game.fen()
+        _uiState.value = _uiState.value.copy(engineThinking = true)
+        engineJob = viewModelScope.launch {
+            val move = withContext(engineContext) { engine.bestMove(fen, computer.level) }
+            if (move == null || game.fen() != fen) {
+                _uiState.value = _uiState.value.copy(engineThinking = false)
+                return@launch
+            }
+            game.applyUci(move)
+            _uiState.value = clearedSelection().copy(engineThinking = false, hint = null)
+            maybeUploadRecord()
+        }
+    }
+
+    fun requestHint() {
+        if (mode is GameMode.Remote) {
+            return
+        }
+        val state = game.state()
+        if (state.result != null) {
+            return
+        }
+        val fen = game.fen()
+        viewModelScope.launch {
+            val line = withContext(engineContext) { engine.analyse(fen, depth = HINT_DEPTH) }
+            if (game.fen() == fen) {
+                _uiState.value = _uiState.value.copy(hint = line.bestMove)
+            }
+        }
+    }
+
+    fun clearHint() {
+        if (_uiState.value.hint != null) {
+            _uiState.value = _uiState.value.copy(hint = null)
+        }
+    }
+
+    val supportsHint: Boolean get() = mode !is GameMode.Remote
 
     private fun clearedSelection() = _uiState.value.copy(
         gameState = game.state(),

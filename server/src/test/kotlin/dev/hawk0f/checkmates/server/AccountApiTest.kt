@@ -39,6 +39,14 @@ class AccountApiTest {
             install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
             }
+            install(io.ktor.server.plugins.ratelimit.RateLimit) {
+                register(AuthRateLimit) {
+                    rateLimiter(limit = 100, refillPeriod = kotlin.time.Duration.parse("1m"))
+                }
+                register(UploadRateLimit) {
+                    rateLimiter(limit = 100, refillPeriod = kotlin.time.Duration.parse("1m"))
+                }
+            }
             routing {
                 accountRoutes(UserRepository(Db.init(dbPath)))
             }
@@ -97,7 +105,7 @@ class AccountApiTest {
             contentType(ContentType.Application.Json)
             setBody(
                 GameRecordRequest(
-                    mode = "online",
+                    mode = "hotseat",
                     myColor = PieceColor.WHITE,
                     whiteName = "Hawk",
                     blackName = "Rival",
@@ -121,5 +129,64 @@ class AccountApiTest {
         assertEquals(HttpStatusCode.Unauthorized, unauthorized.status)
 
         assertTrue(client.get("/api/me") { bearerAuth("deadbeef") }.status == HttpStatusCode.Unauthorized)
+
+        val serverOwnedMode = client.post("/api/me/games") {
+            bearerAuth(login.token)
+            contentType(ContentType.Application.Json)
+            setBody(
+                GameRecordRequest(
+                    mode = "online",
+                    myColor = PieceColor.WHITE,
+                    whiteName = "Hawk",
+                    blackName = "Rival",
+                    winner = PieceColor.WHITE,
+                    reason = GameOverReason.CHECKMATE,
+                    uciHistory = listOf("e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"),
+                    finishedAtMillis = 1000L
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.BadRequest, serverOwnedMode.status)
+
+        val forgedResult = client.post("/api/me/games") {
+            bearerAuth(login.token)
+            contentType(ContentType.Application.Json)
+            setBody(
+                GameRecordRequest(
+                    mode = "hotseat",
+                    myColor = PieceColor.WHITE,
+                    whiteName = "Hawk",
+                    blackName = "Rival",
+                    winner = PieceColor.WHITE,
+                    reason = GameOverReason.CHECKMATE,
+                    uciHistory = listOf("e2e4", "e7e5"),
+                    finishedAtMillis = 1000L
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.BadRequest, forgedResult.status)
+
+        val illegalHistory = client.post("/api/me/games") {
+            bearerAuth(login.token)
+            contentType(ContentType.Application.Json)
+            setBody(
+                GameRecordRequest(
+                    mode = "hotseat",
+                    myColor = PieceColor.WHITE,
+                    whiteName = "Hawk",
+                    blackName = "Rival",
+                    winner = null,
+                    reason = GameOverReason.DRAW_AGREED,
+                    uciHistory = listOf("e2e4", "e7e5", "e4e5"),
+                    finishedAtMillis = 1000L
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.BadRequest, illegalHistory.status)
+
+        val stillOneGame = client.get("/api/me/games") {
+            bearerAuth(login.token)
+        }.body<GameHistoryResponse>()
+        assertEquals(1, stillOneGame.games.size)
     }
 }

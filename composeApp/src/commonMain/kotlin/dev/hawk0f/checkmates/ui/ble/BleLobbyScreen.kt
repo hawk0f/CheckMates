@@ -1,7 +1,6 @@
 package dev.hawk0f.checkmates.ui.ble
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +28,27 @@ import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.ble_connecting
+import dev.hawk0f.checkmates.resources.ble_default_host_name
+import dev.hawk0f.checkmates.resources.ble_discoverable_as
+import dev.hawk0f.checkmates.resources.ble_error_title
+import dev.hawk0f.checkmates.resources.ble_find_a_host
+import dev.hawk0f.checkmates.resources.ble_find_subtitle
+import dev.hawk0f.checkmates.resources.ble_host_a_game
+import dev.hawk0f.checkmates.resources.ble_host_subtitle
+import dev.hawk0f.checkmates.resources.ble_nearby
+import dev.hawk0f.checkmates.resources.ble_play_nearby
+import dev.hawk0f.checkmates.resources.ble_role
+import dev.hawk0f.checkmates.resources.ble_scanning
+import dev.hawk0f.checkmates.resources.ble_stop
+import dev.hawk0f.checkmates.resources.ble_tap_to_connect
+import dev.hawk0f.checkmates.resources.ble_waiting_for_friend
+import dev.hawk0f.checkmates.resources.common_ok
+import dev.hawk0f.checkmates.resources.common_you
+import dev.hawk0f.checkmates.resources.common_your_name
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_close
 
 @Composable
 fun BleLobbyScreen(
@@ -63,11 +83,14 @@ fun BleLobbyScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text("Play nearby", style = MaterialTheme.typography.displaySmall)
-            CircleButton(onClick = {
-                viewModel.stopScan()
-                onBack()
-            }) {
+            Text(stringResource(Res.string.ble_play_nearby), style = MaterialTheme.typography.displaySmall)
+            CircleButton(
+                onClick = {
+                    viewModel.stopScan()
+                    onBack()
+                },
+                contentDescription = stringResource(Res.string.a11y_close)
+            ) {
                 CloseIcon(color = scheme.onSurfaceVariant)
             }
         }
@@ -77,11 +100,11 @@ fun BleLobbyScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                SectionLabel("You")
+                SectionLabel(stringResource(Res.string.common_you))
                 SoftTextField(
                     value = uiState.playerName,
                     onValueChange = viewModel::onNameChange,
-                    placeholder = "Your name",
+                    placeholder = stringResource(Res.string.common_your_name),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -94,16 +117,19 @@ fun BleLobbyScreen(
                 ) {
                     CircularProgressIndicator(color = scheme.primary)
                     Text(
-                        text = "Discoverable as \"${uiState.playerName.ifBlank { "Host" }}\"",
+                        text = stringResource(
+                            Res.string.ble_discoverable_as,
+                            uiState.playerName.ifBlank { stringResource(Res.string.ble_default_host_name) }
+                        ),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "Waiting for a friend to connect over Bluetooth",
+                        text = stringResource(Res.string.ble_waiting_for_friend),
                         style = MaterialTheme.typography.bodyMedium,
                         color = scheme.onSurfaceVariant
                     )
                     PillButton(
-                        text = "Stop",
+                        text = stringResource(Res.string.ble_stop),
                         onClick = viewModel::stopHosting,
                         tone = PillTone.SOFT,
                         compact = true
@@ -116,22 +142,22 @@ fun BleLobbyScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     CircularProgressIndicator(color = scheme.primary)
-                    Text("Connecting…", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(Res.string.ble_connecting), style = MaterialTheme.typography.titleMedium)
                 }
 
                 else -> {
                     Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                        SectionLabel("Role")
+                        SectionLabel(stringResource(Res.string.ble_role))
                         ChoiceCard(
-                            title = "Host a game",
-                            subtitle = "Your device becomes discoverable",
+                            title = stringResource(Res.string.ble_host_a_game),
+                            subtitle = stringResource(Res.string.ble_host_subtitle),
                             selected = false,
                             onClick = requestHostPermissions,
                             modifier = Modifier.fillMaxWidth()
                         )
                         ChoiceCard(
-                            title = "Find a host",
-                            subtitle = "Scan for a nearby device",
+                            title = stringResource(Res.string.ble_find_a_host),
+                            subtitle = stringResource(Res.string.ble_find_subtitle),
                             selected = false,
                             onClick = requestScanPermissions,
                             modifier = Modifier.fillMaxWidth()
@@ -147,14 +173,14 @@ fun BleLobbyScreen(
                                 modifier = Modifier.padding(2.dp)
                             )
                             Text(
-                                text = "Scanning for hosts…",
+                                text = stringResource(Res.string.ble_scanning),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = scheme.onSurfaceVariant
                             )
                         }
                     }
                     if (uiState.hosts.isNotEmpty()) {
-                        SectionLabel("Nearby")
+                        SectionLabel(stringResource(Res.string.ble_nearby))
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(9.dp)
@@ -162,7 +188,7 @@ fun BleLobbyScreen(
                             items(uiState.hosts, key = { it.id }) { host ->
                                 ChoiceCard(
                                     title = host.label,
-                                    subtitle = "Tap to connect",
+                                    subtitle = stringResource(Res.string.ble_tap_to_connect),
                                     selected = false,
                                     onClick = { viewModel.connectTo(host) },
                                     modifier = Modifier.fillMaxWidth()
@@ -178,10 +204,10 @@ fun BleLobbyScreen(
     (uiState.step as? BleLobbyStep.Failed)?.let { failed ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Bluetooth error", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.ble_error_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(failed.message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }

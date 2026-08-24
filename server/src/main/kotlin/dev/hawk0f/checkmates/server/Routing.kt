@@ -3,7 +3,6 @@ package dev.hawk0f.checkmates.server
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.protocol.ProtocolJson
 import dev.hawk0f.checkmates.shared.protocol.ShortCode
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -11,6 +10,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.websocket.WebSocketServerSession
 import io.ktor.server.websocket.webSocket
 import dev.hawk0f.checkmates.shared.protocol.CreateGameRequest
@@ -27,18 +27,27 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
             call.respondText("ok")
         }
 
-        post("/api/games") {
-            val request = call.receive<CreateGameRequest>()
-            val hostName = request.hostName.trim().take(30).ifEmpty { "Host" }
-            val created = registry.create(hostName, request.timeControl?.takeIf { it.initialSeconds in 10..86400 && it.incrementSeconds in 0..600 })
-            call.respond(
-                CreateGameResponse(
-                    gameId = created.gameId,
-                    shortCode = created.shortCode,
-                    joinUrl = registry.joinUrl(created.shortCode),
-                    playerToken = created.playerToken
+        rateLimit(RoomRateLimit) {
+            post("/api/games") {
+                val request = call.receive<CreateGameRequest>()
+                val hostName = request.hostName.trim().take(30).ifEmpty { "Host" }
+                val hostUserId = call.bearerToken()?.let { users.userIdByToken(it) }
+                val created = registry.create(
+                    hostName = hostName,
+                    timeControl = request.timeControl?.takeIf {
+                        it.initialSeconds in 10..86400 && it.incrementSeconds in 0..600
+                    },
+                    hostUserId = hostUserId
                 )
-            )
+                call.respond(
+                    CreateGameResponse(
+                        gameId = created.gameId,
+                        shortCode = created.shortCode,
+                        joinUrl = registry.joinUrl(created.shortCode),
+                        playerToken = created.playerToken
+                    )
+                )
+            }
         }
 
         wellKnownRoutes()
@@ -89,7 +98,7 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
                         sendMessage(GameMessage.ProtocolError("BAD_MESSAGE", "cannot parse message"))
                         continue
                     }
-                    token = dispatch(room, token, message) ?: continue
+                    token = dispatch(room, token, message, users) ?: continue
                 }
             } finally {
                 token?.let { room.detach(it) }
@@ -101,7 +110,8 @@ fun Application.configureRouting(registry: RoomRegistry, users: UserRepository) 
 private suspend fun WebSocketServerSession.dispatch(
     room: GameRoom,
     token: String?,
-    message: GameMessage
+    message: GameMessage,
+    users: UserRepository
 ): String? {
     if (token != null) {
         room.handle(token, message)
@@ -111,7 +121,8 @@ private suspend fun WebSocketServerSession.dispatch(
         is GameMessage.JoinGame -> {
             val guestName = message.playerName.trim().take(30).ifEmpty { "Guest" }
             val guestToken = java.util.UUID.randomUUID().toString()
-            val assigned = room.join(guestToken, guestName, this)
+            val guestUserId = message.authToken?.let { users.userIdByToken(it) }
+            val assigned = room.join(guestToken, guestName, this, guestUserId)
             if (assigned == null) {
                 sendMessage(GameMessage.ProtocolError("NOT_JOINABLE", "game already started or finished"))
                 null

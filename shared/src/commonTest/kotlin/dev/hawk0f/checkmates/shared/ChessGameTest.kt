@@ -6,10 +6,14 @@ import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.domain.Piece
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
+import dev.hawk0f.checkmates.shared.domain.PremovePlanner
+import dev.hawk0f.checkmates.shared.domain.SanFormatter
 import dev.hawk0f.checkmates.shared.domain.Square
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -46,6 +50,46 @@ class ChessGameTest {
         assertEquals(Piece(PieceColor.WHITE, PieceKind.KING), game.pieceAt(Square.fromUci("c1")))
         assertEquals(Piece(PieceColor.WHITE, PieceKind.ROOK), game.pieceAt(Square.fromUci("d1")))
         assertNull(game.pieceAt(Square.fromUci("a1")))
+    }
+
+    @Test
+    fun castlingRookSquaresMapBothSides() {
+        val game = ChessGame()
+        game.loadFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
+        assertEquals(
+            mapOf(
+                Square.fromUci("h1") to Square.fromUci("g1"),
+                Square.fromUci("a1") to Square.fromUci("c1")
+            ),
+            game.castlingRookSquares(Square.fromUci("e1"))
+        )
+        game.loadFen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1")
+        assertEquals(
+            mapOf(
+                Square.fromUci("h8") to Square.fromUci("g8"),
+                Square.fromUci("a8") to Square.fromUci("c8")
+            ),
+            game.castlingRookSquares(Square.fromUci("e8"))
+        )
+    }
+
+    @Test
+    fun castlingRookSquaresAreEmptyWithoutCastlingRight() {
+        val game = ChessGame()
+        assertEquals(emptyMap<Square, Square>(), game.castlingRookSquares(Square.fromUci("e1")))
+        assertEquals(emptyMap<Square, Square>(), game.castlingRookSquares(Square.fromUci("a1")))
+        game.loadFen("r3k2r/8/8/8/8/8/8/R3K2R w - - 0 1")
+        assertEquals(emptyMap<Square, Square>(), game.castlingRookSquares(Square.fromUci("e1")))
+    }
+
+    @Test
+    fun sanFormatterRendersCastlingAndCaptures() {
+        val history = listOf("e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "f8c5", "e1g1", "g8f6", "f3e5")
+        assertEquals(
+            listOf("e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "O-O", "Nf6", "Nxe5"),
+            SanFormatter.sanMoves(history)
+        )
+        assertEquals(emptyList(), SanFormatter.sanMoves(emptyList()))
     }
 
     @Test
@@ -146,5 +190,51 @@ class ChessGameTest {
         assertEquals("e2", Square.fromUci("e2").toUci())
         assertEquals(4, Square.fromUci("e2").file)
         assertEquals(1, Square.fromUci("e2").rank)
+    }
+
+    @Test
+    fun premovesProjectOntoTheSameSideMovingTwice() {
+        val game = ChessGame()
+        game.play("e2e4", "e7e5")
+        val projected = PremovePlanner.project(game.fen(), listOf("g1f3", "f1c4"))
+        assertNotNull(projected)
+        assertEquals(Piece(PieceColor.WHITE, PieceKind.KNIGHT), projected.pieceAt(Square.fromUci("f3")))
+        assertEquals(Piece(PieceColor.WHITE, PieceKind.BISHOP), projected.pieceAt(Square.fromUci("c4")))
+        assertEquals(PieceColor.WHITE, projected.sideToMove())
+    }
+
+    @Test
+    fun premoveProjectionRejectsAnIllegalPlan() {
+        val game = ChessGame()
+        assertNull(PremovePlanner.project(game.fen(), listOf("e2e4", "e2e4")))
+        assertNull(PremovePlanner.project(game.fen(), listOf("e2e5")))
+    }
+
+    @Test
+    fun premoveQueueIsCapped() {
+        val game = ChessGame()
+        val plan = listOf("e2e4", "d2d4", "g1f3", "b1c3", "f1c4", "c1f4")
+        assertNotNull(PremovePlanner.project(game.fen(), plan))
+        assertEquals(PremovePlanner.MAX_PREMOVES, plan.size)
+        assertFalse(PremovePlanner.canAppend(game.fen(), plan, "d1d3"))
+        assertTrue(PremovePlanner.canAppend(game.fen(), plan.dropLast(1), "c1f4"))
+    }
+
+    @Test
+    fun premoveIsPlayableOnlyWhenTheLiveBoardAllowsIt() {
+        val game = ChessGame()
+        game.play("e2e4", "e7e5")
+        assertTrue(PremovePlanner.isPlayableNow(game, "g1f3"))
+        assertFalse(PremovePlanner.isPlayableNow(game, "g1f4"))
+        assertFalse(PremovePlanner.isPlayableNow(game, "e7e5"))
+        assertFalse(PremovePlanner.isPlayableNow(game, "zz"))
+    }
+
+    @Test
+    fun promotionPremovesCarryThePieceLetter() {
+        val game = ChessGame()
+        game.loadFen("8/P7/8/8/8/8/8/K6k w - - 0 1")
+        assertTrue(PremovePlanner.isPlayableNow(game, "a7a8q"))
+        assertFalse(PremovePlanner.isPlayableNow(game, "a7a8"))
     }
 }

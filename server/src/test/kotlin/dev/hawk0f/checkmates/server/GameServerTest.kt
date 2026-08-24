@@ -79,74 +79,74 @@ class GameServerTest {
         val guestJoined = CompletableDeferred<Unit>()
 
         coroutineScope {
-        val hostJob = launch {
-            client.webSocket("/ws/game/${created.gameId}?token=${created.playerToken}") {
-                val colorMsg = awaitMessage { it is GameMessage.ColorAssigned } as GameMessage.ColorAssigned
-                awaitMessage { it is GameMessage.OpponentJoined }
-                val myMoves = if (colorMsg.color == PieceColor.WHITE) whiteMoves else blackMoves
-                var sent = 0
-                if (colorMsg.color == PieceColor.WHITE) {
-                    sendMessage(GameMessage.MakeMove(myMoves[sent]))
-                    sent++
-                }
-                while (true) {
-                    val message = receiveMessage()
-                    if (message is GameMessage.GameOver) {
-                        hostDone.complete(message)
-                        break
+            val hostJob = launch {
+                client.webSocket("/ws/game/${created.gameId}?token=${created.playerToken}") {
+                    val colorMsg = awaitMessage { it is GameMessage.ColorAssigned } as GameMessage.ColorAssigned
+                    awaitMessage { it is GameMessage.OpponentJoined }
+                    val myMoves = if (colorMsg.color == PieceColor.WHITE) whiteMoves else blackMoves
+                    var sent = 0
+                    if (colorMsg.color == PieceColor.WHITE) {
+                        sendMessage(GameMessage.MakeMove(myMoves[sent]))
+                        sent++
                     }
-                    if (message is GameMessage.MoveApplied && sent < myMoves.size) {
-                        val movesPlayed = message.moveNumber
-                        val whiteToMove = movesPlayed % 2 == 0
-                        val myTurn = (colorMsg.color == PieceColor.WHITE) == whiteToMove
-                        if (myTurn) {
-                            sendMessage(GameMessage.MakeMove(myMoves[sent]))
-                            sent++
+                    while (true) {
+                        val message = receiveMessage()
+                        if (message is GameMessage.GameOver) {
+                            hostDone.complete(message)
+                            break
+                        }
+                        if (message is GameMessage.MoveApplied && sent < myMoves.size) {
+                            val movesPlayed = message.moveNumber
+                            val whiteToMove = movesPlayed % 2 == 0
+                            val myTurn = (colorMsg.color == PieceColor.WHITE) == whiteToMove
+                            if (myTurn) {
+                                sendMessage(GameMessage.MakeMove(myMoves[sent]))
+                                sent++
+                            }
                         }
                     }
                 }
             }
-        }
 
-        val guestJob = launch {
-            client.webSocket("/ws/game/${created.gameId}") {
-                sendMessage(GameMessage.JoinGame(created.shortCode, "Guest"))
-                val colorMsg = awaitMessage { it is GameMessage.ColorAssigned } as GameMessage.ColorAssigned
-                guestJoined.complete(Unit)
-                val myMoves = if (colorMsg.color == PieceColor.WHITE) whiteMoves else blackMoves
-                var sent = 0
-                if (colorMsg.color == PieceColor.WHITE) {
-                    sendMessage(GameMessage.MakeMove(myMoves[sent]))
-                    sent++
-                }
-                while (true) {
-                    val message = receiveMessage()
-                    if (message is GameMessage.GameOver) {
-                        guestDone.complete(message)
-                        break
+            val guestJob = launch {
+                client.webSocket("/ws/game/${created.gameId}") {
+                    sendMessage(GameMessage.JoinGame(created.shortCode, "Guest"))
+                    val colorMsg = awaitMessage { it is GameMessage.ColorAssigned } as GameMessage.ColorAssigned
+                    guestJoined.complete(Unit)
+                    val myMoves = if (colorMsg.color == PieceColor.WHITE) whiteMoves else blackMoves
+                    var sent = 0
+                    if (colorMsg.color == PieceColor.WHITE) {
+                        sendMessage(GameMessage.MakeMove(myMoves[sent]))
+                        sent++
                     }
-                    if (message is GameMessage.MoveApplied && sent < myMoves.size) {
-                        val movesPlayed = message.moveNumber
-                        val whiteToMove = movesPlayed % 2 == 0
-                        val myTurn = (colorMsg.color == PieceColor.WHITE) == whiteToMove
-                        if (myTurn) {
-                            sendMessage(GameMessage.MakeMove(myMoves[sent]))
-                            sent++
+                    while (true) {
+                        val message = receiveMessage()
+                        if (message is GameMessage.GameOver) {
+                            guestDone.complete(message)
+                            break
+                        }
+                        if (message is GameMessage.MoveApplied && sent < myMoves.size) {
+                            val movesPlayed = message.moveNumber
+                            val whiteToMove = movesPlayed % 2 == 0
+                            val myTurn = (colorMsg.color == PieceColor.WHITE) == whiteToMove
+                            if (myTurn) {
+                                sendMessage(GameMessage.MakeMove(myMoves[sent]))
+                                sent++
+                            }
                         }
                     }
                 }
             }
-        }
 
-        withTimeout(15_000) {
-            val hostResult = hostDone.await()
-            val guestResult = guestDone.await()
-            assertEquals(GameOverReason.CHECKMATE, hostResult.reason)
-            assertEquals(PieceColor.WHITE, hostResult.winner)
-            assertEquals(hostResult, guestResult)
-        }
-        hostJob.join()
-        guestJob.join()
+            withTimeout(15_000) {
+                val hostResult = hostDone.await()
+                val guestResult = guestDone.await()
+                assertEquals(GameOverReason.CHECKMATE, hostResult.reason)
+                assertEquals(PieceColor.WHITE, hostResult.winner)
+                assertEquals(hostResult, guestResult)
+            }
+            hostJob.join()
+            guestJob.join()
         }
     }
 
@@ -168,29 +168,29 @@ class GameServerTest {
             assertEquals("GAME_NOT_ACTIVE", beforeJoin.reason)
 
             coroutineScope {
-            val guestSession = launch {
-                client.webSocket("/ws/game/${created.gameId}") {
-                    sendMessage(GameMessage.JoinGame(created.shortCode, "Guest"))
-                    awaitMessage { it is GameMessage.GameOver }
+                val guestSession = launch {
+                    client.webSocket("/ws/game/${created.gameId}") {
+                        sendMessage(GameMessage.JoinGame(created.shortCode, "Guest"))
+                        awaitMessage { it is GameMessage.GameOver }
+                    }
                 }
-            }
-            awaitMessage { it is GameMessage.OpponentJoined }
+                awaitMessage { it is GameMessage.OpponentJoined }
 
-            if (color == PieceColor.WHITE) {
-                sendMessage(GameMessage.MakeMove("e2e5"))
-                val illegal = awaitMessage { it is GameMessage.MoveRejected } as GameMessage.MoveRejected
-                assertEquals("ILLEGAL", illegal.reason)
-            } else {
-                sendMessage(GameMessage.MakeMove("e7e5"))
-                val outOfTurn = awaitMessage { it is GameMessage.MoveRejected } as GameMessage.MoveRejected
-                assertEquals("NOT_YOUR_TURN", outOfTurn.reason)
-            }
+                if (color == PieceColor.WHITE) {
+                    sendMessage(GameMessage.MakeMove("e2e5"))
+                    val illegal = awaitMessage { it is GameMessage.MoveRejected } as GameMessage.MoveRejected
+                    assertEquals("ILLEGAL", illegal.reason)
+                } else {
+                    sendMessage(GameMessage.MakeMove("e7e5"))
+                    val outOfTurn = awaitMessage { it is GameMessage.MoveRejected } as GameMessage.MoveRejected
+                    assertEquals("NOT_YOUR_TURN", outOfTurn.reason)
+                }
 
-            sendMessage(GameMessage.Resign)
-            val over = awaitMessage { it is GameMessage.GameOver } as GameMessage.GameOver
-            assertEquals(GameOverReason.RESIGNATION, over.reason)
-            assertEquals(color.opposite, over.winner)
-            guestSession.join()
+                sendMessage(GameMessage.Resign)
+                val over = awaitMessage { it is GameMessage.GameOver } as GameMessage.GameOver
+                assertEquals(GameOverReason.RESIGNATION, over.reason)
+                assertEquals(color.opposite, over.winner)
+                guestSession.join()
             }
         }
     }

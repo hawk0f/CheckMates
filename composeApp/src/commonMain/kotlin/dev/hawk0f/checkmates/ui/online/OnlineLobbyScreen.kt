@@ -45,6 +45,32 @@ import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_cancel
+import dev.hawk0f.checkmates.resources.common_none
+import dev.hawk0f.checkmates.resources.common_ok
+import dev.hawk0f.checkmates.resources.common_you
+import dev.hawk0f.checkmates.resources.common_your_name
+import dev.hawk0f.checkmates.resources.lobby_clock
+import dev.hawk0f.checkmates.resources.lobby_colours_drawn_at_random
+import dev.hawk0f.checkmates.resources.lobby_could_not_start
+import dev.hawk0f.checkmates.resources.lobby_create_game
+import dev.hawk0f.checkmates.resources.lobby_friend_joins_with_code
+import dev.hawk0f.checkmates.resources.lobby_game_code
+import dev.hawk0f.checkmates.resources.lobby_invite_a_friend
+import dev.hawk0f.checkmates.resources.lobby_invite_subtitle
+import dev.hawk0f.checkmates.resources.lobby_join_game
+import dev.hawk0f.checkmates.resources.lobby_join_subtitle
+import dev.hawk0f.checkmates.resources.lobby_join_with_code
+import dev.hawk0f.checkmates.resources.lobby_new_game
+import dev.hawk0f.checkmates.resources.lobby_opponent
+import dev.hawk0f.checkmates.resources.lobby_qr_content_description
+import dev.hawk0f.checkmates.resources.lobby_scan_qr
+import dev.hawk0f.checkmates.resources.lobby_share_invite
+import dev.hawk0f.checkmates.resources.lobby_share_message
+import dev.hawk0f.checkmates.resources.lobby_waiting_for_opponent
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_close
 
 private val clockChoices = listOf(
     null,
@@ -76,7 +102,7 @@ fun OnlineLobbyScreen(
                 onPermissionDenied = { scanning = false }
             )
             PillButton(
-                text = "Cancel",
+                text = stringResource(Res.string.common_cancel),
                 onClick = { scanning = false },
                 tone = PillTone.INK,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(28.dp)
@@ -104,8 +130,8 @@ fun OnlineLobbyScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text("New game", style = MaterialTheme.typography.displaySmall)
-            CircleButton(onClick = onBack) {
+            Text(stringResource(Res.string.lobby_new_game), style = MaterialTheme.typography.displaySmall)
+            CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_close)) {
                 CloseIcon(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -139,10 +165,10 @@ fun OnlineLobbyScreen(
     (uiState.step as? LobbyStep.Failed)?.let { failed ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Could not start", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.lobby_could_not_start), style = MaterialTheme.typography.titleLarge) },
             text = { Text(failed.message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }
@@ -167,17 +193,17 @@ private fun SetupContent(
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                SectionLabel("Opponent")
+                SectionLabel(stringResource(Res.string.lobby_opponent))
                 ChoiceCard(
-                    title = "Invite a friend",
-                    subtitle = "Share a link, code or QR",
+                    title = stringResource(Res.string.lobby_invite_a_friend),
+                    subtitle = stringResource(Res.string.lobby_invite_subtitle),
                     selected = !joining,
                     onClick = { onJoiningChange(false) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 ChoiceCard(
-                    title = "Join with a code",
-                    subtitle = "6 characters, or scan a QR",
+                    title = stringResource(Res.string.lobby_join_with_code),
+                    subtitle = stringResource(Res.string.lobby_join_subtitle),
                     selected = joining,
                     onClick = { onJoiningChange(true) },
                     modifier = Modifier.fillMaxWidth()
@@ -185,18 +211,18 @@ private fun SetupContent(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                SectionLabel("You")
+                SectionLabel(stringResource(Res.string.common_you))
                 SoftTextField(
                     value = uiState.playerName,
                     onValueChange = viewModel::onNameChange,
-                    placeholder = "Your name",
+                    placeholder = stringResource(Res.string.common_your_name),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
             if (joining) {
                 Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                    SectionLabel("Game code")
+                    SectionLabel(stringResource(Res.string.lobby_game_code))
                     SoftTextField(
                         value = uiState.codeInput,
                         onValueChange = viewModel::onCodeChange,
@@ -204,7 +230,7 @@ private fun SetupContent(
                         modifier = Modifier.fillMaxWidth()
                     )
                     PillButton(
-                        text = "Scan QR",
+                        text = stringResource(Res.string.lobby_scan_qr),
                         onClick = onScan,
                         tone = PillTone.SOFT,
                         compact = true,
@@ -213,14 +239,14 @@ private fun SetupContent(
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                    SectionLabel("Clock")
+                    SectionLabel(stringResource(Res.string.lobby_clock))
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
                         for (choice in clockChoices) {
                             SelectPill(
-                                text = choice?.label ?: "None",
+                                text = choice?.label ?: stringResource(Res.string.common_none),
                                 selected = uiState.timeControl == choice,
                                 onClick = { viewModel.onTimeControlChange(choice) }
                             )
@@ -235,16 +261,16 @@ private fun SetupContent(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             PillButton(
-                text = if (joining) "Join game" else "Create game",
+                text = stringResource(if (joining) Res.string.lobby_join_game else Res.string.lobby_create_game),
                 onClick = { if (joining) viewModel.joinGame() else viewModel.createGame() },
                 enabled = !joining || uiState.codeInput.length == 6,
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
                 text = if (joining) {
-                    "Colours are drawn at random when you join"
+                    stringResource(Res.string.lobby_colours_drawn_at_random)
                 } else {
-                    "Your friend joins with the code or the link"
+                    stringResource(Res.string.lobby_friend_joins_with_code)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
@@ -264,18 +290,19 @@ private fun WaitingContent(
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val shareText = rememberShareText()
+    val shareMessage = stringResource(Res.string.lobby_share_message, step.joinUrl, step.shortCode)
 
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
     ) {
-        SectionLabel("Game code")
+        SectionLabel(stringResource(Res.string.lobby_game_code))
         Text(step.shortCode, style = MaterialTheme.typography.displayLarge)
         SoftCard(container = accents.pageAlt, corner = 24.dp) {
             Image(
                 painter = rememberQrCodePainter(step.joinUrl),
-                contentDescription = "QR code for ${step.joinUrl}",
+                contentDescription = stringResource(Res.string.lobby_qr_content_description, step.joinUrl),
                 modifier = Modifier.padding(14.dp).size(190.dp)
             )
         }
@@ -285,9 +312,9 @@ private fun WaitingContent(
             color = scheme.onSurfaceVariant
         )
         PillButton(
-            text = "Share invite",
+            text = stringResource(Res.string.lobby_share_invite),
             onClick = {
-                shareText("Play chess with me! ${step.joinUrl} (code ${step.shortCode})")
+                shareText(shareMessage)
             },
             tone = PillTone.ACCENT
         )
@@ -302,13 +329,13 @@ private fun WaitingContent(
                     .background(scheme.primary)
             )
             Text(
-                text = "Waiting for opponent…",
+                text = stringResource(Res.string.lobby_waiting_for_opponent),
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant
             )
         }
         PillButton(
-            text = "Cancel",
+            text = stringResource(Res.string.common_cancel),
             onClick = onCancel,
             tone = PillTone.SOFT,
             compact = true

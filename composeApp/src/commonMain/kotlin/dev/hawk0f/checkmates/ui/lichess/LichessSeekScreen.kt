@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +39,46 @@ import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SegmentedTabs
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_cancel
+import dev.hawk0f.checkmates.resources.lichess_title
+import dev.hawk0f.checkmates.resources.seek_ai_unrated_note
+import dev.hawk0f.checkmates.resources.seek_casual
+import dev.hawk0f.checkmates.resources.seek_challenge_subtitle
+import dev.hawk0f.checkmates.resources.seek_challenges_out
+import dev.hawk0f.checkmates.resources.lichess_speed_note
+import dev.hawk0f.checkmates.resources.seek_clock_days
+import dev.hawk0f.checkmates.resources.seek_clock_label
+import dev.hawk0f.checkmates.resources.seek_clock_limit_increment
+import dev.hawk0f.checkmates.resources.seek_close
+import dev.hawk0f.checkmates.resources.seek_create_seek
+import dev.hawk0f.checkmates.resources.seek_game_opens_note
+import dev.hawk0f.checkmates.resources.seek_looking_for
+import dev.hawk0f.checkmates.resources.seek_open_challenge_body
+import dev.hawk0f.checkmates.resources.seek_open_challenge_instead
+import dev.hawk0f.checkmates.resources.seek_open_challenge_title
+import dev.hawk0f.checkmates.resources.seek_open_link
+import dev.hawk0f.checkmates.resources.seek_play_stockfish
+import dev.hawk0f.checkmates.resources.seek_pool_pace_note
+import dev.hawk0f.checkmates.resources.seek_rated
+import dev.hawk0f.checkmates.resources.seek_rating_any
+import dev.hawk0f.checkmates.resources.seek_rating_range
+import dev.hawk0f.checkmates.resources.seek_rating_spread
+import dev.hawk0f.checkmates.resources.seek_rating_unknown
+import dev.hawk0f.checkmates.resources.seek_send_challenge
+import dev.hawk0f.checkmates.resources.seek_share
+import dev.hawk0f.checkmates.resources.seek_share_message
+import dev.hawk0f.checkmates.resources.seek_stockfish_level
+import dev.hawk0f.checkmates.resources.seek_stockfish_note
+import dev.hawk0f.checkmates.resources.seek_stream_note
+import dev.hawk0f.checkmates.resources.seek_tab_friend
+import dev.hawk0f.checkmates.resources.seek_tab_seek
+import dev.hawk0f.checkmates.resources.seek_tab_stockfish
+import dev.hawk0f.checkmates.resources.seek_title
+import dev.hawk0f.checkmates.resources.seek_username_placeholder
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.common_ok
+import dev.hawk0f.checkmates.resources.a11y_close
 
 @Composable
 fun LichessSeekScreen(
@@ -65,8 +104,8 @@ fun LichessSeekScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text("Find a game", style = MaterialTheme.typography.displaySmall)
-            CircleButton(onClick = onBack) {
+            Text(stringResource(Res.string.seek_title), style = MaterialTheme.typography.displaySmall)
+            CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_close)) {
                 CloseIcon(color = scheme.onSurfaceVariant)
             }
         }
@@ -74,15 +113,15 @@ fun LichessSeekScreen(
         val step = uiState.step
         when (step) {
             is LichessStep.Seeking -> WaitingPanel(
-                title = "Looking for a ${step.label} game",
-                note = "The seek stays open while this request streams. Closing it cancels.",
+                title = stringResource(Res.string.seek_looking_for, step.label),
+                note = stringResource(Res.string.seek_stream_note),
                 onCancel = viewModel::cancelWaiting,
                 modifier = Modifier.weight(1f)
             )
 
             is LichessStep.Waiting -> WaitingPanel(
                 title = step.label,
-                note = "The game opens as soon as it starts",
+                note = stringResource(Res.string.seek_game_opens_note),
                 onCancel = viewModel::cancelWaiting,
                 modifier = Modifier.weight(1f)
             )
@@ -98,29 +137,30 @@ fun LichessSeekScreen(
     (uiState.step as? LichessStep.Failed)?.let { failed ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Lichess", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.lichess_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(failed.message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }
 
     uiState.openChallengeUrl?.let { url ->
+        val shareMessage = stringResource(Res.string.seek_share_message, url)
         AlertDialog(
             onDismissRequest = viewModel::dismissOpenChallenge,
-            title = { Text("Open challenge", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.seek_open_challenge_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Anyone who opens this link plays you. Blitz is allowed here.")
+                    Text(stringResource(Res.string.seek_open_challenge_body))
                     Text(text = url, style = MaterialTheme.typography.titleSmall)
                 }
             },
             confirmButton = {
                 PillButton(
-                    text = "Share",
+                    text = stringResource(Res.string.seek_share),
                     onClick = {
-                        shareText("Play me on lichess: $url")
+                        shareText(shareMessage)
                         viewModel.dismissOpenChallenge()
                     },
                     compact = true
@@ -128,7 +168,7 @@ fun LichessSeekScreen(
             },
             dismissButton = {
                 PillButton(
-                    text = "Close",
+                    text = stringResource(Res.string.seek_close),
                     onClick = viewModel::dismissOpenChallenge,
                     tone = PillTone.SOFT,
                     compact = true
@@ -156,7 +196,11 @@ private fun SetupContent(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             SegmentedTabs(
-                options = listOf("Seek", "Friend", "Stockfish"),
+                options = listOf(
+                    stringResource(Res.string.seek_tab_seek),
+                    stringResource(Res.string.seek_tab_friend),
+                    stringResource(Res.string.seek_tab_stockfish)
+                ),
                 selectedIndex = uiState.mode.ordinal,
                 onSelect = { viewModel.onModeChange(SeekMode.entries[it]) },
                 modifier = Modifier.fillMaxWidth()
@@ -168,21 +212,31 @@ private fun SetupContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    SectionLabel("time · increment", color = accents.bandStrong)
+                    SectionLabel(stringResource(Res.string.seek_clock_label), color = accents.bandStrong)
                     val option = if (poolMode) uiState.poolClock else uiState.directClock
                     CodeChip(
                         text = if (option.isCorrespondence) {
-                            "days ${option.days}"
+                            stringResource(Res.string.seek_clock_days, option.days ?: 0)
                         } else {
-                            "${option.limitSeconds}s + ${option.incrementSeconds}s"
+                            stringResource(
+                                Res.string.seek_clock_limit_increment,
+                                option.limitSeconds,
+                                option.incrementSeconds
+                            )
                         }
                     )
                 }
+                Text(
+                    text = stringResource(Res.string.lichess_speed_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accents.bandStrong
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
-                    val options = if (poolMode) POOL_CLOCKS else DIRECT_CLOCKS
+                    val options = (if (poolMode) POOL_CLOCKS else DIRECT_CLOCKS)
+                        .filter { it.isPlayableOverBoardApi }
                     for (option in options) {
                         SelectPill(
                             text = option.label,
@@ -199,7 +253,7 @@ private fun SetupContent(
                 }
                 if (poolMode) {
                     Text(
-                        text = "Pool needs rapid pace: minutes + 40 x increment must reach 480.",
+                        text = stringResource(Res.string.seek_pool_pace_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.outline
                     )
@@ -222,7 +276,7 @@ private fun SetupContent(
                 }
                 if (uiState.mode == SeekMode.AI) {
                     Text(
-                        text = "/challenge/ai is always unrated, the flag is ignored there.",
+                        text = stringResource(Res.string.seek_ai_unrated_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.outline
                     )
@@ -239,17 +293,25 @@ private fun SetupContent(
                         CodeChip(
                             text = uiState.myRating?.let { rating ->
                                 if (uiState.ratingSpread <= 0) {
-                                    "any"
+                                    stringResource(Res.string.seek_rating_any)
                                 } else {
-                                    "${rating - uiState.ratingSpread} – ${rating + uiState.ratingSpread}"
+                                    stringResource(
+                                        Res.string.seek_rating_range,
+                                        rating - uiState.ratingSpread,
+                                        rating + uiState.ratingSpread
+                                    )
                                 }
-                            } ?: "unknown rating"
+                            } ?: stringResource(Res.string.seek_rating_unknown)
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         for (spread in RATING_SPREADS) {
                             SelectPill(
-                                text = if (spread <= 0) "any" else "±$spread",
+                                text = if (spread <= 0) {
+                                    stringResource(Res.string.seek_rating_any)
+                                } else {
+                                    stringResource(Res.string.seek_rating_spread, spread)
+                                },
                                 selected = uiState.ratingSpread == spread,
                                 onClick = { viewModel.onRatingSpreadChange(spread) }
                             )
@@ -264,11 +326,11 @@ private fun SetupContent(
                     SoftTextField(
                         value = uiState.friendName,
                         onValueChange = viewModel::onFriendNameChange,
-                        placeholder = "Lichess username",
+                        placeholder = stringResource(Res.string.seek_username_placeholder),
                         modifier = Modifier.fillMaxWidth()
                     )
                     PillButton(
-                        text = "Open challenge link instead",
+                        text = stringResource(Res.string.seek_open_challenge_instead),
                         onClick = viewModel::createOpenChallenge,
                         tone = PillTone.SOFT,
                         compact = true,
@@ -297,9 +359,9 @@ private fun SetupContent(
                             )
                         }
                         Column {
-                            Text("Stockfish level", style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(Res.string.seek_stockfish_level), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                text = "1–8 · /challenge/ai, always unrated",
+                                text = stringResource(Res.string.seek_stockfish_note),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = scheme.onSurfaceVariant
                             )
@@ -327,20 +389,25 @@ private fun SetupContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         SectionLabel(
-                            text = "Challenges out · ${uiState.outgoing.size}",
+                            text = stringResource(Res.string.seek_challenges_out, uiState.outgoing.size),
                             color = accents.bandStrong
                         )
                         CodeChip("GET /api/challenge")
                     }
                     for (challenge in uiState.outgoing) {
                         ListRow(
-                            title = challenge.destUser?.label ?: "Open link",
-                            subtitle = "${challenge.timeControl?.label.orEmpty()} · " +
-                                if (challenge.rated) "rated" else "casual",
+                            title = challenge.destUser?.label ?: stringResource(Res.string.seek_open_link),
+                            subtitle = stringResource(
+                                Res.string.seek_challenge_subtitle,
+                                challenge.timeControl?.label.orEmpty(),
+                                stringResource(
+                                    if (challenge.rated) Res.string.seek_rated else Res.string.seek_casual
+                                )
+                            ),
                             leading = { InitialsBadge(text = challenge.destUser?.label ?: "?") },
                             trailing = {
                                 PillButton(
-                                    text = "Cancel",
+                                    text = stringResource(Res.string.common_cancel),
                                     onClick = { viewModel.cancelChallenge(challenge.id) },
                                     tone = PillTone.SOFT,
                                     compact = true
@@ -358,9 +425,9 @@ private fun SetupContent(
         ) {
             PillButton(
                 text = when (uiState.mode) {
-                    SeekMode.POOL -> "Create seek"
-                    SeekMode.FRIEND -> "Send challenge"
-                    SeekMode.AI -> "Play Stockfish"
+                    SeekMode.POOL -> stringResource(Res.string.seek_create_seek)
+                    SeekMode.FRIEND -> stringResource(Res.string.seek_send_challenge)
+                    SeekMode.AI -> stringResource(Res.string.seek_play_stockfish)
                 },
                 onClick = viewModel::start,
                 enabled = uiState.mode != SeekMode.FRIEND || uiState.friendName.isNotBlank(),
@@ -411,6 +478,6 @@ private fun WaitingPanel(
             color = scheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        PillButton(text = "Cancel", onClick = onCancel, tone = PillTone.SOFT, compact = true)
+        PillButton(text = stringResource(Res.string.common_cancel), onClick = onCancel, tone = PillTone.SOFT, compact = true)
     }
 }

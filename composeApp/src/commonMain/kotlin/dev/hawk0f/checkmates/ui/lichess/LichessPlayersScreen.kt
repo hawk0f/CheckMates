@@ -33,6 +33,24 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SoftTextField
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.players_challenge
+import dev.hawk0f.checkmates.resources.players_create_link
+import dev.hawk0f.checkmates.resources.players_following_online
+import dev.hawk0f.checkmates.resources.players_leaderboard_rapid
+import dev.hawk0f.checkmates.resources.players_not_online_now
+import dev.hawk0f.checkmates.resources.players_offline_count
+import dev.hawk0f.checkmates.resources.players_open_challenge_link
+import dev.hawk0f.checkmates.resources.players_share_link
+import dev.hawk0f.checkmates.resources.players_share_message
+import dev.hawk0f.checkmates.resources.players_status_online
+import dev.hawk0f.checkmates.resources.players_status_playing
+import dev.hawk0f.checkmates.resources.players_title
+import dev.hawk0f.checkmates.resources.players_username_placeholder
+import dev.hawk0f.checkmates.resources.players_watch
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_close
 
 @Composable
 fun LichessPlayersScreen(
@@ -51,8 +69,8 @@ fun LichessPlayersScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text("Players", style = MaterialTheme.typography.displaySmall)
-            CircleButton(onClick = onBack) {
+            Text(stringResource(Res.string.players_title), style = MaterialTheme.typography.displaySmall)
+            CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_close)) {
                 CloseIcon(color = scheme.onSurfaceVariant)
             }
         }
@@ -70,29 +88,61 @@ fun LichessPlayersScreen(
                     .padding(horizontal = 22.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoftTextField(
+                        value = uiState.query,
+                        onValueChange = viewModel::onQueryChange,
+                        placeholder = stringResource(Res.string.players_username_placeholder),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    for (name in uiState.suggestions) {
+                        ListRow(
+                            title = name,
+                            leading = { InitialsBadge(text = name) },
+                            trailing = {
+                                PillButton(
+                                    text = stringResource(Res.string.players_challenge),
+                                    onClick = {
+                                        viewModel.challenge(name)
+                                        viewModel.clearQuery()
+                                    },
+                                    tone = PillTone.INK,
+                                    compact = true
+                                )
+                            }
+                        )
+                    }
+                }
+
                 if (uiState.online.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         SectionLabel(
-                            text = "Following · online ${uiState.online.size}",
+                            text = stringResource(Res.string.players_following_online, uiState.online.size),
                             color = accents.bandStrong
                         )
                         for (user in uiState.online) {
                             ListRow(
                                 title = user.label,
-                                subtitle = if (user.playing == true) "playing" else "online",
+                                subtitle = stringResource(
+                                    if (user.playing == true) {
+                                        Res.string.players_status_playing
+                                    } else {
+                                        Res.string.players_status_online
+                                    }
+                                ),
                                 leading = { InitialsBadge(text = user.label) },
                                 trailing = {
                                     val gameId = user.playingId
                                     if (gameId != null) {
                                         PillButton(
-                                            text = "Watch",
+                                            text = stringResource(Res.string.players_watch),
                                             onClick = { openUrl("$LICHESS_BASE_URL/$gameId") },
                                             tone = PillTone.SOFT,
                                             compact = true
                                         )
                                     } else {
                                         PillButton(
-                                            text = "Challenge",
+                                            text = stringResource(Res.string.players_challenge),
                                             onClick = { viewModel.challenge(user.label) },
                                             tone = PillTone.ACCENT,
                                             compact = true
@@ -106,11 +156,14 @@ fun LichessPlayersScreen(
 
                 if (uiState.offline.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SectionLabel("Offline · ${uiState.offline.size}", color = accents.bandStrong)
+                        SectionLabel(
+                            text = stringResource(Res.string.players_offline_count, uiState.offline.size),
+                            color = accents.bandStrong
+                        )
                         for (user in uiState.offline.take(8)) {
                             ListRow(
                                 title = user.label,
-                                subtitle = "not online now",
+                                subtitle = stringResource(Res.string.players_not_online_now),
                                 leading = { InitialsBadge(text = user.label) }
                             )
                             Hairline()
@@ -119,7 +172,7 @@ fun LichessPlayersScreen(
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SectionLabel("Leaderboard · rapid", color = accents.bandStrong)
+                    SectionLabel(stringResource(Res.string.players_leaderboard_rapid), color = accents.bandStrong)
                     for (user in uiState.leaderboard) {
                         ListRow(
                             title = user.username,
@@ -136,19 +189,20 @@ fun LichessPlayersScreen(
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel("Open challenge link", color = accents.bandStrong)
+                    SectionLabel(stringResource(Res.string.players_open_challenge_link), color = accents.bandStrong)
                     uiState.openChallengeUrl?.let { url ->
                         CodeChip(url)
+                        val shareMessage = stringResource(Res.string.players_share_message, url)
                         PillButton(
-                            text = "Share link",
-                            onClick = { shareText("Play me on lichess: $url") },
+                            text = stringResource(Res.string.players_share_link),
+                            onClick = { shareText(shareMessage) },
                             tone = PillTone.ACCENT,
                             compact = true,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                     PillButton(
-                        text = "Create 5+0 link",
+                        text = stringResource(Res.string.players_create_link),
                         onClick = viewModel::createOpenChallenge,
                         tone = PillTone.SOFT,
                         compact = true,
@@ -162,7 +216,7 @@ fun LichessPlayersScreen(
     uiState.message?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissMessage,
-            title = { Text("Players", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.players_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
                 PillButton(text = "OK", onClick = viewModel::dismissMessage, compact = true)

@@ -6,6 +6,7 @@ import dev.hawk0f.checkmates.net.ApiClient
 import dev.hawk0f.checkmates.net.ServerConfig
 import dev.hawk0f.checkmates.net.WebSocketGameTransport
 import dev.hawk0f.checkmates.net.configuredHttpClient
+import dev.hawk0f.checkmates.net.configuredWebSocketClient
 import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
@@ -15,6 +16,7 @@ import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -38,6 +40,7 @@ data class OnlineLobbyUiState(
 class OnlineLobbyViewModel : ViewModel() {
 
     private val httpClient = configuredHttpClient()
+    private val socketClient = configuredWebSocketClient()
     private val api = ApiClient(httpClient)
 
     private val _uiState = MutableStateFlow(
@@ -65,9 +68,13 @@ class OnlineLobbyViewModel : ViewModel() {
         _uiState.value = state.copy(step = LobbyStep.Working)
         viewModelScope.launch {
             try {
-                val created = api.createGame(state.playerName.ifBlank { "Host" }, state.timeControl)
+                val created = api.createGame(
+                    hostName = state.playerName.ifBlank { "Host" },
+                    timeControl = state.timeControl,
+                    authToken = AuthManager.token
+                )
                 val transport = WebSocketGameTransport(
-                    client = httpClient,
+                    client = socketClient,
                     url = ServerConfig.wsGameUrl(created.gameId, created.playerToken),
                     gameId = created.gameId,
                     playerToken = created.playerToken
@@ -82,6 +89,8 @@ class OnlineLobbyViewModel : ViewModel() {
                     .filter { it }
                     .first()
                 _uiState.value = _uiState.value.copy(step = LobbyStep.GameReady)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 GameSessionHolder.clear()
                 _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(e.message ?: "connection failed"))
@@ -112,9 +121,13 @@ class OnlineLobbyViewModel : ViewModel() {
                     return@launch
                 }
                 val transport = WebSocketGameTransport(
-                    client = httpClient,
+                    client = socketClient,
                     url = ServerConfig.wsGameUrl(info.gameId!!),
-                    firstMessage = GameMessage.JoinGame(code, state.playerName.ifBlank { "Guest" })
+                    firstMessage = GameMessage.JoinGame(
+                        code = code,
+                        playerName = state.playerName.ifBlank { "Guest" },
+                        authToken = AuthManager.token
+                    )
                 )
                 val session = ActiveGameSession(transport, kind = "online", myName = state.playerName.ifBlank { "Guest" })
                 GameSessionHolder.install(session)
@@ -123,6 +136,8 @@ class OnlineLobbyViewModel : ViewModel() {
                     .filter { it }
                     .first()
                 _uiState.value = _uiState.value.copy(step = LobbyStep.GameReady)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 GameSessionHolder.clear()
                 _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(e.message ?: "connection failed"))

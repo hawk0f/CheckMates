@@ -2,7 +2,6 @@ package dev.hawk0f.checkmates.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,22 +27,40 @@ import dev.hawk0f.checkmates.ui.theme.ChevronDirection
 import dev.hawk0f.checkmates.ui.theme.ChevronIcon
 import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.DarkModePreference
+import dev.hawk0f.checkmates.resources.flow_checkmates_name
+import dev.hawk0f.checkmates.resources.flow_current
+import dev.hawk0f.checkmates.resources.flow_lichess_name
+import dev.hawk0f.checkmates.resources.flow_section
+import dev.hawk0f.checkmates.resources.flow_switch_to
+import dev.hawk0f.checkmates.session.AppFlow
+import dev.hawk0f.checkmates.session.FlowManager
+import dev.hawk0f.checkmates.ui.theme.PillButton
+import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
 import dev.hawk0f.checkmates.ui.theme.ThemePalette
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.settings_appearance
+import dev.hawk0f.checkmates.resources.settings_board_theme
+import dev.hawk0f.checkmates.resources.settings_dark_mode_dark
+import dev.hawk0f.checkmates.resources.settings_dark_mode_light
+import dev.hawk0f.checkmates.resources.settings_dark_mode_system
+import dev.hawk0f.checkmates.resources.settings_title
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_back
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onSwitchFlow: () -> Unit = {}) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text("Settings", style = MaterialTheme.typography.displaySmall)
-            CircleButton(onClick = onBack) {
+            Text(stringResource(Res.string.settings_title), style = MaterialTheme.typography.displaySmall)
+            CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_back)) {
                 ChevronIcon(
                     direction = ChevronDirection.LEFT,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -60,11 +77,40 @@ fun SettingsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                SectionLabel("Appearance")
+                SectionLabel(stringResource(Res.string.flow_section))
+                val flowName = stringResource(
+                    if (FlowManager.current == AppFlow.LICHESS) {
+                        Res.string.flow_lichess_name
+                    } else {
+                        Res.string.flow_checkmates_name
+                    }
+                )
+                val otherName = stringResource(
+                    if (FlowManager.other() == AppFlow.LICHESS) {
+                        Res.string.flow_lichess_name
+                    } else {
+                        Res.string.flow_checkmates_name
+                    }
+                )
+                Text(
+                    text = stringResource(Res.string.flow_current, flowName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                PillButton(
+                    text = stringResource(Res.string.flow_switch_to, otherName),
+                    onClick = onSwitchFlow,
+                    tone = PillTone.BAND,
+                    compact = true
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                SectionLabel(stringResource(Res.string.settings_appearance))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     for (preference in DarkModePreference.entries) {
                         SelectPill(
-                            text = preference.title,
+                            text = darkModeLabel(preference),
                             selected = ThemeManager.darkMode == preference,
                             onClick = { ThemeManager.selectDarkMode(preference) }
                         )
@@ -73,7 +119,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                SectionLabel("Board theme")
+                SectionLabel(stringResource(Res.string.settings_board_theme))
                 for (palette in ThemePalette.entries) {
                     PaletteRow(
                         palette = palette,
@@ -162,3 +208,12 @@ private fun BoardSwatch(colors: BoardColors) {
         }
     }
 }
+
+@Composable
+private fun darkModeLabel(preference: DarkModePreference): String = stringResource(
+    when (preference) {
+        DarkModePreference.SYSTEM -> Res.string.settings_dark_mode_system
+        DarkModePreference.LIGHT -> Res.string.settings_dark_mode_light
+        DarkModePreference.DARK -> Res.string.settings_dark_mode_dark
+    }
+)

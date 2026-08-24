@@ -33,16 +33,22 @@ fun UiDevice.openHotseatBoard() {
     waitForIdle()
 }
 
+private fun UiDevice.labelBounds(label: String) =
+    wait(Until.findObject(By.text(label)), TIMEOUT_MS).visibleBounds
+
 fun UiDevice.readBoardGeometry(): BoardGeometry {
-    val fileX = IntArray(8) { index ->
-        val label = ('a' + index).toString()
-        wait(Until.findObject(By.text(label)), TIMEOUT_MS).visibleBounds.centerX()
-    }
-    val rankY = IntArray(8) { index ->
-        val label = (index + 1).toString()
-        wait(Until.findObject(By.text(label)), TIMEOUT_MS).visibleBounds.centerY()
-    }
-    return BoardGeometry(fileX, rankY)
+    val fileB = labelBounds("b").centerX()
+    val fileH = labelBounds("h").centerX()
+    val cellX = (fileH - fileB) / 6
+    val fileA = fileB - cellX
+    val rankTwo = labelBounds("2").centerY()
+    val rankEight = labelBounds("8").centerY()
+    val cellY = (rankTwo - rankEight) / 6
+    val rankOne = rankTwo + cellY
+    return BoardGeometry(
+        IntArray(8) { fileA + it * cellX },
+        IntArray(8) { rankOne - it * cellY }
+    )
 }
 
 fun UiDevice.dragMove(geometry: BoardGeometry, from: String, to: String) {

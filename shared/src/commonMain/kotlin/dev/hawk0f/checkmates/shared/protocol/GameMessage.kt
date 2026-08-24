@@ -14,11 +14,31 @@ sealed interface GameMessage {
 
     @Serializable
     @SerialName("joinGame")
-    data class JoinGame(val code: String, val playerName: String) : GameMessage
+    data class JoinGame(
+        val code: String,
+        val playerName: String,
+        val authToken: String? = null
+    ) : GameMessage
 
     @Serializable
     @SerialName("makeMove")
     data class MakeMove(val uci: String) : GameMessage
+
+    @Serializable
+    @SerialName("setPremoves")
+    data class SetPremoves(val uciMoves: List<String>) : GameMessage
+
+    @Serializable
+    @SerialName("premovesDropped")
+    data class PremovesDropped(val reason: String) : GameMessage
+
+    @Serializable
+    @SerialName("sendChat")
+    data class SendChat(val text: String) : GameMessage
+
+    @Serializable
+    @SerialName("chatSaid")
+    data class ChatSaid(val author: String, val text: String) : GameMessage
 
     @Serializable
     @SerialName("offerDraw")

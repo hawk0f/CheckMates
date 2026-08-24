@@ -45,7 +45,8 @@ suspend fun ApplicationCall.respondLandingPage(code: String, hostName: String?) 
                 p(classes = "hint") { +"Код игры:" }
                 div(classes = "code") { +code }
                 p(classes = "hint") {
-                    +"Откройте эту ссылку на телефоне с установленным приложением Chess — игра откроется сама. Или введите код вручную на экране Join."
+                    +"Откройте эту ссылку на телефоне с установленным приложением Chess — "
+                    +"игра откроется сама. Или введите код вручную на экране Join."
                 }
             }
         }

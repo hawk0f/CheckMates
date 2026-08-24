@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -157,5 +158,78 @@ fun PlusIcon(color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
             strokeWidth = stroke,
             cap = StrokeCap.Round
         )
+    }
+}
+
+@Composable
+fun PuzzleIcon(color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val stroke = Stroke(width = this.size.minDimension * 0.12f, cap = StrokeCap.Round)
+        val path = Path()
+        path.moveTo(w * 0.16f, h * 0.32f)
+        path.lineTo(w * 0.38f, h * 0.32f)
+        path.cubicTo(w * 0.38f, h * 0.14f, w * 0.62f, h * 0.14f, w * 0.62f, h * 0.32f)
+        path.lineTo(w * 0.84f, h * 0.32f)
+        path.lineTo(w * 0.84f, h * 0.54f)
+        path.cubicTo(w * 0.66f, h * 0.54f, w * 0.66f, h * 0.78f, w * 0.84f, h * 0.78f)
+        path.lineTo(w * 0.84f, h * 0.86f)
+        path.lineTo(w * 0.16f, h * 0.86f)
+        path.lineTo(w * 0.16f, h * 0.64f)
+        path.cubicTo(w * 0.34f, h * 0.64f, w * 0.34f, h * 0.4f, w * 0.16f, h * 0.4f)
+        path.close()
+        drawPath(path = path, color = color, style = stroke)
+    }
+}
+
+@Composable
+fun ScreenIcon(color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val strokeWidth = this.size.minDimension * 0.12f
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.1f, h * 0.28f),
+            size = Size(w * 0.8f, h * 0.54f),
+            cornerRadius = CornerRadius(w * 0.14f),
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+        val antenna = Path()
+        antenna.moveTo(w * 0.34f, h * 0.1f)
+        antenna.lineTo(w * 0.5f, h * 0.24f)
+        antenna.lineTo(w * 0.66f, h * 0.1f)
+        drawPath(
+            path = antenna,
+            color = color,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+    }
+}
+
+@Composable
+fun PeopleIcon(color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val strokeWidth = this.size.minDimension * 0.12f
+        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        drawCircle(
+            color = color,
+            radius = w * 0.16f,
+            center = Offset(w * 0.4f, h * 0.32f),
+            style = stroke
+        )
+        val shoulders = Path()
+        shoulders.moveTo(w * 0.12f, h * 0.86f)
+        shoulders.lineTo(w * 0.12f, h * 0.76f)
+        shoulders.cubicTo(w * 0.12f, h * 0.6f, w * 0.68f, h * 0.6f, w * 0.68f, h * 0.76f)
+        shoulders.lineTo(w * 0.68f, h * 0.86f)
+        drawPath(path = shoulders, color = color, style = stroke)
+        val side = Path()
+        side.moveTo(w * 0.76f, h * 0.34f)
+        side.cubicTo(w * 0.94f, h * 0.42f, w * 0.94f, h * 0.56f, w * 0.76f, h * 0.64f)
+        drawPath(path = side, color = color, style = stroke)
     }
 }

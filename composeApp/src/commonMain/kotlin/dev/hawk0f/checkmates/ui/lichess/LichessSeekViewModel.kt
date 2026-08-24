@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import dev.hawk0f.checkmates.net.lichess.LichessClockLimits
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
@@ -24,6 +25,8 @@ data class LichessClockOption(
 ) {
     val limitSeconds: Int get() = minutes * 60
     val isCorrespondence: Boolean get() = days != null
+    val isPlayableOverBoardApi: Boolean
+        get() = LichessClockLimits.isPlayable(limitSeconds, incrementSeconds, days)
 }
 
 enum class SeekMode {
@@ -64,8 +67,9 @@ val POOL_CLOCKS = listOf(
 )
 
 val DIRECT_CLOCKS = listOf(
-    LichessClockOption("3+2", 3, 2),
-    LichessClockOption("5+0", 5, 0),
+    LichessClockOption("3+8", 3, 8),
+    LichessClockOption("5+5", 5, 5),
+    LichessClockOption("8+0", 8, 0),
     LichessClockOption("10+0", 10, 0),
     LichessClockOption("15+10", 15, 10)
 )

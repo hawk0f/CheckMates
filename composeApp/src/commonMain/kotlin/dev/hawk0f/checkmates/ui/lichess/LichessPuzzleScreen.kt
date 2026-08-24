@@ -34,6 +34,29 @@ import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SelectPill
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.puzzle_daily
+import dev.hawk0f.checkmates.resources.puzzle_dialog_title
+import dev.hawk0f.checkmates.resources.puzzle_find_the_move
+import dev.hawk0f.checkmates.resources.puzzle_id_and_side
+import dev.hawk0f.checkmates.resources.puzzle_line_played_out
+import dev.hawk0f.checkmates.resources.puzzle_loading
+import dev.hawk0f.checkmates.resources.puzzle_moves_left
+import dev.hawk0f.checkmates.resources.puzzle_next
+import dev.hawk0f.checkmates.resources.puzzle_not_this_one
+import dev.hawk0f.checkmates.resources.puzzle_one_move_left
+import dev.hawk0f.checkmates.resources.puzzle_rating
+import dev.hawk0f.checkmates.resources.puzzle_rating_unknown
+import dev.hawk0f.checkmates.resources.puzzle_right_move
+import dev.hawk0f.checkmates.resources.puzzle_side_black
+import dev.hawk0f.checkmates.resources.puzzle_side_white
+import dev.hawk0f.checkmates.resources.puzzle_sign_in_for_history
+import dev.hawk0f.checkmates.resources.puzzle_solved
+import dev.hawk0f.checkmates.resources.puzzle_streak
+import dev.hawk0f.checkmates.resources.puzzle_try_again
+import dev.hawk0f.checkmates.resources.puzzle_your_rating
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_close
 
 @Composable
 fun LichessPuzzleScreen(
@@ -53,19 +76,25 @@ fun LichessPuzzleScreen(
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 SectionLabel(
                     text = uiState.puzzleId?.let { id ->
-                        val side = if (uiState.sideToMove == PieceColor.WHITE) "white" else "black"
-                        "Puzzle $id · $side to move"
-                    } ?: "Loading",
+                        val side = stringResource(
+                            if (uiState.sideToMove == PieceColor.WHITE) {
+                                Res.string.puzzle_side_white
+                            } else {
+                                Res.string.puzzle_side_black
+                            }
+                        )
+                        stringResource(Res.string.puzzle_id_and_side, id, side)
+                    } ?: stringResource(Res.string.puzzle_loading),
                     color = accents.bandStrong
                 )
-                Text("Daily puzzle", style = MaterialTheme.typography.displaySmall)
+                Text(stringResource(Res.string.puzzle_daily), style = MaterialTheme.typography.displaySmall)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CodeChip("streak ${uiState.streak}")
-                CircleButton(onClick = onBack) {
+                CodeChip(stringResource(Res.string.puzzle_streak, uiState.streak))
+                CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_close)) {
                     CloseIcon(color = scheme.onSurfaceVariant)
                 }
             }
@@ -131,12 +160,12 @@ fun LichessPuzzleScreen(
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             PillButton(
-                text = "Next puzzle",
+                text = stringResource(Res.string.puzzle_next),
                 onClick = { viewModel.loadNext() },
                 modifier = Modifier.fillMaxWidth()
             )
             PillButton(
-                text = "Daily puzzle",
+                text = stringResource(Res.string.puzzle_daily),
                 onClick = viewModel::loadDaily,
                 tone = PillTone.SOFT,
                 compact = true,
@@ -148,7 +177,7 @@ fun LichessPuzzleScreen(
     uiState.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Puzzle", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.puzzle_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
                 PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
@@ -162,21 +191,24 @@ private fun FeedbackCard(uiState: LichessPuzzleUiState) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val headline = when (uiState.feedback) {
-        PuzzleFeedback.NONE -> "Find the move"
-        PuzzleFeedback.CORRECT -> "${uiState.lastMoveSan.orEmpty()} — right move"
-        PuzzleFeedback.WRONG -> "Not this one"
-        PuzzleFeedback.SOLVED -> "Solved"
+        PuzzleFeedback.NONE -> stringResource(Res.string.puzzle_find_the_move)
+        PuzzleFeedback.CORRECT -> stringResource(Res.string.puzzle_right_move, uiState.lastMoveSan.orEmpty())
+        PuzzleFeedback.WRONG -> stringResource(Res.string.puzzle_not_this_one)
+        PuzzleFeedback.SOLVED -> stringResource(Res.string.puzzle_solved)
     }
     val note = when (uiState.feedback) {
-        PuzzleFeedback.NONE -> "Puzzle rating ${uiState.rating ?: "?"}"
+        PuzzleFeedback.NONE -> stringResource(
+            Res.string.puzzle_rating,
+            uiState.rating?.toString() ?: stringResource(Res.string.puzzle_rating_unknown)
+        )
         PuzzleFeedback.CORRECT -> if (uiState.movesLeft <= 1) {
-            "One move left in the solution."
+            stringResource(Res.string.puzzle_one_move_left)
         } else {
-            "${uiState.movesLeft} moves left in the solution."
+            stringResource(Res.string.puzzle_moves_left, uiState.movesLeft)
         }
 
-        PuzzleFeedback.WRONG -> "Try again — the position did not change."
-        PuzzleFeedback.SOLVED -> "Whole line played out."
+        PuzzleFeedback.WRONG -> stringResource(Res.string.puzzle_try_again)
+        PuzzleFeedback.SOLVED -> stringResource(Res.string.puzzle_line_played_out)
     }
     val container = when (uiState.feedback) {
         PuzzleFeedback.WRONG -> scheme.errorContainer
@@ -198,9 +230,10 @@ private fun FeedbackCard(uiState: LichessPuzzleUiState) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionLabel("Your puzzle rating", color = accents.bandStrong)
+            SectionLabel(stringResource(Res.string.puzzle_your_rating), color = accents.bandStrong)
             Text(
-                text = uiState.myPuzzleRating?.toString() ?: "sign in for history",
+                text = uiState.myPuzzleRating?.toString()
+                    ?: stringResource(Res.string.puzzle_sign_in_for_history),
                 style = MaterialTheme.typography.titleMedium
             )
         }

@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,14 +37,13 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.hawk0f.checkmates.net.lichess.LichessChatLine
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.platform.playMoveSound
 import dev.hawk0f.checkmates.platform.rememberShareText
-import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.GameResult
 import dev.hawk0f.checkmates.shared.domain.GameState
+import dev.hawk0f.checkmates.shared.domain.SanFormatter
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
@@ -62,13 +61,101 @@ import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.StatTile
 import org.jetbrains.compose.resources.painterResource
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.game_accept
+import dev.hawk0f.checkmates.resources.game_accept_rematch
+import dev.hawk0f.checkmates.resources.game_advantage
+import dev.hawk0f.checkmates.resources.game_advantage_level
+import dev.hawk0f.checkmates.resources.game_advantage_mine
+import dev.hawk0f.checkmates.resources.game_advantage_theirs
+import dev.hawk0f.checkmates.resources.game_allow
+import dev.hawk0f.checkmates.resources.game_analysis
+import dev.hawk0f.checkmates.resources.game_black_to_move
+import dev.hawk0f.checkmates.resources.game_chat_empty
+import dev.hawk0f.checkmates.resources.game_chat_line
+import dev.hawk0f.checkmates.resources.game_chat_placeholder
+import dev.hawk0f.checkmates.resources.game_chat_send
+import dev.hawk0f.checkmates.resources.game_chat_title
+import dev.hawk0f.checkmates.resources.game_claim_win
+import dev.hawk0f.checkmates.resources.game_clock_title
+import dev.hawk0f.checkmates.resources.game_close
+import dev.hawk0f.checkmates.resources.game_connection_lost
+import dev.hawk0f.checkmates.resources.game_decline
+import dev.hawk0f.checkmates.resources.game_drag_down_hint
+import dev.hawk0f.checkmates.resources.game_drag_up_hint
+import dev.hawk0f.checkmates.resources.game_draw_offered
+import dev.hawk0f.checkmates.resources.game_exit
+import dev.hawk0f.checkmates.resources.game_keep_playing
+import dev.hawk0f.checkmates.resources.game_move_number
+import dev.hawk0f.checkmates.resources.game_move_played
+import dev.hawk0f.checkmates.resources.game_moves_played
+import dev.hawk0f.checkmates.resources.game_moves_with_count
+import dev.hawk0f.checkmates.resources.game_new_game
+import dev.hawk0f.checkmates.resources.game_no_clock
+import dev.hawk0f.checkmates.resources.game_no_moves_were_played
+import dev.hawk0f.checkmates.resources.game_no_moves_yet
+import dev.hawk0f.checkmates.resources.game_opening_move
+import dev.hawk0f.checkmates.resources.game_opponent_fallback
+import dev.hawk0f.checkmates.resources.game_opponent_gone
+import dev.hawk0f.checkmates.resources.game_opponent_gone_countdown
+import dev.hawk0f.checkmates.resources.game_opponent_reconnecting
+import dev.hawk0f.checkmates.resources.game_promote_to
+import dev.hawk0f.checkmates.resources.game_reconnecting
+import dev.hawk0f.checkmates.resources.game_rematch
+import dev.hawk0f.checkmates.resources.game_rematch_offered
+import dev.hawk0f.checkmates.resources.game_resign
+import dev.hawk0f.checkmates.resources.game_resign_local_body
+import dev.hawk0f.checkmates.resources.game_resign_remote_body
+import dev.hawk0f.checkmates.resources.game_resign_title
+import dev.hawk0f.checkmates.resources.game_result_and_move
+import dev.hawk0f.checkmates.resources.game_result_black_won
+import dev.hawk0f.checkmates.resources.game_result_draw
+import dev.hawk0f.checkmates.resources.game_result_white_won
+import dev.hawk0f.checkmates.resources.game_result_you_lost
+import dev.hawk0f.checkmates.resources.game_result_you_won
+import dev.hawk0f.checkmates.resources.game_series_local
+import dev.hawk0f.checkmates.resources.game_series_remote
+import dev.hawk0f.checkmates.resources.game_side_black
+import dev.hawk0f.checkmates.resources.game_side_white
+import dev.hawk0f.checkmates.resources.game_stream_live
+import dev.hawk0f.checkmates.resources.game_stream_reconnecting
+import dev.hawk0f.checkmates.resources.game_takeback_requested
+import dev.hawk0f.checkmates.resources.game_the_game
+import dev.hawk0f.checkmates.resources.game_their_move
+import dev.hawk0f.checkmates.resources.game_wants_rematch
+import dev.hawk0f.checkmates.resources.game_white_to_move
+import dev.hawk0f.checkmates.resources.game_you
+import dev.hawk0f.checkmates.resources.game_your_move
+import dev.hawk0f.checkmates.ui.theme.reasonLabel
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_back
+import dev.hawk0f.checkmates.resources.a11y_chat
+import dev.hawk0f.checkmates.resources.a11y_new_game
+import dev.hawk0f.checkmates.resources.a11y_offer_draw
+import dev.hawk0f.checkmates.resources.a11y_resign
+import dev.hawk0f.checkmates.resources.a11y_takeback
+import dev.hawk0f.checkmates.resources.game_back_to_live
+import dev.hawk0f.checkmates.resources.game_viewing_ply
+import dev.hawk0f.checkmates.shared.domain.ChessGame
+import dev.hawk0f.checkmates.resources.a11y_hint
+import dev.hawk0f.checkmates.resources.computer_thinking
+import dev.hawk0f.checkmates.resources.game_clear_premoves
+import dev.hawk0f.checkmates.resources.game_hint_move
+import dev.hawk0f.checkmates.resources.game_premoves_queued
+import dev.hawk0f.checkmates.shared.domain.Square
 
 @Composable
 fun GameScreen(
     mode: GameMode,
-    onExit: () -> Unit
+    onExit: () -> Unit,
+    onOpenReview: ((String) -> Unit)? = null
 ) {
-    val viewModel: GameViewModel = viewModel(key = if (mode is GameMode.Remote) "remote" else "hotseat") {
+    val viewModelKey = when (mode) {
+        is GameMode.Remote -> "remote"
+        is GameMode.Computer -> "computer-${mode.level.id}-${mode.myColor}"
+        GameMode.Hotseat -> "hotseat"
+    }
+    val viewModel: GameViewModel = viewModel(key = viewModelKey) {
         GameViewModel(mode)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,7 +192,8 @@ fun GameScreen(
                 viewModel = viewModel,
                 bottomColor = bottomColor,
                 onExit = onExit,
-                onResignRequest = { confirmingResign = true }
+                onResignRequest = { confirmingResign = true },
+                onOpenReview = onOpenReview
             )
         }
     }
@@ -113,19 +201,28 @@ fun GameScreen(
     if (confirmingResign && gameState.result == null) {
         AlertDialog(
             onDismissRequest = { confirmingResign = false },
-            title = { Text("Resign the game?", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.game_resign_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Text(
                     text = if (viewModel.isRemote) {
-                        "Your opponent takes the win."
+                        stringResource(Res.string.game_resign_remote_body)
                     } else {
-                        "${if (gameState.sideToMove == PieceColor.WHITE) "Black" else "White"} takes the win."
+                        stringResource(
+                            Res.string.game_resign_local_body,
+                            stringResource(
+                                if (gameState.sideToMove == PieceColor.WHITE) {
+                                    Res.string.game_side_black
+                                } else {
+                                    Res.string.game_side_white
+                                }
+                            )
+                        )
                     }
                 )
             },
             confirmButton = {
                 PillButton(
-                    text = "Resign",
+                    text = stringResource(Res.string.game_resign),
                     onClick = {
                         confirmingResign = false
                         viewModel.resign()
@@ -135,7 +232,7 @@ fun GameScreen(
             },
             dismissButton = {
                 PillButton(
-                    text = "Keep playing",
+                    text = stringResource(Res.string.game_keep_playing),
                     onClick = { confirmingResign = false },
                     tone = PillTone.SOFT,
                     compact = true
@@ -163,7 +260,8 @@ private fun PlayingPanel(
     viewModel: GameViewModel,
     bottomColor: PieceColor,
     onExit: () -> Unit,
-    onResignRequest: () -> Unit
+    onResignRequest: () -> Unit,
+    onOpenReview: ((String) -> Unit)?
 ) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
@@ -175,11 +273,20 @@ private fun PlayingPanel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            CircleButton(
-                onClick = onExit,
-                container = scheme.onSurface.copy(alpha = 0.08f)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+                CircleButton(
+                    onClick = onExit,
+                    container = scheme.onSurface.copy(alpha = 0.08f),
+                    contentDescription = stringResource(Res.string.a11y_back)
+                ) {
+                    ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+                }
+                uiState.connectionState?.let { state ->
+                    StreamChip(connected = state is TransportConnectionState.Connected)
+                }
             }
             PlayerBlock(
                 uiState = uiState,
@@ -193,43 +300,52 @@ private fun PlayingPanel(
         val selected = uiState.selected
         val legalTargets = uiState.legalTargets
         val flipped = uiState.myColor == PieceColor.BLACK
-        BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
+        val history = gameState.uciHistory
+        var previewPly by remember { mutableStateOf<Int?>(null) }
+        LaunchedEffect(history.size) {
+            previewPly = null
+        }
+        val previewState = remember(history, previewPly) {
+            previewPly?.let { ply ->
+                val replay = ChessGame()
+                for (uci in history.take(ply)) {
+                    replay.applyUci(uci)
+                }
+                replay.state()
+            }
+        }
+        val hintSquares = remember(uiState.hint) {
+            uiState.hint?.takeIf { it.length >= 4 }?.let { uci ->
+                setOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
+            } ?: emptySet()
+        }
+        val premoveSquares = remember(uiState.premoves) {
+            uiState.premoves.flatMap { uci ->
+                listOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
+            }.toSet()
+        }
+        BoardBox(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), maxSize = 560.dp) { boardModifier ->
             ChessBoard(
-                gameState = gameState,
-                selected = selected,
-                legalTargets = legalTargets,
+                gameState = previewState ?: uiState.premoveState ?: gameState,
+                selected = if (previewState == null) selected else null,
+                legalTargets = if (previewState == null) legalTargets else emptySet(),
                 flipped = flipped,
                 onSquareTap = viewModel::onSquareTap,
+                interactive = previewState == null,
+                premoveSquares = if (previewState == null) premoveSquares + hintSquares else emptySet(),
                 modifier = boardModifier
             )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            PlayerBlock(
-                uiState = uiState,
-                sideColor = bottomColor,
-                alignEnd = false,
-                clockSize = true,
-                rotated = false
-            )
-            Column(horizontalAlignment = Alignment.End) {
-                SectionLabel(statusLabel(uiState, viewModel.isRemote), color = accents.onBand)
-                Text(
-                    text = lastMoveLabel(gameState),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = scheme.onSurface
-                )
-            }
         }
 
         BottomSheet(
             uiState = uiState,
             viewModel = viewModel,
-            onResignRequest = onResignRequest
+            bottomColor = bottomColor,
+            onResignRequest = onResignRequest,
+            onOpenReview = onOpenReview,
+            previewPly = previewPly,
+            onSelectPly = { ply -> previewPly = ply?.takeIf { it != history.size } },
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -238,7 +354,12 @@ private fun PlayingPanel(
 private fun BottomSheet(
     uiState: GameUiState,
     viewModel: GameViewModel,
-    onResignRequest: () -> Unit
+    bottomColor: PieceColor,
+    onResignRequest: () -> Unit,
+    onOpenReview: ((String) -> Unit)?,
+    previewPly: Int?,
+    onSelectPly: (Int?) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val lichess = viewModel.lichessTransport
     val takebackIncoming by (lichess?.takebackIncoming ?: MutableStateFlow(false))
@@ -247,42 +368,41 @@ private fun BottomSheet(
         .collectAsStateWithLifecycle()
     val opponentGone by (lichess?.opponentGoneSeconds ?: MutableStateFlow<Int?>(null))
         .collectAsStateWithLifecycle()
-    val chatLines by (lichess?.chat ?: MutableStateFlow(emptyList<LichessChatLine>()))
-        .collectAsStateWithLifecycle()
+    val chatLines = uiState.chat
     var chatOpen by remember { mutableStateOf(false) }
     var chatDraft by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(true) }
 
-    if (chatOpen && lichess != null) {
+    if (chatOpen && viewModel.supportsChat) {
         AlertDialog(
             onDismissRequest = { chatOpen = false },
-            title = { Text("Chat", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.game_chat_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (chatLines.isEmpty()) {
                         Text(
-                            text = "No messages yet.",
+                            text = stringResource(Res.string.game_chat_empty),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     for (line in chatLines.takeLast(8)) {
                         Text(
-                            text = "${line.author}: ${line.text}",
+                            text = stringResource(Res.string.game_chat_line, line.author, line.text),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                     SoftTextField(
                         value = chatDraft,
                         onValueChange = { chatDraft = it.take(140) },
-                        placeholder = "Say something",
+                        placeholder = stringResource(Res.string.game_chat_placeholder),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
             confirmButton = {
                 PillButton(
-                    text = "Send",
+                    text = stringResource(Res.string.game_chat_send),
                     onClick = {
                         viewModel.sendChat(chatDraft)
                         chatDraft = ""
@@ -292,7 +412,7 @@ private fun BottomSheet(
             },
             dismissButton = {
                 PillButton(
-                    text = "Close",
+                    text = stringResource(Res.string.game_close),
                     onClick = { chatOpen = false },
                     tone = PillTone.SOFT,
                     compact = true
@@ -304,7 +424,7 @@ private fun BottomSheet(
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp)
             .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
@@ -328,32 +448,56 @@ private fun BottomSheet(
             )
         }
 
-        if (expanded) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 220.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+        MyPlayerRow(
+            uiState = uiState,
+            bottomColor = bottomColor,
+            isRemote = viewModel.isRemote
+        )
+
+        if (uiState.engineThinking || uiState.hint != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                SectionLabel("Moves", color = accents.bandStrong)
-                val allPairs = allMovePairs(uiState.gameState.uciHistory)
-                if (allPairs.isEmpty()) {
-                    Text(
-                        text = "No moves yet",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = scheme.onSurfaceVariant
-                    )
-                }
-                for (pair in allPairs) {
-                    Text(
-                        text = pair,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurface,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                Text(
+                    text = if (uiState.engineThinking) {
+                        stringResource(Res.string.computer_thinking)
+                    } else {
+                        stringResource(Res.string.game_hint_move, uiState.hint.orEmpty())
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = accents.band
+                )
             }
+        }
+        if (uiState.premoves.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionLabel(
+                    text = stringResource(Res.string.game_premoves_queued, uiState.premoves.size),
+                    color = accents.bandStrong
+                )
+                PillButton(
+                    text = stringResource(Res.string.game_clear_premoves),
+                    onClick = viewModel::clearPremoves,
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
+            }
+        }
+
+        if (expanded) {
+            AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
+            MovesGrid(
+                history = uiState.gameState.uciHistory,
+                previewPly = previewPly,
+                onSelectPly = onSelectPly,
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            )
         }
 
         if (uiState.drawOfferIncoming) {
@@ -364,19 +508,19 @@ private fun BottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Draw offered",
+                        text = stringResource(Res.string.game_draw_offered),
                         style = MaterialTheme.typography.titleMedium,
                         color = accents.onBand,
                         modifier = Modifier.weight(1f)
                     )
                     PillButton(
-                        text = "Accept",
+                        text = stringResource(Res.string.game_accept),
                         onClick = viewModel::acceptDraw,
                         tone = PillTone.INK,
                         compact = true
                     )
                     PillButton(
-                        text = "Decline",
+                        text = stringResource(Res.string.game_decline),
                         onClick = viewModel::declineDraw,
                         tone = PillTone.SOFT,
                         compact = true
@@ -396,12 +540,12 @@ private fun BottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Takeback requested",
+                    text = stringResource(Res.string.game_takeback_requested),
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f)
                 )
                 PillButton(
-                    text = "Allow",
+                    text = stringResource(Res.string.game_allow),
                     onClick = { viewModel.answerTakeback(true) },
                     tone = PillTone.ACCENT,
                     compact = true
@@ -424,16 +568,16 @@ private fun BottomSheet(
             ) {
                 Text(
                     text = if (goneSeconds > 0) {
-                        "Opponent gone — claim victory in ${goneSeconds}s"
+                        stringResource(Res.string.game_opponent_gone_countdown, goneSeconds)
                     } else {
-                        "Opponent gone"
+                        stringResource(Res.string.game_opponent_gone)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 PillButton(
-                    text = "Claim win",
+                    text = stringResource(Res.string.game_claim_win),
                     onClick = viewModel::claimVictory,
                     tone = PillTone.INK,
                     compact = true,
@@ -447,17 +591,27 @@ private fun BottomSheet(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                val pairs = if (expanded) emptyList() else movePairs(uiState.gameState.uciHistory)
-                for ((index, pair) in pairs.withIndex()) {
-                    Text(
-                        text = pair,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (index == pairs.lastIndex) scheme.onSurface else scheme.onSurfaceVariant
-                    )
+            if (lichess != null && onOpenReview != null) {
+                PillButton(
+                    text = stringResource(Res.string.game_analysis),
+                    onClick = { onOpenReview(lichess.gameId) },
+                    tone = PillTone.SOFT,
+                    compact = true,
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    val pairs = if (expanded) emptyList() else movePairs(uiState.gameState.uciHistory)
+                    for ((index, pair) in pairs.withIndex()) {
+                        Text(
+                            text = pair,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (index == pairs.lastIndex) scheme.onSurface else scheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -466,7 +620,8 @@ private fun BottomSheet(
                         onClick = viewModel::offerTakeback,
                         enabled = !takebackOutgoing &&
                             !uiState.takebackOfferOutgoing &&
-                            uiState.gameState.uciHistory.isNotEmpty()
+                            uiState.gameState.uciHistory.isNotEmpty(),
+                        contentDescription = stringResource(Res.string.a11y_takeback)
                     ) {
                         Text(
                             text = "↩",
@@ -475,8 +630,24 @@ private fun BottomSheet(
                         )
                     }
                 }
-                if (lichess != null) {
-                    CircleButton(onClick = { chatOpen = true }) {
+                if (viewModel.supportsHint) {
+                    CircleButton(
+                        onClick = viewModel::requestHint,
+                        enabled = uiState.gameState.result == null && !uiState.engineThinking,
+                        contentDescription = stringResource(Res.string.a11y_hint)
+                    ) {
+                        Text(
+                            text = "?",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = scheme.onSurface
+                        )
+                    }
+                }
+                if (viewModel.supportsChat) {
+                    CircleButton(
+                        onClick = { chatOpen = true },
+                        contentDescription = stringResource(Res.string.a11y_chat)
+                    ) {
                         Text(
                             text = "…",
                             style = MaterialTheme.typography.titleMedium,
@@ -487,7 +658,8 @@ private fun BottomSheet(
                 if (viewModel.isRemote) {
                     CircleButton(
                         onClick = viewModel::offerDraw,
-                        enabled = !uiState.drawOfferOutgoing
+                        enabled = !uiState.drawOfferOutgoing,
+                        contentDescription = stringResource(Res.string.a11y_offer_draw)
                     ) {
                         Text(
                             text = "½",
@@ -496,7 +668,10 @@ private fun BottomSheet(
                         )
                     }
                 } else {
-                    CircleButton(onClick = viewModel::newGame) {
+                    CircleButton(
+                        onClick = viewModel::newGame,
+                        contentDescription = stringResource(Res.string.a11y_new_game)
+                    ) {
                         Text(
                             text = "↺",
                             style = MaterialTheme.typography.titleMedium,
@@ -504,7 +679,11 @@ private fun BottomSheet(
                         )
                     }
                 }
-                CircleButton(onClick = onResignRequest) {
+                CircleButton(
+                    onClick = onResignRequest,
+                    container = scheme.primaryContainer,
+                    contentDescription = stringResource(Res.string.a11y_resign)
+                ) {
                     FlagIcon(color = scheme.onPrimaryContainer, size = 17.dp)
                 }
             }
@@ -518,7 +697,251 @@ private fun BottomSheet(
                 color = scheme.error
             )
         }
+
+        Text(
+            text = stringResource(
+                if (expanded) Res.string.game_drag_down_hint else Res.string.game_drag_up_hint
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.outline
+        )
     }
+}
+
+@Composable
+private fun StreamChip(connected: Boolean) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(scheme.onSurface.copy(alpha = 0.06f))
+            .padding(horizontal = 13.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(if (connected) accents.bandStrong else scheme.error)
+        )
+        Text(
+            text = stringResource(
+                if (connected) Res.string.game_stream_live else Res.string.game_stream_reconnecting
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = accents.onBand
+        )
+    }
+}
+
+@Composable
+private fun MyPlayerRow(
+    uiState: GameUiState,
+    bottomColor: PieceColor,
+    isRemote: Boolean
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val millis = if (bottomColor == PieceColor.WHITE) uiState.whiteMillis else uiState.blackMillis
+    val active = uiState.gameState.result == null && uiState.gameState.sideToMove == bottomColor
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (millis != null) {
+            ClockText(millis = millis, active = active, big = false)
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = playerName(uiState, bottomColor, isMine = true),
+                style = MaterialTheme.typography.titleSmall,
+                color = scheme.onSurface
+            )
+            SectionLabel(
+                text = statusLabel(uiState, isRemote),
+                color = if (active) scheme.onPrimaryContainer else accents.bandStrong
+            )
+        }
+        CapturedRow(uiState.gameState, capturedFrom = bottomColor.opposite)
+    }
+}
+
+@Composable
+private fun AdvantageBar(gameState: GameState, bottomColor: PieceColor) {
+    val scheme = MaterialTheme.colorScheme
+    val balance = materialBalance(gameState)
+    val mine = if (bottomColor == PieceColor.WHITE) balance else -balance
+    val fraction = (0.5f + mine / 20f).coerceIn(0.08f, 0.92f)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            SectionLabel(stringResource(Res.string.game_advantage))
+            Text(
+                text = when {
+                    mine > 0 -> stringResource(Res.string.game_advantage_mine, mine)
+                    mine < 0 -> stringResource(Res.string.game_advantage_theirs, -mine)
+                    else -> stringResource(Res.string.game_advantage_level)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onPrimaryContainer
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(CircleShape)
+                .background(scheme.outlineVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction)
+                    .fillMaxHeight()
+                    .background(scheme.primary)
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(scheme.onTertiaryContainer)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MovesGrid(
+    history: List<String>,
+    previewPly: Int?,
+    onSelectPly: (Int?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    val rows = sanMoveRows(history)
+    val currentPly = previewPly ?: history.size
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionLabel(
+                text = if (previewPly != null) {
+                    stringResource(Res.string.game_viewing_ply, previewPly, history.size)
+                } else {
+                    stringResource(Res.string.game_moves_with_count, history.size)
+                }
+            )
+            if (previewPly != null) {
+                PillButton(
+                    text = stringResource(Res.string.game_back_to_live),
+                    onClick = { onSelectPly(null) },
+                    tone = PillTone.SOFT,
+                    compact = true
+                )
+            }
+        }
+        if (rows.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.game_no_moves_yet),
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant
+            )
+            return@Column
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            for ((index, row) in rows.withIndex()) {
+                val isLast = index == rows.lastIndex
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = stringResource(Res.string.game_move_number, row.number),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isLast) scheme.onPrimaryContainer else scheme.outline,
+                        modifier = Modifier.width(24.dp)
+                    )
+                    val whitePly = (row.number - 1) * 2 + 1
+                    MoveCell(
+                        text = row.white,
+                        highlighted = currentPly == whitePly,
+                        onClick = { onSelectPly(whitePly) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    MoveCell(
+                        text = row.black ?: "…",
+                        highlighted = row.black != null && currentPly == whitePly + 1,
+                        muted = row.black == null,
+                        onClick = if (row.black != null) {
+                            { onSelectPly(whitePly + 1) }
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoveCell(
+    text: String,
+    highlighted: Boolean,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    muted: Boolean = false
+) {
+    val scheme = MaterialTheme.colorScheme
+    val clickable = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    if (highlighted) {
+        Box(modifier = modifier.then(clickable)) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onPrimaryContainer,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(scheme.primaryContainer)
+                    .padding(horizontal = 6.dp, vertical = 1.dp)
+            )
+        }
+    } else {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (muted) scheme.outline else scheme.onSurfaceVariant,
+            modifier = modifier.then(clickable)
+        )
+    }
+}
+
+private data class MoveRow(val number: Int, val white: String, val black: String?)
+
+private fun sanMoveRows(history: List<String>): List<MoveRow> {
+    val san = SanFormatter.sanMoves(history)
+    return san.chunked(2).mapIndexed { index, pair ->
+        MoveRow(number = index + 1, white = pair.first(), black = pair.getOrNull(1))
+    }
+}
+
+private fun materialBalance(gameState: GameState): Int {
+    var balance = 0
+    for (piece in gameState.pieces.values) {
+        val value = pieceValues[piece.kind] ?: 0
+        balance += if (piece.color == PieceColor.WHITE) value else -value
+    }
+    return balance
 }
 
 @Composable
@@ -539,7 +962,11 @@ private fun GameOverPanel(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             SectionLabel(
-                text = "${reasonLabel(result.reason)} · move ${(uiState.gameState.uciHistory.size + 1) / 2}",
+                text = stringResource(
+                    Res.string.game_result_and_move,
+                    reasonLabel(result.reason),
+                    (uiState.gameState.uciHistory.size + 1) / 2
+                ),
                 color = accents.onBand
             )
             Text(
@@ -549,7 +976,10 @@ private fun GameOverPanel(
             )
             if (uiState.rematchOfferIncoming) {
                 Text(
-                    text = "${uiState.opponentName ?: "Opponent"} wants a rematch",
+                    text = stringResource(
+                        Res.string.game_wants_rematch,
+                        uiState.opponentName ?: stringResource(Res.string.game_opponent_fallback)
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = scheme.primary
                 )
@@ -579,16 +1009,18 @@ private fun GameOverPanel(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatTile(
                     value = "${uiState.gameState.uciHistory.size}",
-                    label = "Moves played",
+                    label = stringResource(Res.string.game_moves_played),
                     modifier = Modifier.weight(1f)
                 )
                 StatTile(
                     value = seriesValue(uiState),
-                    label = if (viewModel.isRemote) "You · them · drawn" else "White · black · drawn",
+                    label = stringResource(
+                        if (viewModel.isRemote) Res.string.game_series_remote else Res.string.game_series_local
+                    ),
                     modifier = Modifier.weight(1f)
                 )
             }
-            SectionLabel("The game", color = accents.bandStrong)
+            SectionLabel(stringResource(Res.string.game_the_game), color = accents.bandStrong)
             SoftCard(
                 container = scheme.background,
                 corner = 20.dp,
@@ -604,7 +1036,7 @@ private fun GameOverPanel(
                     val pairs = allMovePairs(uiState.gameState.uciHistory)
                     if (pairs.isEmpty()) {
                         Text(
-                            text = "No moves were played.",
+                            text = stringResource(Res.string.game_no_moves_were_played),
                             style = MaterialTheme.typography.bodyMedium,
                             color = scheme.onSurfaceVariant
                         )
@@ -628,19 +1060,25 @@ private fun GameOverPanel(
         ) {
             when {
                 !viewModel.isRemote -> PillButton(
-                    text = "New game",
+                    text = stringResource(Res.string.game_new_game),
                     onClick = viewModel::newGame,
                     modifier = Modifier.weight(1f)
                 )
 
                 viewModel.supportsRematch && uiState.rematchOfferIncoming -> PillButton(
-                    text = "Accept rematch",
+                    text = stringResource(Res.string.game_accept_rematch),
                     onClick = viewModel::acceptRematch,
                     modifier = Modifier.weight(1f)
                 )
 
                 viewModel.supportsRematch -> PillButton(
-                    text = if (uiState.rematchOfferOutgoing) "Rematch offered" else "Rematch",
+                    text = stringResource(
+                        if (uiState.rematchOfferOutgoing) {
+                            Res.string.game_rematch_offered
+                        } else {
+                            Res.string.game_rematch
+                        }
+                    ),
                     onClick = viewModel::offerRematch,
                     enabled = !uiState.rematchOfferOutgoing,
                     modifier = Modifier.weight(1f)
@@ -650,7 +1088,7 @@ private fun GameOverPanel(
             }
             if (viewModel.isRemote && uiState.rematchOfferIncoming) {
                 PillButton(
-                    text = "Decline",
+                    text = stringResource(Res.string.game_decline),
                     onClick = viewModel::declineRematch,
                     tone = PillTone.SOFT,
                     compact = true
@@ -663,7 +1101,7 @@ private fun GameOverPanel(
                 compact = true
             )
             PillButton(
-                text = "Exit",
+                text = stringResource(Res.string.game_exit),
                 onClick = onExit,
                 tone = PillTone.SOFT,
                 compact = true
@@ -752,30 +1190,48 @@ private fun ClockText(millis: Long, active: Boolean, big: Boolean) {
     )
 }
 
+@Composable
 private fun playerName(uiState: GameUiState, sideColor: PieceColor, isMine: Boolean): String {
     if (uiState.myColor == null) {
-        return if (sideColor == PieceColor.WHITE) "White" else "Black"
+        return stringResource(
+            if (sideColor == PieceColor.WHITE) Res.string.game_side_white else Res.string.game_side_black
+        )
     }
-    return if (isMine) "You" else uiState.opponentName ?: "Opponent"
+    return if (isMine) {
+        stringResource(Res.string.game_you)
+    } else {
+        uiState.opponentName ?: stringResource(Res.string.game_opponent_fallback)
+    }
 }
 
-private fun statusLabel(uiState: GameUiState, isRemote: Boolean): String = when {
-    isRemote && uiState.myColor == uiState.gameState.sideToMove -> "Your move"
-    isRemote -> "Their move"
-    uiState.gameState.sideToMove == PieceColor.WHITE -> "White to move"
-    else -> "Black to move"
-}
+@Composable
+private fun statusLabel(uiState: GameUiState, isRemote: Boolean): String = stringResource(
+    when {
+        isRemote && uiState.myColor == uiState.gameState.sideToMove -> Res.string.game_your_move
+        isRemote -> Res.string.game_their_move
+        uiState.gameState.sideToMove == PieceColor.WHITE -> Res.string.game_white_to_move
+        else -> Res.string.game_black_to_move
+    }
+)
 
+@Composable
 private fun lastMoveLabel(gameState: GameState): String {
-    val last = gameState.uciHistory.lastOrNull() ?: return "Opening move"
-    return "$last played"
+    val last = gameState.uciHistory.lastOrNull() ?: return stringResource(Res.string.game_opening_move)
+    return stringResource(Res.string.game_move_played, last)
 }
 
+@Composable
 private fun connectionNote(uiState: GameUiState): String? = when {
-    uiState.connectionState is TransportConnectionState.Reconnecting -> "Reconnecting…"
-    uiState.connectionState is TransportConnectionState.Closed -> "Connection lost"
-    !uiState.opponentConnected && uiState.myColor != null ->
-        "${uiState.opponentName ?: "Opponent"} reconnecting…"
+    uiState.connectionState is TransportConnectionState.Reconnecting ->
+        stringResource(Res.string.game_reconnecting)
+
+    uiState.connectionState is TransportConnectionState.Closed ->
+        stringResource(Res.string.game_connection_lost)
+
+    !uiState.opponentConnected && uiState.myColor != null -> stringResource(
+        Res.string.game_opponent_reconnecting,
+        uiState.opponentName ?: stringResource(Res.string.game_opponent_fallback)
+    )
 
     else -> null
 }
@@ -793,9 +1249,10 @@ private fun allMovePairs(history: List<String>): List<String> {
     return pairs
 }
 
+@Composable
 private fun movePairs(history: List<String>): List<String> {
     if (history.isEmpty()) {
-        return listOf("No moves yet")
+        return listOf(stringResource(Res.string.game_no_moves_yet))
     }
     val pairs = mutableListOf<String>()
     var index = 0
@@ -812,12 +1269,20 @@ private fun movePairs(history: List<String>): List<String> {
 private fun seriesValue(uiState: GameUiState): String =
     "${uiState.seriesMyWins} · ${uiState.seriesOpponentWins} · ${uiState.seriesDraws}"
 
-private fun headlineText(result: GameResult, myColor: PieceColor?, isRemote: Boolean): String = when {
-    result.winner == null -> "Draw"
-    isRemote && myColor != null -> if (result.winner == myColor) "You won" else "You lost"
-    result.winner == PieceColor.WHITE -> "White won"
-    else -> "Black won"
-}
+@Composable
+private fun headlineText(result: GameResult, myColor: PieceColor?, isRemote: Boolean): String = stringResource(
+    when {
+        result.winner == null -> Res.string.game_result_draw
+        isRemote && myColor != null -> if (result.winner == myColor) {
+            Res.string.game_result_you_won
+        } else {
+            Res.string.game_result_you_lost
+        }
+
+        result.winner == PieceColor.WHITE -> Res.string.game_result_white_won
+        else -> Res.string.game_result_black_won
+    }
+)
 
 private val timeControlChoices = listOf(
     null,
@@ -832,12 +1297,12 @@ private val timeControlChoices = listOf(
 private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
     AlertDialog(
         onDismissRequest = { onPick(null) },
-        title = { Text("Clock", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(stringResource(Res.string.game_clock_title), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (choice in timeControlChoices) {
                     PillButton(
-                        text = choice?.label ?: "No clock",
+                        text = choice?.label ?: stringResource(Res.string.game_no_clock),
                         onClick = { onPick(choice) },
                         tone = PillTone.SOFT,
                         compact = true,
@@ -858,7 +1323,7 @@ private fun PromotionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Promote to", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(stringResource(Res.string.game_promote_to), style = MaterialTheme.typography.titleLarge) },
         text = {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for (kind in listOf(
@@ -949,16 +1414,4 @@ private fun CapturedRow(gameState: GameState, capturedFrom: PieceColor) {
             )
         }
     }
-}
-
-private fun reasonLabel(reason: GameOverReason): String = when (reason) {
-    GameOverReason.CHECKMATE -> "Checkmate"
-    GameOverReason.STALEMATE -> "Stalemate"
-    GameOverReason.DRAW_AGREED -> "Draw agreed"
-    GameOverReason.RESIGNATION -> "Resignation"
-    GameOverReason.INSUFFICIENT_MATERIAL -> "Insufficient material"
-    GameOverReason.REPETITION -> "Threefold repetition"
-    GameOverReason.FIFTY_MOVE -> "Fifty-move rule"
-    GameOverReason.TIMEOUT -> "Time out"
-    GameOverReason.DISCONNECTION -> "Disconnection"
 }

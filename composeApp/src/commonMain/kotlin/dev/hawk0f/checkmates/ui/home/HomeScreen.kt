@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,13 +44,49 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.home_all_games
+import dev.hawk0f.checkmates.resources.home_both_players
+import dev.hawk0f.checkmates.resources.flow_lichess_name
+import dev.hawk0f.checkmates.resources.home_computer
+import dev.hawk0f.checkmates.resources.flow_switch_to
+import dev.hawk0f.checkmates.resources.home_moves_with_mode
+import dev.hawk0f.checkmates.resources.home_nearby
+import dev.hawk0f.checkmates.resources.home_new_game
+import dev.hawk0f.checkmates.resources.home_no_finished_games
+import dev.hawk0f.checkmates.resources.home_online_in_progress
+import dev.hawk0f.checkmates.resources.home_opponent_fallback
+import dev.hawk0f.checkmates.resources.home_pass_and_play
+import dev.hawk0f.checkmates.resources.home_ready_to_play
+import dev.hawk0f.checkmates.resources.home_recent_games
+import dev.hawk0f.checkmates.resources.home_result_draw_short
+import dev.hawk0f.checkmates.resources.home_result_loss_short
+import dev.hawk0f.checkmates.resources.home_result_win_short
+import dev.hawk0f.checkmates.resources.home_resume
+import dev.hawk0f.checkmates.resources.home_start
+import dev.hawk0f.checkmates.resources.home_tap_to_keep_playing
+import dev.hawk0f.checkmates.resources.home_two_players_one_device
+import dev.hawk0f.checkmates.resources.home_vs_opponent
+import dev.hawk0f.checkmates.resources.home_white_moves_first
+import dev.hawk0f.checkmates.resources.home_your_move
+import dev.hawk0f.checkmates.resources.mode_nearby
+import dev.hawk0f.checkmates.resources.mode_online
+import dev.hawk0f.checkmates.resources.mode_pass_and_play
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_profile
+import dev.hawk0f.checkmates.resources.a11y_settings
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 fun HomeScreen(
     onPassAndPlay: () -> Unit = {},
     onPlayOnline: () -> Unit = {},
     onPlayBluetooth: () -> Unit = {},
-    onPlayLichess: () -> Unit = {},
+    onPlayComputer: () -> Unit = {},
+    onSwitchFlow: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onResumeGame: () -> Unit = {},
@@ -82,7 +117,8 @@ fun HomeScreen(
                 onPlayOnline = onPlayOnline,
                 onPassAndPlay = onPassAndPlay,
                 onPlayBluetooth = onPlayBluetooth,
-                onPlayLichess = onPlayLichess
+                onPlayComputer = onPlayComputer,
+                onSwitchFlow = onSwitchFlow
             )
             if (profile != null && recent.isNotEmpty()) {
                 Hairline()
@@ -90,7 +126,6 @@ fun HomeScreen(
             }
         }
     }
-
 }
 
 @Composable
@@ -121,11 +156,16 @@ private fun HeroCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val profileLabel = stringResource(Res.string.a11y_profile)
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
                         .clickable(onClick = onOpenProfile)
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = profileLabel
+                        }
                 ) {
                     if (profile != null) {
                         AvatarBadge(profile.avatarKind, profile.avatarValue, size = 44.dp, fontSize = 20.sp)
@@ -145,12 +185,17 @@ private fun HeroCard(
                         }
                     }
                 }
+                val settingsLabel = stringResource(Res.string.a11y_settings)
                 Box(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(accents.pageAlt)
-                        .clickable(onClick = onOpenSettings),
+                        .clickable(onClick = onOpenSettings)
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = settingsLabel
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -175,7 +220,9 @@ private fun HeroCard(
                         .background(scheme.primary)
                 )
                 Text(
-                    text = if (hasLiveGame) "Your move" else "Ready to play",
+                    text = stringResource(
+                        if (hasLiveGame) Res.string.home_your_move else Res.string.home_ready_to_play
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = accents.onBand
                 )
@@ -187,11 +234,20 @@ private fun HeroCard(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             SectionLabel(
-                text = if (hasLiveGame) "Online · in progress" else "Pass & Play",
+                text = stringResource(
+                    if (hasLiveGame) Res.string.home_online_in_progress else Res.string.home_pass_and_play
+                ),
                 color = accents.onBand
             )
             Text(
-                text = if (hasLiveGame) "vs. ${opponentName ?: "Opponent"}" else "Two players, one device",
+                text = if (hasLiveGame) {
+                    stringResource(
+                        Res.string.home_vs_opponent,
+                        opponentName ?: stringResource(Res.string.home_opponent_fallback)
+                    )
+                } else {
+                    stringResource(Res.string.home_two_players_one_device)
+                },
                 style = MaterialTheme.typography.headlineLarge,
                 color = scheme.onBackground
             )
@@ -219,12 +275,14 @@ private fun HeroCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (hasLiveGame) "Tap to keep playing" else "White moves first",
+                text = stringResource(
+                    if (hasLiveGame) Res.string.home_tap_to_keep_playing else Res.string.home_white_moves_first
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 color = accents.onBand
             )
             PillButton(
-                text = if (hasLiveGame) "Resume" else "Start",
+                text = stringResource(if (hasLiveGame) Res.string.home_resume else Res.string.home_start),
                 onClick = onPrimaryAction,
                 tone = PillTone.INK,
                 compact = true
@@ -238,34 +296,41 @@ private fun ModeRail(
     onPlayOnline: () -> Unit,
     onPassAndPlay: () -> Unit,
     onPlayBluetooth: () -> Unit,
-    onPlayLichess: () -> Unit
+    onPlayComputer: () -> Unit,
+    onSwitchFlow: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             PillButton(
-                text = "New game",
+                text = stringResource(Res.string.home_new_game),
                 onClick = onPlayOnline,
                 tone = PillTone.ACCENT,
                 compact = true
             )
             PillButton(
-                text = "Pass & Play",
+                text = stringResource(Res.string.home_pass_and_play),
                 onClick = onPassAndPlay,
                 tone = PillTone.SOFT,
+                compact = true
+            )
+            PillButton(
+                text = stringResource(Res.string.home_computer),
+                onClick = onPlayComputer,
+                tone = PillTone.LEAF,
                 compact = true
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             PillButton(
-                text = "Lichess",
-                onClick = onPlayLichess,
-                tone = PillTone.BAND,
+                text = stringResource(Res.string.home_nearby),
+                onClick = onPlayBluetooth,
+                tone = PillTone.SOFT,
                 compact = true
             )
             PillButton(
-                text = "Nearby",
-                onClick = onPlayBluetooth,
-                tone = PillTone.SOFT,
+                text = stringResource(Res.string.flow_switch_to, stringResource(Res.string.flow_lichess_name)),
+                onClick = onSwitchFlow,
+                tone = PillTone.BAND,
                 compact = true
             )
         }
@@ -277,10 +342,10 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionLabel("Recent games")
+        SectionLabel(stringResource(Res.string.home_recent_games))
         if (recent.isEmpty()) {
             Text(
-                "No finished games yet — your first result lands here.",
+                stringResource(Res.string.home_no_finished_games),
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant
             )
@@ -307,7 +372,13 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (drawn) "D" else if (won) "W" else "L",
+                            text = stringResource(
+                                when {
+                                    drawn -> Res.string.home_result_draw_short
+                                    won -> Res.string.home_result_win_short
+                                    else -> Res.string.home_result_loss_short
+                                }
+                            ),
                             style = MaterialTheme.typography.titleMedium,
                             color = if (drawn) scheme.onSurfaceVariant else scheme.onPrimary,
                             textAlign = TextAlign.Center
@@ -319,7 +390,11 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
                             style = MaterialTheme.typography.titleSmall
                         )
                         Text(
-                            text = "${item.uciHistory.size} moves · ${modeLabel(item.mode)}",
+                            text = stringResource(
+                                Res.string.home_moves_with_mode,
+                                item.uciHistory.size,
+                                modeLabel(item.mode)
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = scheme.onSurfaceVariant
                         )
@@ -329,7 +404,7 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
             }
             Spacer(modifier = Modifier.height(2.dp))
             PillButton(
-                text = "All games",
+                text = stringResource(Res.string.home_all_games),
                 onClick = onOpenProfile,
                 tone = PillTone.SOFT,
                 compact = true,
@@ -339,15 +414,17 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
     }
 }
 
+@Composable
 private fun opponentLabel(item: GameHistoryItem): String = when (item.myColor) {
     PieceColor.WHITE -> item.blackName
     PieceColor.BLACK -> item.whiteName
-    null -> "${item.whiteName} — ${item.blackName}"
+    null -> stringResource(Res.string.home_both_players, item.whiteName, item.blackName)
 }
 
+@Composable
 private fun modeLabel(mode: String): String = when (mode) {
-    "online" -> "Online"
-    "ble" -> "Nearby"
-    "hotseat" -> "Pass & Play"
+    "online" -> stringResource(Res.string.mode_online)
+    "ble" -> stringResource(Res.string.mode_nearby)
+    "hotseat" -> stringResource(Res.string.mode_pass_and_play)
     else -> mode
 }

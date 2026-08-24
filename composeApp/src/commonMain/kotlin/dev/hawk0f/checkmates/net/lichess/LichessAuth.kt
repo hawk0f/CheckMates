@@ -20,15 +20,15 @@ object LichessAuth {
     const val SCOPE =
         "board:play challenge:read challenge:write puzzle:read tournament:write follow:read"
 
-    val SCOPE_DETAILS = listOf(
-        "board:play" to "Move, resign, offer draws",
-        "challenge:read · write" to "Invite friends, accept invites",
-        "puzzle:read" to "Your puzzle history and streak",
-        "tournament:write" to "Join arenas and Swiss events",
-        "follow:read" to "See who you follow online"
+    val PERMISSIONS_GRANTED = listOf(
+        "Play your games" to "Make moves, offer draws, resign",
+        "Send and accept invites" to "Challenge the people you follow",
+        "Read your puzzle history" to "Rating, streak, solved themes",
+        "Join tournaments" to "Arenas and Swiss events",
+        "See who you follow" to "Online status of your list"
     )
 
-    val SCOPE_DECLINED = listOf("email:read" to "Not requested")
+    val PERMISSIONS_DECLINED = listOf("Your email address" to "Never requested")
 
     private const val KEY_TOKEN = "lichess.token"
     private const val KEY_USERNAME = "lichess.username"

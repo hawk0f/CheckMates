@@ -24,8 +24,14 @@ private const val BASE64_URL_ALPHABET =
 
 fun sha256(input: ByteArray): ByteArray {
     val state = intArrayOf(
-        0x6a09e667, 0xbb67ae85.toInt(), 0x3c6ef372, 0xa54ff53a.toInt(),
-        0x510e527f, 0x9b05688c.toInt(), 0x1f83d9ab, 0x5be0cd19
+        0x6a09e667,
+        0xbb67ae85.toInt(),
+        0x3c6ef372,
+        0xa54ff53a.toInt(),
+        0x510e527f,
+        0x9b05688c.toInt(),
+        0x1f83d9ab,
+        0x5be0cd19
     )
     val bitLength = input.size.toLong() * 8
     val paddedSize = ((input.size + 9 + 63) / 64) * 64

@@ -6,6 +6,7 @@ import com.github.bhlangonijr.chesslib.PieceType as LibPieceType
 import com.github.bhlangonijr.chesslib.Side as LibSide
 import com.github.bhlangonijr.chesslib.Square as LibSquare
 import com.github.bhlangonijr.chesslib.move.Move as LibMove
+import kotlin.math.abs
 
 sealed interface MoveOutcome {
     data class Applied(val state: GameState) : MoveOutcome
@@ -52,6 +53,15 @@ class ChessGame {
             .filter { it.from == libFrom }
             .map { Square(it.to.ordinal) }
             .toSet()
+    }
+
+    fun castlingRookSquares(from: Square): Map<Square, Square> {
+        if (pieceAt(from)?.kind != PieceKind.KING) {
+            return emptyMap()
+        }
+        return legalDestinations(from)
+            .filter { abs(it.file - from.file) == 2 }
+            .associateBy { destination -> Square.of(if (destination.file > from.file) 7 else 0, from.rank) }
     }
 
     fun isPromotionMove(from: Square, to: Square): Boolean {

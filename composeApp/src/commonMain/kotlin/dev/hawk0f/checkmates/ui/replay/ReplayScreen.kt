@@ -2,15 +2,12 @@ package dev.hawk0f.checkmates.ui.replay
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -22,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.hawk0f.checkmates.platform.formatDate
 import dev.hawk0f.checkmates.platform.rememberShareText
@@ -40,6 +36,23 @@ import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.PlayIcon
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.replay_back_to_history
+import dev.hawk0f.checkmates.resources.replay_move_of_total
+import dev.hawk0f.checkmates.resources.replay_numbered_move
+import dev.hawk0f.checkmates.resources.replay_phase_middlegame
+import dev.hawk0f.checkmates.resources.replay_phase_opening
+import dev.hawk0f.checkmates.resources.replay_players
+import dev.hawk0f.checkmates.resources.replay_score_and_date
+import dev.hawk0f.checkmates.resources.replay_start_position
+import dev.hawk0f.checkmates.ui.theme.reasonLabel
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_back
+import dev.hawk0f.checkmates.resources.a11y_jump_to_end
+import dev.hawk0f.checkmates.resources.a11y_jump_to_start
+import dev.hawk0f.checkmates.resources.a11y_next_move
+import dev.hawk0f.checkmates.resources.a11y_previous_move
+import dev.hawk0f.checkmates.resources.a11y_share
 
 @Composable
 fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
@@ -64,21 +77,27 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
         ) {
             CircleButton(
                 onClick = onBack,
-                container = scheme.onSurface.copy(alpha = 0.08f)
+                container = scheme.onSurface.copy(alpha = 0.08f),
+                contentDescription = stringResource(Res.string.a11y_back)
             ) {
                 ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "${item.whiteName} — ${item.blackName}",
+                    text = stringResource(Res.string.replay_players, item.whiteName, item.blackName),
                     style = MaterialTheme.typography.titleMedium
                 )
                 SectionLabel(
-                    text = "${scoreLabel(item)} · ${formatDate(item.finishedAtMillis)}",
+                    text = stringResource(
+                        Res.string.replay_score_and_date,
+                        scoreLabel(item),
+                        formatDate(item.finishedAtMillis)
+                    ),
                     color = accents.bandStrong
                 )
             }
             CircleButton(
+                contentDescription = stringResource(Res.string.a11y_share),
                 onClick = {
                     shareText(
                         PgnBuilder.build(
@@ -125,14 +144,18 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
             ) {
                 Text(
                     text = if (moveIndex == 0) {
-                        "Start position"
+                        stringResource(Res.string.replay_start_position)
                     } else {
-                        "${(moveIndex + 1) / 2}. ${item.uciHistory[moveIndex - 1]}"
+                        stringResource(
+                            Res.string.replay_numbered_move,
+                            (moveIndex + 1) / 2,
+                            item.uciHistory[moveIndex - 1]
+                        )
                     },
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
-                    text = "move $moveIndex of $total",
+                    text = stringResource(Res.string.replay_move_of_total, moveIndex, total),
                     style = MaterialTheme.typography.bodySmall,
                     color = accents.bandStrong
                 )
@@ -158,8 +181,8 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        SectionLabel("Opening", color = accents.bandStrong)
-                        SectionLabel("Middlegame", color = accents.bandStrong)
+                        SectionLabel(stringResource(Res.string.replay_phase_opening), color = accents.bandStrong)
+                        SectionLabel(stringResource(Res.string.replay_phase_middlegame), color = accents.bandStrong)
                         SectionLabel(reasonShort(item), color = accents.bandStrong)
                     }
                 }
@@ -175,7 +198,8 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                         onClick = { moveIndex = (moveIndex - 1).coerceAtLeast(0) },
                         enabled = moveIndex > 0,
                         size = 48.dp,
-                        container = scheme.onSurface.copy(alpha = 0.07f)
+                        container = scheme.onSurface.copy(alpha = 0.07f),
+                        contentDescription = stringResource(Res.string.a11y_previous_move)
                     ) {
                         ChevronIcon(
                             direction = ChevronDirection.LEFT,
@@ -186,7 +210,14 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                     CircleButton(
                         onClick = { moveIndex = if (moveIndex >= total) 0 else total },
                         size = 64.dp,
-                        container = scheme.inverseSurface
+                        container = scheme.inverseSurface,
+                        contentDescription = stringResource(
+                            if (moveIndex >= total) {
+                                Res.string.a11y_jump_to_start
+                            } else {
+                                Res.string.a11y_jump_to_end
+                            }
+                        )
                     ) {
                         if (moveIndex >= total) {
                             ChevronIcon(
@@ -203,7 +234,8 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
                         onClick = { moveIndex = (moveIndex + 1).coerceAtMost(total) },
                         enabled = moveIndex < total,
                         size = 48.dp,
-                        container = scheme.onSurface.copy(alpha = 0.07f)
+                        container = scheme.onSurface.copy(alpha = 0.07f),
+                        contentDescription = stringResource(Res.string.a11y_next_move)
                     ) {
                         ChevronIcon(
                             direction = ChevronDirection.RIGHT,
@@ -215,7 +247,7 @@ fun ReplayScreen(item: GameHistoryItem, onBack: () -> Unit) {
             }
 
             PillButton(
-                text = "Back to history",
+                text = stringResource(Res.string.replay_back_to_history),
                 onClick = onBack,
                 tone = PillTone.SOFT,
                 compact = true,
@@ -231,7 +263,5 @@ private fun scoreLabel(item: GameHistoryItem): String = when (item.winner) {
     null -> "½–½"
 }
 
-private fun reasonShort(item: GameHistoryItem): String = item.reason.name
-    .lowercase()
-    .replace('_', ' ')
-    .replaceFirstChar { it.uppercase() }
+@Composable
+private fun reasonShort(item: GameHistoryItem): String = reasonLabel(item.reason)

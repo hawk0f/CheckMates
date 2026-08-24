@@ -5,6 +5,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -59,10 +61,34 @@ import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.ui.theme.LocalBoardColors
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import dev.hawk0f.checkmates.resources.a11y_black_bishop
+import dev.hawk0f.checkmates.resources.a11y_black_king
+import dev.hawk0f.checkmates.resources.a11y_black_knight
+import dev.hawk0f.checkmates.resources.a11y_black_pawn
+import dev.hawk0f.checkmates.resources.a11y_black_queen
+import dev.hawk0f.checkmates.resources.a11y_black_rook
+import dev.hawk0f.checkmates.resources.a11y_square_empty
+import dev.hawk0f.checkmates.resources.a11y_square_with_piece
+import dev.hawk0f.checkmates.resources.a11y_state_king_in_check
+import dev.hawk0f.checkmates.resources.a11y_state_last_move
+import dev.hawk0f.checkmates.resources.a11y_state_legal_move
+import dev.hawk0f.checkmates.resources.a11y_state_selected
+import dev.hawk0f.checkmates.resources.a11y_white_bishop
+import dev.hawk0f.checkmates.resources.a11y_white_king
+import dev.hawk0f.checkmates.resources.a11y_white_knight
+import dev.hawk0f.checkmates.resources.a11y_white_pawn
+import dev.hawk0f.checkmates.resources.a11y_white_queen
+import dev.hawk0f.checkmates.resources.a11y_white_rook
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_state_premove
 
 private val selectedTint = Color(0x8020A0F0)
-private val lastMoveTint = Color(0x66CDD26A)
+private val lastMoveTint = Color(0x73E8B54A)
 private val checkTint = Color(0x80E5605D)
+private val premoveTint = Color(0x736C63C8)
 private val legalDot = Color(0x59000000)
 
 private data class TrackedPiece(val id: Int, val piece: Piece, val square: Square)
@@ -140,12 +166,14 @@ fun ChessBoard(
     onSquareTap: (Square) -> Unit,
     modifier: Modifier = Modifier,
     showCoordinates: Boolean = true,
-    interactive: Boolean = true
+    interactive: Boolean = true,
+    premoveSquares: Set<Square> = emptySet()
 ) {
     var boardSizePx by remember { mutableStateOf(0) }
     var dragFrom by remember(gameState.fen) { mutableStateOf<Square?>(null) }
     var dragPosition by remember { mutableStateOf(Offset.Zero) }
     var droppedOn by remember { mutableStateOf<Square?>(null) }
+    val selectedSquare = rememberUpdatedState(selected)
     val tracker = remember { PieceTracker() }
     val trackedPieces = remember(gameState) { tracker.update(gameState) }
 
@@ -178,36 +206,38 @@ fun ChessBoard(
                     Modifier
                 } else {
                     Modifier.pointerInput(flipped, gameState.fen) {
-                detectDragGestures(
-                    onDragStart = { position ->
-                        squareAt(position)?.let { square ->
-                            if (gameState.pieces[square] != null) {
-                                dragFrom = square
-                                dragPosition = position
-                                onSquareTap(square)
-                            }
-                        }
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        dragPosition += dragAmount
-                    },
-                    onDragEnd = {
-                        val from = dragFrom
-                        dragFrom = null
-                        if (from != null) {
-                            squareAt(dragPosition)?.let { target ->
-                                if (target != from) {
-                                    droppedOn = target
-                                    onSquareTap(target)
+                        detectDragGestures(
+                            onDragStart = { position ->
+                                squareAt(position)?.let { square ->
+                                    if (gameState.pieces[square] != null) {
+                                        dragFrom = square
+                                        dragPosition = position
+                                        if (square != selectedSquare.value) {
+                                            onSquareTap(square)
+                                        }
+                                    }
                                 }
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragPosition += dragAmount
+                            },
+                            onDragEnd = {
+                                val from = dragFrom
+                                dragFrom = null
+                                if (from != null) {
+                                    squareAt(dragPosition)?.let { target ->
+                                        if (target != from) {
+                                            droppedOn = target
+                                            onSquareTap(target)
+                                        }
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                dragFrom = null
                             }
-                        }
-                    },
-                    onDragCancel = {
-                        dragFrom = null
-                    }
-                )
+                        )
                     }
                 }
             )
@@ -221,10 +251,11 @@ fun ChessBoard(
                         val square = Square.of(file, rank)
                         BoardCell(
                             square = square,
-                            hasPiece = gameState.pieces[square] != null,
+                            piece = gameState.pieces[square],
                             isSelected = square == selected,
                             isLegalTarget = square in legalTargets,
                             isLastMove = gameState.lastMove?.let { square == it.first || square == it.second } == true,
+                            isPremove = square in premoveSquares,
                             isCheckedKing = gameState.inCheck &&
                                 gameState.pieces[square] == Piece(gameState.sideToMove, PieceKind.KING),
                             showFileLabel = showCoordinates && rank == (if (flipped) 7 else 0),
@@ -289,10 +320,11 @@ fun ChessBoard(
 @Composable
 private fun BoardCell(
     square: Square,
-    hasPiece: Boolean,
+    piece: Piece?,
     isSelected: Boolean,
     isLegalTarget: Boolean,
     isLastMove: Boolean,
+    isPremove: Boolean,
     isCheckedKing: Boolean,
     showFileLabel: Boolean,
     showRankLabel: Boolean,
@@ -300,22 +332,31 @@ private fun BoardCell(
     modifier: Modifier = Modifier
 ) {
     val boardColors = LocalBoardColors.current
+    val hasPiece = piece != null
+    val squareLabel = squareDescription(square, piece)
+    val stateLabel = squareStateDescription(isSelected, isLegalTarget, isLastMove, isPremove, isCheckedKing)
     val isDarkSquare = (square.file + square.rank) % 2 == 0
     val plain = if (isDarkSquare) boardColors.darkSquare else boardColors.lightSquare
     val highlight = if (isDarkSquare) boardColors.darkHighlight else boardColors.lightHighlight
     val base = if (isLastMove && highlight != null) highlight else plain
     val labelColor = if (isDarkSquare) boardColors.lightSquare else boardColors.darkSquare
+    val lastMoveOverlay = if (isLastMove) lastMoveTint else Color.Transparent
     val overlay = when {
         isSelected -> selectedTint
+        isPremove -> premoveTint
         isCheckedKing -> checkTint
-        isLastMove && highlight == null -> lastMoveTint
         else -> Color.Transparent
     }
     Box(
         modifier = modifier
             .background(base)
+            .background(lastMoveOverlay)
             .background(overlay)
-            .then(if (onTap != null) Modifier.clickable(onClick = onTap) else Modifier),
+            .then(if (onTap != null) Modifier.clickable(onClick = onTap) else Modifier)
+            .semantics {
+                contentDescription = squareLabel
+                stateLabel?.let { stateDescription = it }
+            },
         contentAlignment = Alignment.Center
     ) {
         if (showRankLabel) {
@@ -335,12 +376,11 @@ private fun BoardCell(
             )
         }
         if (isLegalTarget) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(if (hasPiece) 0.85f else 0.3f)
-                    .clip(CircleShape)
-                    .background(if (hasPiece) Color.Transparent else legalDot)
-            )
+            if (hasPiece) {
+                Box(modifier = Modifier.fillMaxSize(0.88f).border(3.dp, legalDot, CircleShape))
+            } else {
+                Box(modifier = Modifier.fillMaxSize(0.3f).clip(CircleShape).background(legalDot))
+            }
         }
     }
 }
@@ -366,4 +406,45 @@ private fun PieceGlyph(piece: Piece) {
         contentDescription = null,
         modifier = Modifier.fillMaxSize(0.92f)
     )
+}
+
+@Composable
+private fun squareDescription(square: Square, piece: Piece?): String {
+    val name = square.toUci()
+    if (piece == null) {
+        return stringResource(Res.string.a11y_square_empty, name)
+    }
+    val pieceName = stringResource(
+        when (piece.color to piece.kind) {
+            PieceColor.WHITE to PieceKind.KING -> Res.string.a11y_white_king
+            PieceColor.WHITE to PieceKind.QUEEN -> Res.string.a11y_white_queen
+            PieceColor.WHITE to PieceKind.ROOK -> Res.string.a11y_white_rook
+            PieceColor.WHITE to PieceKind.BISHOP -> Res.string.a11y_white_bishop
+            PieceColor.WHITE to PieceKind.KNIGHT -> Res.string.a11y_white_knight
+            PieceColor.WHITE to PieceKind.PAWN -> Res.string.a11y_white_pawn
+            PieceColor.BLACK to PieceKind.KING -> Res.string.a11y_black_king
+            PieceColor.BLACK to PieceKind.QUEEN -> Res.string.a11y_black_queen
+            PieceColor.BLACK to PieceKind.ROOK -> Res.string.a11y_black_rook
+            PieceColor.BLACK to PieceKind.BISHOP -> Res.string.a11y_black_bishop
+            PieceColor.BLACK to PieceKind.KNIGHT -> Res.string.a11y_black_knight
+            else -> Res.string.a11y_black_pawn
+        }
+    )
+    return stringResource(Res.string.a11y_square_with_piece, name, pieceName)
+}
+
+@Composable
+private fun squareStateDescription(
+    isSelected: Boolean,
+    isLegalTarget: Boolean,
+    isLastMove: Boolean,
+    isPremove: Boolean,
+    isCheckedKing: Boolean
+): String? = when {
+    isCheckedKing -> stringResource(Res.string.a11y_state_king_in_check)
+    isSelected -> stringResource(Res.string.a11y_state_selected)
+    isPremove -> stringResource(Res.string.a11y_state_premove)
+    isLegalTarget -> stringResource(Res.string.a11y_state_legal_move)
+    isLastMove -> stringResource(Res.string.a11y_state_last_move)
+    else -> null
 }

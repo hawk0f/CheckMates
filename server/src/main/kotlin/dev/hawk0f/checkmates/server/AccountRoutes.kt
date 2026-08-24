@@ -12,21 +12,23 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 
 fun Route.accountRoutes(users: UserRepository) {
+    rateLimit(AuthRateLimit) {
+        post("/api/auth/register") {
+            val request = call.receive<RegisterRequest>()
+            call.respondAuthResult(users.register(request.login, request.password, request.displayName))
+        }
 
-    post("/api/auth/register") {
-        val request = call.receive<RegisterRequest>()
-        call.respondAuthResult(users.register(request.login, request.password, request.displayName))
-    }
-
-    post("/api/auth/login") {
-        val request = call.receive<LoginRequest>()
-        call.respondAuthResult(users.login(request.login, request.password))
+        post("/api/auth/login") {
+            val request = call.receive<LoginRequest>()
+            call.respondAuthResult(users.login(request.login, request.password))
+        }
     }
 
     post("/api/auth/logout") {
@@ -63,11 +65,18 @@ fun Route.accountRoutes(users: UserRepository) {
         call.respond(GameHistoryResponse(users.listGames(userId)))
     }
 
-    post("/api/me/games") {
-        val userId = call.authenticatedUserId(users) ?: return@post
-        val request = call.receive<GameRecordRequest>()
-        val id = users.insertGame(userId, request)
-        call.respond(GameRecordResponse(id))
+    rateLimit(UploadRateLimit) {
+        post("/api/me/games") {
+            val userId = call.authenticatedUserId(users) ?: return@post
+            val request = call.receive<GameRecordRequest>()
+            val rejection = GameRecordValidator.rejectionReason(request)
+            if (rejection != null) {
+                call.respond(HttpStatusCode.BadRequest, ApiError("BAD_RECORD", rejection))
+                return@post
+            }
+            val id = users.insertGame(userId, request)
+            call.respond(GameRecordResponse(id))
+        }
     }
 }
 

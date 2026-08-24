@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,11 +38,30 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.review_accuracy
+import dev.hawk0f.checkmates.resources.review_accuracy_black
+import dev.hawk0f.checkmates.resources.review_accuracy_white
+import dev.hawk0f.checkmates.resources.review_back
+import dev.hawk0f.checkmates.resources.review_cloud_eval_details
+import dev.hawk0f.checkmates.resources.review_eval_fallback
+import dev.hawk0f.checkmates.resources.review_evaluation_off
+import dev.hawk0f.checkmates.resources.review_game_and_move
+import dev.hawk0f.checkmates.resources.review_no_cloud_eval
+import dev.hawk0f.checkmates.resources.review_no_stored_analysis
+import dev.hawk0f.checkmates.resources.review_open_in_explorer
+import dev.hawk0f.checkmates.resources.review_principal_variations
+import dev.hawk0f.checkmates.resources.review_title
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_close
+import dev.hawk0f.checkmates.resources.a11y_next_move
+import dev.hawk0f.checkmates.resources.a11y_previous_move
 
 @Composable
 fun LichessReviewScreen(
     gameId: String,
     onBack: () -> Unit,
+    onOpenExplorer: ((String) -> Unit)? = null,
     viewModel: LichessReviewViewModel = viewModel { LichessReviewViewModel(gameId) }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -56,10 +76,10 @@ fun LichessReviewScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 SectionLabel(
-                    text = "${uiState.gameId} · move ${uiState.moveIndex}",
+                    text = stringResource(Res.string.review_game_and_move, uiState.gameId, uiState.moveIndex),
                     color = accents.bandStrong
                 )
-                Text("Review", style = MaterialTheme.typography.displaySmall)
+                Text(stringResource(Res.string.review_title), style = MaterialTheme.typography.displaySmall)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -68,7 +88,7 @@ fun LichessReviewScreen(
                 uiState.export?.players?.white?.analysis?.accuracy?.let { accuracy ->
                     CodeChip("${accuracy.toInt()}%")
                 }
-                CircleButton(onClick = onBack) {
+                CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_close)) {
                     CloseIcon(color = scheme.onSurfaceVariant)
                 }
             }
@@ -80,14 +100,14 @@ fun LichessReviewScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 26.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
             ) {
-                Text("Evaluation is off", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(Res.string.review_evaluation_off), style = MaterialTheme.typography.headlineSmall)
                 Text(
                     text = blocked,
                     style = MaterialTheme.typography.bodyMedium,
                     color = scheme.onSurfaceVariant
                 )
                 PillButton(
-                    text = "Back",
+                    text = stringResource(Res.string.review_back),
                     onClick = onBack,
                     tone = PillTone.SOFT,
                     compact = true,
@@ -140,14 +160,14 @@ fun LichessReviewScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
                         text = eval?.let { formatEval(it.pvs.firstOrNull()?.cp, it.pvs.firstOrNull()?.mate) }
-                            ?: "no cloud eval",
+                            ?: stringResource(Res.string.review_no_cloud_eval),
                         style = MaterialTheme.typography.headlineSmall,
                         color = scheme.inverseOnSurface
                     )
                     Text(
                         text = eval?.let {
-                            "cloud eval · depth ${it.depth} · ${it.knodes} knodes"
-                        } ?: "Unevaluated positions fall back to stored analysis.",
+                            stringResource(Res.string.review_cloud_eval_details, it.depth, it.knodes)
+                        } ?: stringResource(Res.string.review_eval_fallback),
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.inverseOnSurface.copy(alpha = 0.6f)
                     )
@@ -157,7 +177,7 @@ fun LichessReviewScreen(
             uiState.eval?.let { eval ->
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel(
-                        text = "Principal variations · multiPv ${eval.pvs.size}",
+                        text = stringResource(Res.string.review_principal_variations, eval.pvs.size),
                         color = accents.bandStrong
                     )
                     for (pv in eval.pvs) {
@@ -195,19 +215,33 @@ fun LichessReviewScreen(
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     CircleButton(
                         onClick = { viewModel.step(-1) },
                         enabled = uiState.moveIndex > 0,
-                        size = 48.dp
+                        size = 48.dp,
+                        contentDescription = stringResource(Res.string.a11y_previous_move)
                     ) {
                         ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+                    }
+                    val fen = uiState.gameState?.fen
+                    if (onOpenExplorer != null && fen != null) {
+                        PillButton(
+                            text = stringResource(Res.string.review_open_in_explorer),
+                            onClick = { onOpenExplorer(fen) },
+                            compact = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                     CircleButton(
                         onClick = { viewModel.step(1) },
                         enabled = uiState.moveIndex < total,
-                        size = 48.dp
+                        size = 48.dp,
+                        contentDescription = stringResource(Res.string.a11y_next_move)
                     ) {
                         ChevronIcon(direction = ChevronDirection.RIGHT, color = accents.onBand)
                     }
@@ -219,12 +253,16 @@ fun LichessReviewScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    SectionLabel("Accuracy", color = accents.bandStrong)
+                    SectionLabel(stringResource(Res.string.review_accuracy), color = accents.bandStrong)
                     Text(
                         text = listOfNotNull(
-                            export.players?.white?.analysis?.accuracy?.let { "white ${it.toInt()}%" },
-                            export.players?.black?.analysis?.accuracy?.let { "black ${it.toInt()}%" }
-                        ).joinToString(" · ").ifEmpty { "no stored analysis" },
+                            export.players?.white?.analysis?.accuracy?.let {
+                                stringResource(Res.string.review_accuracy_white, it.toInt())
+                            },
+                            export.players?.black?.analysis?.accuracy?.let {
+                                stringResource(Res.string.review_accuracy_black, it.toInt())
+                            }
+                        ).joinToString(" · ").ifEmpty { stringResource(Res.string.review_no_stored_analysis) },
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.onSurfaceVariant
                     )
@@ -236,7 +274,7 @@ fun LichessReviewScreen(
     uiState.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Review", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.review_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
                 PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)

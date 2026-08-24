@@ -6,8 +6,10 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 private const val ANDROID_PACKAGE = "dev.hawk0f.checkmates"
-private val androidFingerprints = (System.getenv("ANDROID_CERT_FINGERPRINTS")
-    ?: "0D:80:6E:09:29:B8:3B:D3:26:5A:F5:4D:DE:AE:AC:6D:30:67:A4:E8:4E:C9:94:C1:51:82:E1:63:E9:F2:FC:EA")
+private val androidFingerprints = (
+    System.getenv("ANDROID_CERT_FINGERPRINTS")
+        ?: "0D:80:6E:09:29:B8:3B:D3:26:5A:F5:4D:DE:AE:AC:6D:30:67:A4:E8:4E:C9:94:C1:51:82:E1:63:E9:F2:FC:EA"
+    )
     .split(",")
     .map { it.trim() }
 

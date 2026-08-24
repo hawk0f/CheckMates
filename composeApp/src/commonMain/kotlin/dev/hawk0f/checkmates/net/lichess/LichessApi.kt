@@ -1,5 +1,6 @@
 package dev.hawk0f.checkmates.net.lichess
 
+import dev.hawk0f.checkmates.net.NO_IDLE_TIMEOUT_MILLIS
 import dev.hawk0f.checkmates.net.platformHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -23,6 +24,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import io.ktor.client.plugins.HttpRequestRetry
+import io.ktor.http.HttpStatusCode
 
 const val LICHESS_BASE_URL = "https://lichess.org"
 const val LICHESS_EXPLORER_URL = "https://explorer.lichess.org"
@@ -39,13 +42,25 @@ data class LichessTokenResponse(val access_token: String, val expires_in: Long? 
 
 class LichessException(override val message: String) : Exception(message)
 
-fun lichessHttpClient(): HttpClient = platformHttpClient().config {
+fun lichessHttpClient(): HttpClient = platformHttpClient(NO_IDLE_TIMEOUT_MILLIS).config {
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
     }
     install(HttpTimeout) {
         requestTimeoutMillis = Long.MAX_VALUE
         socketTimeoutMillis = 120_000
+    }
+    install(LichessThrottle)
+    install(HttpRequestRetry) {
+        maxRetries = 3
+        retryIf { _, response ->
+            response.status == HttpStatusCode.TooManyRequests || response.status.value >= 500
+        }
+        delayMillis { attempt ->
+            val retryAfterSeconds = response?.headers?.get(HttpHeaders.RetryAfter)?.toLongOrNull()
+            retryAfterSeconds?.times(1000)?.coerceAtMost(LichessRateLimit.DEFAULT_COOLDOWN_MILLIS)
+                ?: (1000L * attempt)
+        }
     }
 }
 
@@ -211,7 +226,6 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
             bearerAuth(token)
         }.status.isSuccess()
     }
-
 
     suspend fun ongoingGames(token: String): List<LichessOngoingGame> =
         client.get("$LICHESS_BASE_URL/api/account/playing") {
@@ -388,6 +402,11 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
 
     suspend fun leaderboard(count: Int, perf: String): LichessLeaderboard =
         client.get("$LICHESS_BASE_URL/api/player/top/$count/$perf").body()
+
+    suspend fun autocompletePlayers(term: String): List<String> =
+        client.get("$LICHESS_BASE_URL/api/player/autocomplete") {
+            parameter("term", term)
+        }.body()
 
     private fun ndjson(url: String, token: String?): Flow<JsonObject> = flow {
         client.prepareGet(url) {

@@ -35,11 +35,11 @@ class BleHostEngine(
     private var finished = false
 
     private val localIncoming = MutableSharedFlow<GameMessage>(extraBufferCapacity = 64)
-    private val _connectionState = MutableStateFlow<TransportConnectionState>(TransportConnectionState.Connecting)
+    private val localConnectionState = MutableStateFlow<TransportConnectionState>(TransportConnectionState.Connecting)
 
     val localTransport: GameTransport = object : GameTransport {
         override val incoming: Flow<GameMessage> = localIncoming
-        override val connectionState: StateFlow<TransportConnectionState> = _connectionState.asStateFlow()
+        override val connectionState: StateFlow<TransportConnectionState> = localConnectionState.asStateFlow()
 
         override suspend fun send(message: GameMessage) {
             handleFrom(hostColor, message)
@@ -48,7 +48,7 @@ class BleHostEngine(
         override suspend fun close() {
             peripheral.stop()
             scope.cancel()
-            _connectionState.value = TransportConnectionState.Closed(null)
+            localConnectionState.value = TransportConnectionState.Closed(null)
         }
     }
 
@@ -64,7 +64,7 @@ class BleHostEngine(
         scope.launch {
             peripheral.centralConnected.collect { connected ->
                 if (connected) {
-                    _connectionState.value = TransportConnectionState.Connected
+                    localConnectionState.value = TransportConnectionState.Connected
                 } else if (guestJoined.value) {
                     localIncoming.emit(GameMessage.OpponentConnectionChanged(connected = false))
                 }
@@ -121,6 +121,14 @@ class BleHostEngine(
                 if (takebackOfferedBy == sender.opposite) {
                     takebackOfferedBy = null
                     deliverTo(sender.opposite, GameMessage.TakebackDeclined)
+                }
+            }
+            is GameMessage.SendChat -> {
+                val clean = message.text.trim().take(140)
+                if (clean.isNotEmpty()) {
+                    val author = if (sender == hostColor) hostName else guestName ?: "Guest"
+                    deliverTo(sender.opposite, GameMessage.ChatSaid(author = author, text = clean))
+                    deliverTo(sender, GameMessage.ChatSaid(author = author, text = clean))
                 }
             }
             GameMessage.RequestResync -> {

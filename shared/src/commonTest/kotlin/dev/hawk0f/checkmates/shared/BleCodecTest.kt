@@ -80,4 +80,19 @@ class BleCodecTest {
         assertNull(BleCodec.decodeFromHost("Ujunk".encodeToByteArray()))
         assertNull(BleCodec.decodeFromHost("U0".encodeToByteArray()))
     }
+
+    @Test
+    fun chatSurvivesBothDirections() {
+        val toHost = BleCodec.encodeToHost(GameMessage.SendChat("good luck"))!!
+        assertEquals(GameMessage.SendChat("good luck"), BleCodec.decodeFromGuest(toHost))
+
+        val toGuest = BleCodec.encodeToGuest(GameMessage.ChatSaid("Host", "you too"))!!
+        assertEquals(GameMessage.ChatSaid("", "you too"), BleCodec.decodeFromHost(toGuest))
+    }
+
+    @Test
+    fun chatIsTruncatedToTheFrameSize() {
+        val encoded = BleCodec.encodeToHost(GameMessage.SendChat("x".repeat(80)))!!
+        assertEquals(BleCodec.MAX_MESSAGE_BYTES, encoded.size)
+    }
 }

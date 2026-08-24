@@ -267,10 +267,10 @@ enum class ThemePalette(
     }
 }
 
-enum class DarkModePreference(val id: String, val title: String) {
-    SYSTEM("system", "System"),
-    LIGHT("light", "Light"),
-    DARK("dark", "Dark");
+enum class DarkModePreference(val id: String) {
+    SYSTEM("system"),
+    LIGHT("light"),
+    DARK("dark");
 
     companion object {
         fun byId(id: String?): DarkModePreference = entries.firstOrNull { it.id == id } ?: SYSTEM

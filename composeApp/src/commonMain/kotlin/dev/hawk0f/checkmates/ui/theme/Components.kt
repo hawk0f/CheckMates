@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,10 +29,15 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 
 enum class PillTone {
     INK,
     ACCENT,
+    LEAF,
     SOFT,
     BAND
 }
@@ -47,6 +51,7 @@ private fun toneColors(tone: PillTone, enabled: Boolean): Pair<Color, Color> {
     val pair = when (tone) {
         PillTone.INK -> scheme.inverseSurface to scheme.inverseOnSurface
         PillTone.ACCENT -> scheme.primary to scheme.onPrimary
+        PillTone.LEAF -> scheme.tertiary to scheme.onTertiary
         PillTone.SOFT -> scheme.surfaceVariant to scheme.onSurface
         PillTone.BAND -> accents.band to accents.onBand
     }
@@ -98,7 +103,7 @@ fun SelectPill(
         text = text,
         onClick = onClick,
         modifier = modifier,
-        tone = if (selected) PillTone.ACCENT else PillTone.SOFT,
+        tone = if (selected) PillTone.LEAF else PillTone.SOFT,
         compact = true
     )
 }
@@ -110,6 +115,7 @@ fun CircleButton(
     size: Dp = 44.dp,
     container: Color = MaterialTheme.colorScheme.surfaceVariant,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
@@ -117,7 +123,11 @@ fun CircleButton(
             .size(size)
             .clip(CircleShape)
             .background(if (enabled) container else MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription?.let { this.contentDescription = it }
+            },
         contentAlignment = Alignment.Center,
         content = content
     )

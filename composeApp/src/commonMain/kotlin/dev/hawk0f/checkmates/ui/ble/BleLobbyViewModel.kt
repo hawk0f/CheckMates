@@ -13,6 +13,7 @@ import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,6 +75,8 @@ class BleLobbyViewModel : ViewModel() {
                     .filter { it }
                     .first()
                 _uiState.value = _uiState.value.copy(step = BleLobbyStep.GameReady)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 stopHosting()
                 _uiState.value = _uiState.value.copy(step = BleLobbyStep.Failed(e.message ?: "hosting failed"))
@@ -138,6 +141,8 @@ class BleLobbyViewModel : ViewModel() {
                     .filter { it }
                     .first()
                 _uiState.value = _uiState.value.copy(step = BleLobbyStep.GameReady)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 GameSessionHolder.clear()
                 _uiState.value = _uiState.value.copy(step = BleLobbyStep.Failed(e.message ?: "connection failed"))

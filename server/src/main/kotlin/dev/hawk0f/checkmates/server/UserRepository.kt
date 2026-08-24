@@ -12,7 +12,10 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -68,8 +71,32 @@ class UserRepository(private val database: Database) {
         AuthResult.Success(token, profileRow(userId)!!)
     }
 
-    suspend fun userIdByToken(token: String): Long? = dbQuery {
-        AuthSessions.selectAll().where { AuthSessions.token eq token }.firstOrNull()?.get(AuthSessions.userId)
+    suspend fun userIdByToken(token: String, nowMillis: Long = System.currentTimeMillis()): Long? = dbQuery {
+        val row = AuthSessions.selectAll().where { AuthSessions.token eq token }.firstOrNull()
+            ?: return@dbQuery null
+        val expiresAt = row[AuthSessions.expiresAtMillis]
+            .takeIf { it > 0 }
+            ?: (row[AuthSessions.createdAtMillis] + SESSION_TTL_MILLIS)
+        if (expiresAt <= nowMillis) {
+            AuthSessions.deleteWhere { AuthSessions.token eq token }
+            return@dbQuery null
+        }
+        if (expiresAt - nowMillis < SESSION_REFRESH_THRESHOLD_MILLIS) {
+            AuthSessions.update({ AuthSessions.token eq token }) {
+                it[expiresAtMillis] = nowMillis + SESSION_TTL_MILLIS
+            }
+        }
+        row[AuthSessions.userId]
+    }
+
+    suspend fun purgeExpiredSessions(nowMillis: Long = System.currentTimeMillis()): Int = dbQuery {
+        val expired = AuthSessions.deleteWhere {
+            (expiresAtMillis greater 0L) and (expiresAtMillis lessEq nowMillis)
+        }
+        val legacy = AuthSessions.deleteWhere {
+            (expiresAtMillis eq 0L) and (createdAtMillis lessEq nowMillis - SESSION_TTL_MILLIS)
+        }
+        expired + legacy
     }
 
     suspend fun logout(token: String): Unit = dbQuery {
@@ -121,10 +148,12 @@ class UserRepository(private val database: Database) {
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
         val token = bytes.joinToString("") { byte -> "%02x".format(byte) }
+        val now = System.currentTimeMillis()
         AuthSessions.insert {
             it[AuthSessions.token] = token
             it[AuthSessions.userId] = userId
-            it[createdAtMillis] = System.currentTimeMillis()
+            it[createdAtMillis] = now
+            it[expiresAtMillis] = now + SESSION_TTL_MILLIS
         }
         return token
     }
@@ -155,5 +184,10 @@ class UserRepository(private val database: Database) {
 
     private suspend fun <T> dbQuery(block: () -> T): T = withContext(Dispatchers.IO) {
         transaction(database) { block() }
+    }
+
+    companion object {
+        const val SESSION_TTL_MILLIS = 30L * 24 * 60 * 60 * 1000
+        const val SESSION_REFRESH_THRESHOLD_MILLIS = 7L * 24 * 60 * 60 * 1000
     }
 }

@@ -41,8 +41,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.platform.formatDate
-import dev.hawk0f.checkmates.shared.domain.GameOverReason
-import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.ProfileResponse
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
@@ -56,6 +54,38 @@ import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.ui.theme.StatTile
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_cancel
+import dev.hawk0f.checkmates.resources.mode_nearby
+import dev.hawk0f.checkmates.resources.mode_online
+import dev.hawk0f.checkmates.resources.mode_pass_and_play
+import dev.hawk0f.checkmates.resources.profile_avatar_emoji
+import dev.hawk0f.checkmates.resources.profile_avatar_pieces
+import dev.hawk0f.checkmates.resources.profile_choose_avatar
+import dev.hawk0f.checkmates.resources.profile_create_account
+import dev.hawk0f.checkmates.resources.profile_display_name_placeholder
+import dev.hawk0f.checkmates.resources.profile_display_name_title
+import dev.hawk0f.checkmates.resources.profile_edit_name
+import dev.hawk0f.checkmates.resources.profile_error_title
+import dev.hawk0f.checkmates.resources.profile_game_summary
+import dev.hawk0f.checkmates.resources.profile_handle_and_games
+import dev.hawk0f.checkmates.resources.profile_log_out
+import dev.hawk0f.checkmates.resources.profile_login_placeholder
+import dev.hawk0f.checkmates.resources.profile_no_games
+import dev.hawk0f.checkmates.resources.profile_password_placeholder
+import dev.hawk0f.checkmates.resources.profile_players
+import dev.hawk0f.checkmates.resources.profile_recent_games
+import dev.hawk0f.checkmates.resources.profile_register
+import dev.hawk0f.checkmates.resources.profile_save
+import dev.hawk0f.checkmates.resources.profile_sign_in
+import dev.hawk0f.checkmates.resources.profile_sign_in_pitch
+import dev.hawk0f.checkmates.resources.profile_stat_drawn
+import dev.hawk0f.checkmates.resources.profile_stat_lost
+import dev.hawk0f.checkmates.resources.profile_stat_won
+import dev.hawk0f.checkmates.resources.profile_title
+import dev.hawk0f.checkmates.ui.theme.reasonLabel
+import org.jetbrains.compose.resources.stringResource
+import dev.hawk0f.checkmates.resources.a11y_back
 
 @Composable
 fun ProfileScreen(
@@ -78,7 +108,7 @@ fun ProfileScreen(
     uiState.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Something went wrong", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.profile_error_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
                 PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
@@ -95,7 +125,7 @@ private fun ColumnScopeAuthHeader(title: String, onBack: () -> Unit) {
         verticalAlignment = Alignment.Top
     ) {
         Text(title, style = MaterialTheme.typography.displaySmall)
-        CircleButton(onClick = onBack) {
+        CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_back)) {
             ChevronIcon(
                 direction = ChevronDirection.LEFT,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -115,7 +145,7 @@ private fun ColumnScope.AuthContent(
     var password by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
 
-    ColumnScopeAuthHeader(title = "Your profile", onBack = onBack)
+    ColumnScopeAuthHeader(title = stringResource(Res.string.profile_title), onBack = onBack)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -125,18 +155,18 @@ private fun ColumnScope.AuthContent(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text(
-            text = "Sign in to keep your games, stats and replays on the server.",
+            text = stringResource(Res.string.profile_sign_in_pitch),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             SelectPill(
-                text = "Sign in",
+                text = stringResource(Res.string.profile_sign_in),
                 selected = !registering,
                 onClick = { registering = false }
             )
             SelectPill(
-                text = "Register",
+                text = stringResource(Res.string.profile_register),
                 selected = registering,
                 onClick = { registering = true }
             )
@@ -145,13 +175,13 @@ private fun ColumnScope.AuthContent(
             SoftTextField(
                 value = login,
                 onValueChange = { login = it.take(20) },
-                placeholder = "Login",
+                placeholder = stringResource(Res.string.profile_login_placeholder),
                 modifier = Modifier.fillMaxWidth()
             )
             SoftTextField(
                 value = password,
                 onValueChange = { password = it.take(64) },
-                placeholder = "Password",
+                placeholder = stringResource(Res.string.profile_password_placeholder),
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -159,7 +189,7 @@ private fun ColumnScope.AuthContent(
                 SoftTextField(
                     value = displayName,
                     onValueChange = { displayName = it.take(40) },
-                    placeholder = "Display name",
+                    placeholder = stringResource(Res.string.profile_display_name_placeholder),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -170,7 +200,9 @@ private fun ColumnScope.AuthContent(
             }
         } else {
             PillButton(
-                text = if (registering) "Create account" else "Sign in",
+                text = stringResource(
+                    if (registering) Res.string.profile_create_account else Res.string.profile_sign_in
+                ),
                 onClick = {
                     if (registering) {
                         viewModel.register(login, password, displayName)
@@ -221,12 +253,16 @@ private fun ColumnScope.LoggedInContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(profile.displayName, style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        text = "@${profile.login} · ${uiState.history.size} games",
+                        text = stringResource(
+                            Res.string.profile_handle_and_games,
+                            profile.login,
+                            uiState.history.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.onSurfaceVariant
                     )
                 }
-                CircleButton(onClick = onBack) {
+                CircleButton(onClick = onBack, contentDescription = stringResource(Res.string.a11y_back)) {
                     ChevronIcon(direction = ChevronDirection.LEFT, color = scheme.onSurfaceVariant)
                 }
             }
@@ -244,12 +280,12 @@ private fun ColumnScope.LoggedInContent(
     ) {
         StatTile(
             value = wins.toString(),
-            label = "Won",
+            label = stringResource(Res.string.profile_stat_won),
             accent = true,
             modifier = Modifier.weight(1f)
         )
-        StatTile(value = draws.toString(), label = "Drawn", modifier = Modifier.weight(1f))
-        StatTile(value = losses.toString(), label = "Lost", modifier = Modifier.weight(1f))
+        StatTile(value = draws.toString(), label = stringResource(Res.string.profile_stat_drawn), modifier = Modifier.weight(1f))
+        StatTile(value = losses.toString(), label = stringResource(Res.string.profile_stat_lost), modifier = Modifier.weight(1f))
     }
 
     Row(
@@ -257,13 +293,13 @@ private fun ColumnScope.LoggedInContent(
         horizontalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         PillButton(
-            text = "Edit name",
+            text = stringResource(Res.string.profile_edit_name),
             onClick = { editingName = true },
             tone = PillTone.SOFT,
             compact = true
         )
         PillButton(
-            text = "Log out",
+            text = stringResource(Res.string.profile_log_out),
             onClick = viewModel::logout,
             tone = PillTone.SOFT,
             compact = true
@@ -277,12 +313,12 @@ private fun ColumnScope.LoggedInContent(
             .padding(start = 26.dp, end = 26.dp, top = 20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SectionLabel("Recent games")
+        SectionLabel(stringResource(Res.string.profile_recent_games))
         if (!uiState.historyLoaded) {
             CircularProgressIndicator(color = scheme.primary)
         } else if (uiState.history.isEmpty()) {
             Text(
-                text = "No games yet. Finish a game and it lands here.",
+                text = stringResource(Res.string.profile_no_games),
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant
             )
@@ -303,18 +339,18 @@ private fun ColumnScope.LoggedInContent(
         var name by remember { mutableStateOf(profile.displayName) }
         AlertDialog(
             onDismissRequest = { editingName = false },
-            title = { Text("Display name", style = MaterialTheme.typography.titleLarge) },
+            title = { Text(stringResource(Res.string.profile_display_name_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 SoftTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    placeholder = "Display name",
+                    placeholder = stringResource(Res.string.profile_display_name_placeholder),
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
                 PillButton(
-                    text = "Save",
+                    text = stringResource(Res.string.profile_save),
                     onClick = {
                         editingName = false
                         viewModel.updateDisplayName(name)
@@ -324,7 +360,7 @@ private fun ColumnScope.LoggedInContent(
             },
             dismissButton = {
                 PillButton(
-                    text = "Cancel",
+                    text = stringResource(Res.string.common_cancel),
                     onClick = { editingName = false },
                     tone = PillTone.SOFT,
                     compact = true
@@ -369,19 +405,29 @@ private fun HistoryRow(item: GameHistoryItem, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (drawn) "D" else if (won) "W" else "L",
+                text = if (drawn) {
+                    "D"
+                } else if (won) {
+                    "W"
+                } else {
+                    "L"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 color = scheme.onPrimary
             )
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${item.whiteName} — ${item.blackName}",
+                text = stringResource(Res.string.profile_players, item.whiteName, item.blackName),
                 style = MaterialTheme.typography.titleSmall
             )
             Text(
-                text = "${modeLabel(item.mode)} · ${reasonLabel(item.reason)} · " +
-                    "${item.uciHistory.size} moves",
+                text = stringResource(
+                    Res.string.profile_game_summary,
+                    modeLabel(item.mode),
+                    reasonLabel(item.reason),
+                    item.uciHistory.size
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant
             )
@@ -394,33 +440,22 @@ private fun HistoryRow(item: GameHistoryItem, onClick: () -> Unit) {
     }
 }
 
+@Composable
 private fun modeLabel(mode: String): String = when (mode) {
-    "online" -> "Online"
-    "ble" -> "Nearby"
-    "hotseat" -> "Pass & Play"
+    "online" -> stringResource(Res.string.mode_online)
+    "ble" -> stringResource(Res.string.mode_nearby)
+    "hotseat" -> stringResource(Res.string.mode_pass_and_play)
     else -> mode
-}
-
-private fun reasonLabel(reason: GameOverReason): String = when (reason) {
-    GameOverReason.CHECKMATE -> "Checkmate"
-    GameOverReason.STALEMATE -> "Stalemate"
-    GameOverReason.DRAW_AGREED -> "Draw agreed"
-    GameOverReason.RESIGNATION -> "Resignation"
-    GameOverReason.INSUFFICIENT_MATERIAL -> "Insufficient material"
-    GameOverReason.REPETITION -> "Repetition"
-    GameOverReason.FIFTY_MOVE -> "Fifty-move rule"
-    GameOverReason.TIMEOUT -> "Time out"
-    GameOverReason.DISCONNECTION -> "Disconnection"
 }
 
 @Composable
 private fun AvatarPickerDialog(onPick: (String, String) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose avatar", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(stringResource(Res.string.profile_choose_avatar), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionLabel("Pieces")
+                SectionLabel(stringResource(Res.string.profile_avatar_pieces))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(6),
                     modifier = Modifier.height(100.dp),
@@ -433,7 +468,7 @@ private fun AvatarPickerDialog(onPick: (String, String) -> Unit, onDismiss: () -
                         }
                     }
                 }
-                SectionLabel("Emoji")
+                SectionLabel(stringResource(Res.string.profile_avatar_emoji))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(6),
                     modifier = Modifier.height(200.dp),
@@ -450,7 +485,7 @@ private fun AvatarPickerDialog(onPick: (String, String) -> Unit, onDismiss: () -
             }
         },
         confirmButton = {
-            PillButton(text = "Cancel", onClick = onDismiss, tone = PillTone.SOFT, compact = true)
+            PillButton(text = stringResource(Res.string.common_cancel), onClick = onDismiss, tone = PillTone.SOFT, compact = true)
         }
     )
 }
