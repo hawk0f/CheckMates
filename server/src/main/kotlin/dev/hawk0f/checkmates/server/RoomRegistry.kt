@@ -82,6 +82,10 @@ class RoomRegistry(
         return restored
     }
 
+    val size: Int get() = roomsById.size
+
+    fun countInProgress(): Int = roomsById.values.count { it.status == RoomStatus.IN_PROGRESS }
+
     fun byId(gameId: String): GameRoom? = roomsById[gameId]
 
     fun byCode(code: String): GameRoom? = idsByCode[ShortCode.normalize(code)]?.let { roomsById[it] }

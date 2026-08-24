@@ -136,6 +136,10 @@ class UserRepository(private val database: Database) {
         } get GameRecords.id
     }
 
+    suspend fun countUsers(): Long = dbQuery { Users.selectAll().count() }
+
+    suspend fun countGames(): Long = dbQuery { GameRecords.selectAll().count() }
+
     suspend fun listGames(userId: Long, limit: Int = 200): List<GameHistoryItem> = dbQuery {
         GameRecords.selectAll()
             .where { GameRecords.userId eq userId }

@@ -21,6 +21,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.hawk0f.checkmates.session.AppFlow
+import dev.hawk0f.checkmates.net.ApiClient
+import dev.hawk0f.checkmates.net.configuredHttpClient
+import dev.hawk0f.checkmates.platform.CrashStorage
+import dev.hawk0f.checkmates.session.CrashUploader
 import dev.hawk0f.checkmates.session.FlowManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
 import dev.hawk0f.checkmates.shared.domain.PieceColor
@@ -133,6 +137,11 @@ fun App() {
     AppTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             val navController = rememberNavController()
+            LaunchedEffect(Unit) {
+                CrashStorage.installHandler()
+                val api = ApiClient(configuredHttpClient())
+                runCatching { CrashUploader.uploadPending(api) }
+            }
             LaunchedEffect(Unit) {
                 DeepLinkHandler.pendingCode.collect { code ->
                     if (code != null) {

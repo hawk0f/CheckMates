@@ -29,10 +29,14 @@ fun Application.configureRouting(
     registry: RoomRegistry,
     users: UserRepository,
     ratings: RatingRepository? = null,
-    seekPool: SeekPool? = null
+    seekPool: SeekPool? = null,
+    crashes: CrashRepository? = null,
+    adminToken: String? = null,
+    startedAtMillis: Long = System.currentTimeMillis()
 ) {
     routing {
         accountRoutes(users, ratings)
+        adminRoutes(registry, users, crashes, startedAtMillis, adminToken)
 
         get("/health") {
             call.respondText("ok")

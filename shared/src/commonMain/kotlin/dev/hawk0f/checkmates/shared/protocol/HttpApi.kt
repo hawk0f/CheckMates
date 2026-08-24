@@ -133,4 +133,27 @@ data class GameHistoryItem(
 data class GameHistoryResponse(val games: List<GameHistoryItem>)
 
 @Serializable
+data class CrashReportRequest(
+    val platform: String,
+    val appVersion: String,
+    val osVersion: String,
+    val stackTrace: String,
+    val occurredAtMillis: Long
+)
+
+@Serializable
+data class CrashReportItem(
+    val id: Long,
+    val platform: String,
+    val appVersion: String,
+    val osVersion: String,
+    val stackTrace: String,
+    val occurredAtMillis: Long,
+    val receivedAtMillis: Long
+)
+
+@Serializable
+data class CrashReportsResponse(val reports: List<CrashReportItem>)
+
+@Serializable
 data class ApiError(val code: String, val message: String)

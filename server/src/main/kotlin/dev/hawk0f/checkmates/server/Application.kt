@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -33,6 +34,7 @@ val AuthRateLimit = RateLimitName("auth")
 val RoomRateLimit = RateLimitName("rooms")
 val UploadRateLimit = RateLimitName("uploads")
 
+private const val BACKUP_INTERVAL_HOURS = 12L
 private const val MAX_BODY_BYTES = 256 * 1024L
 private const val MAX_FRAME_BYTES = 64 * 1024L
 
@@ -48,6 +50,10 @@ fun Application.module() {
     val users = UserRepository(database)
     val roomStore = SqliteRoomStore(database)
     val ratings = RatingRepository(database)
+    val crashes = CrashRepository(database)
+    val adminToken = System.getenv("ADMIN_TOKEN")
+    val backupDirectory = System.getenv("BACKUP_DIR") ?: "data/backups"
+    val startedAtMillis = System.currentTimeMillis()
     val registry = RoomRegistry(
         publicBaseUrl = publicBaseUrl,
         recorder = GameRecorder(users::insertGame),
@@ -120,5 +126,24 @@ fun Application.module() {
         }
     }
 
-    configureRouting(registry, users, ratings, SeekPool(registry))
+    launch {
+        val backup = SqliteBackup(dbPath, backupDirectory)
+        while (true) {
+            runCatching {
+                backup.run()
+                crashes.purgeOlderThan()
+            }.onFailure { error -> log.error("backup failed", error) }
+            delay(BACKUP_INTERVAL_HOURS.hours)
+        }
+    }
+
+    configureRouting(
+        registry = registry,
+        users = users,
+        ratings = ratings,
+        seekPool = SeekPool(registry),
+        crashes = crashes,
+        adminToken = adminToken,
+        startedAtMillis = startedAtMillis
+    )
 }

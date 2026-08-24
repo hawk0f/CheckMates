@@ -77,6 +77,17 @@ object UserRatings : Table("user_ratings") {
     override val primaryKey = PrimaryKey(userId, speed)
 }
 
+object CrashReports : Table("crash_reports") {
+    val id = long("id").autoIncrement()
+    val platform = varchar("platform", 16)
+    val appVersion = varchar("app_version", 32)
+    val osVersion = varchar("os_version", 64)
+    val stackTrace = text("stack_trace")
+    val occurredAtMillis = long("occurred_at_millis")
+    val receivedAtMillis = long("received_at_millis").index()
+    override val primaryKey = PrimaryKey(id)
+}
+
 object SchemaVersion : Table("schema_version") {
     val id = integer("id")
     val version = integer("version")
@@ -93,7 +104,15 @@ object Db {
         val database = Database.connect("jdbc:sqlite:$path?busy_timeout=5000", driver = "org.sqlite.JDBC")
         TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
         transaction(database) {
-            SchemaUtils.create(Users, AuthSessions, GameRecords, SchemaVersion, GameRooms, UserRatings)
+            SchemaUtils.create(
+                Users,
+                AuthSessions,
+                GameRecords,
+                SchemaVersion,
+                GameRooms,
+                UserRatings,
+                CrashReports
+            )
             migrate()
         }
         return database

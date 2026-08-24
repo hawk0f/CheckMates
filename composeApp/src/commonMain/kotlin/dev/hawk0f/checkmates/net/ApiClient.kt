@@ -2,6 +2,7 @@ package dev.hawk0f.checkmates.net
 
 import dev.hawk0f.checkmates.shared.protocol.ApiError
 import dev.hawk0f.checkmates.shared.protocol.AuthResponse
+import dev.hawk0f.checkmates.shared.protocol.CrashReportRequest
 import dev.hawk0f.checkmates.shared.protocol.CreateGameRequest
 import dev.hawk0f.checkmates.shared.protocol.CreateGameResponse
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryResponse
@@ -88,6 +89,16 @@ class ApiClient(private val client: HttpClient) {
         client.get("${ServerConfig.baseUrl}/api/me/games") {
             bearerAuth(token)
         }.bodyOrError()
+
+    suspend fun reportCrash(request: CrashReportRequest) {
+        val response = client.post("${ServerConfig.baseUrl}/api/crash") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) {
+            throw ApiException("HTTP_${response.status.value}", response.status.toString())
+        }
+    }
 
     suspend fun ratings(token: String): RatingsResponse =
         client.get("${ServerConfig.baseUrl}/api/me/ratings") {
