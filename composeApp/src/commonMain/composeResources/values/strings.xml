@@ -75,6 +75,15 @@
     <string name="clock_mode_fischer">Fischer</string>
     <string name="clock_mode_bronstein">Bronstein</string>
     <string name="clock_mode_delay">Delay</string>
+    <string name="friends_title">Friends</string>
+    <string name="friends_add_label">Player name</string>
+    <string name="friends_add">Add friend</string>
+    <string name="friends_challenge">Challenge</string>
+    <string name="friends_remove">Remove</string>
+    <string name="friends_recent">Recent opponents</string>
+    <string name="friends_empty">No friends yet</string>
+    <string name="friends_sign_in">Sign in to keep a friends list</string>
+    <string name="friends_challenge_sent">Challenge sent · code %1$s</string>
     <string name="openings_title">Openings</string>
     <string name="openings_white_lines">Play as white</string>
     <string name="openings_black_lines">Play as black</string>

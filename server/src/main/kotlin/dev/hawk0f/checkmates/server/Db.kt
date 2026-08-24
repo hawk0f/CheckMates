@@ -18,6 +18,7 @@ object Users : Table("users") {
     val avatarKind = varchar("avatar_kind", 10)
     val avatarValue = varchar("avatar_value", 20)
     val createdAtMillis = long("created_at_millis")
+    val pushToken = varchar("push_token", 200).nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -77,6 +78,13 @@ object UserRatings : Table("user_ratings") {
     override val primaryKey = PrimaryKey(userId, speed)
 }
 
+object Friends : Table("friends") {
+    val userId = long("user_id").references(Users.id)
+    val friendUserId = long("friend_user_id").references(Users.id)
+    val createdAtMillis = long("created_at_millis")
+    override val primaryKey = PrimaryKey(userId, friendUserId)
+}
+
 object CrashReports : Table("crash_reports") {
     val id = long("id").autoIncrement()
     val platform = varchar("platform", 16)
@@ -96,7 +104,7 @@ object SchemaVersion : Table("schema_version") {
 
 object Db {
 
-    const val LATEST_VERSION = 5
+    const val LATEST_VERSION = 6
 
     fun init(path: String): Database {
         File(path).parentFile?.mkdirs()
@@ -111,7 +119,8 @@ object Db {
                 SchemaVersion,
                 GameRooms,
                 UserRatings,
-                CrashReports
+                CrashReports,
+                Friends
             )
             migrate()
         }
@@ -149,6 +158,9 @@ object Db {
             runCatching { exec("ALTER TABLE game_rooms ADD COLUMN clock_mode TEXT NOT NULL DEFAULT 'fischer'") }
             runCatching { exec("ALTER TABLE game_rooms ADD COLUMN black_initial_seconds INTEGER NOT NULL DEFAULT -1") }
             runCatching { exec("ALTER TABLE game_rooms ADD COLUMN black_increment_seconds INTEGER NOT NULL DEFAULT -1") }
+        }
+        if (current in 1 until 6) {
+            runCatching { exec("ALTER TABLE users ADD COLUMN push_token TEXT") }
         }
         writeVersion(LATEST_VERSION)
     }

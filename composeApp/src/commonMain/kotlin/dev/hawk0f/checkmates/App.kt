@@ -24,6 +24,8 @@ import dev.hawk0f.checkmates.session.AppFlow
 import dev.hawk0f.checkmates.net.ApiClient
 import dev.hawk0f.checkmates.net.configuredHttpClient
 import dev.hawk0f.checkmates.platform.CrashStorage
+import dev.hawk0f.checkmates.platform.currentPushToken
+import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.CrashUploader
 import dev.hawk0f.checkmates.session.FlowManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
@@ -39,6 +41,7 @@ import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.PositionEditor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.ui.editor.BoardEditorScreen
+import dev.hawk0f.checkmates.ui.friends.FriendsScreen
 import dev.hawk0f.checkmates.ui.leaderboard.LeaderboardScreen
 import dev.hawk0f.checkmates.ui.openings.OpeningDrillScreen
 import dev.hawk0f.checkmates.ui.openings.OpeningsScreen
@@ -112,6 +115,9 @@ object RemoteGameRoute
 data class EditorRoute(val startFen: String? = null)
 
 @Serializable
+object FriendsRoute
+
+@Serializable
 object OpeningsRoute
 
 @Serializable
@@ -141,6 +147,13 @@ fun App() {
                 CrashStorage.installHandler()
                 val api = ApiClient(configuredHttpClient())
                 runCatching { CrashUploader.uploadPending(api) }
+                val authToken = AuthManager.token
+                if (authToken != null) {
+                    val pushToken = runCatching { currentPushToken() }.getOrNull()
+                    if (pushToken != null) {
+                        runCatching { api.savePushToken(authToken, pushToken) }
+                    }
+                }
             }
             LaunchedEffect(Unit) {
                 DeepLinkHandler.pendingCode.collect { code ->
@@ -212,10 +225,21 @@ fun App() {
                             onOpenPuzzles = { navController.navigate(PuzzleRoute) },
                             onOpenEditor = { navController.navigate(EditorRoute()) },
                             onOpenOpenings = { navController.navigate(OpeningsRoute) },
+                            onOpenFriends = { navController.navigate(FriendsRoute) },
                             onOpenLeaderboard = { navController.navigate(LeaderboardRoute) },
                             onOpenProfile = { navController.navigate(ProfileRoute) },
                             onOpenSettings = { navController.navigate(SettingsRoute) },
                             onResumeGame = { navController.navigate(RemoteGameRoute) }
+                        )
+                    }
+                    composable<FriendsRoute> {
+                        FriendsScreen(
+                            onGameReady = {
+                                navController.navigate(RemoteGameRoute) {
+                                    popUpTo<HomeRoute>()
+                                }
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable<OpeningsRoute> {

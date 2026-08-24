@@ -133,6 +133,41 @@ data class GameHistoryItem(
 data class GameHistoryResponse(val games: List<GameHistoryItem>)
 
 @Serializable
+data class FriendSummary(
+    val userId: Long,
+    val displayName: String,
+    val online: Boolean = false,
+    val lastPlayedMillis: Long? = null
+)
+
+@Serializable
+data class FriendsResponse(
+    val friends: List<FriendSummary>,
+    val recentOpponents: List<FriendSummary>
+)
+
+@Serializable
+data class AddFriendRequest(val displayName: String)
+
+@Serializable
+data class PushTokenRequest(val token: String)
+
+@Serializable
+data class ChallengeRequest(
+    val friendUserId: Long,
+    val timeControl: TimeControl? = null
+)
+
+@Serializable
+data class ChallengeResponse(
+    val gameId: String,
+    val shortCode: String,
+    val joinUrl: String,
+    val playerToken: String,
+    val pushed: Boolean
+)
+
+@Serializable
 data class CrashReportRequest(
     val platform: String,
     val appVersion: String,

@@ -51,6 +51,7 @@ fun Application.module() {
     val roomStore = SqliteRoomStore(database)
     val ratings = RatingRepository(database)
     val crashes = CrashRepository(database)
+    val friends = FriendRepository(database)
     val adminToken = System.getenv("ADMIN_TOKEN")
     val backupDirectory = System.getenv("BACKUP_DIR") ?: "data/backups"
     val startedAtMillis = System.currentTimeMillis()
@@ -143,6 +144,7 @@ fun Application.module() {
         ratings = ratings,
         seekPool = SeekPool(registry),
         crashes = crashes,
+        friends = friends,
         adminToken = adminToken,
         startedAtMillis = startedAtMillis
     )

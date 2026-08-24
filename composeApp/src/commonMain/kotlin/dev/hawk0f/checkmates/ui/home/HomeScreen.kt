@@ -3,6 +3,8 @@ package dev.hawk0f.checkmates.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,6 +55,7 @@ import dev.hawk0f.checkmates.resources.flow_switch_to
 import dev.hawk0f.checkmates.resources.home_moves_with_mode
 import dev.hawk0f.checkmates.resources.home_nearby
 import dev.hawk0f.checkmates.resources.editor_title
+import dev.hawk0f.checkmates.resources.friends_title
 import dev.hawk0f.checkmates.resources.openings_title
 import dev.hawk0f.checkmates.resources.leaderboard_title
 import dev.hawk0f.checkmates.resources.puzzles_title
@@ -93,6 +96,7 @@ fun HomeScreen(
     onOpenPuzzles: () -> Unit = {},
     onOpenEditor: () -> Unit = {},
     onOpenOpenings: () -> Unit = {},
+    onOpenFriends: () -> Unit = {},
     onOpenLeaderboard: () -> Unit = {},
     onSwitchFlow: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -129,6 +133,7 @@ fun HomeScreen(
                 onOpenPuzzles = onOpenPuzzles,
                 onOpenEditor = onOpenEditor,
                 onOpenOpenings = onOpenOpenings,
+                onOpenFriends = onOpenFriends,
                 onOpenLeaderboard = onOpenLeaderboard,
                 onSwitchFlow = onSwitchFlow
             )
@@ -303,6 +308,7 @@ private fun HeroCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ModeRail(
     onPlayOnline: () -> Unit,
@@ -310,72 +316,77 @@ private fun ModeRail(
     onPlayBluetooth: () -> Unit,
     onPlayComputer: () -> Unit,
     onOpenPuzzles: () -> Unit,
+    onOpenLeaderboard: () -> Unit,
     onOpenEditor: () -> Unit,
     onOpenOpenings: () -> Unit,
-    onOpenLeaderboard: () -> Unit,
+    onOpenFriends: () -> Unit,
     onSwitchFlow: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            PillButton(
-                text = stringResource(Res.string.home_new_game),
-                onClick = onPlayOnline,
-                tone = PillTone.ACCENT,
-                compact = true
-            )
-            PillButton(
-                text = stringResource(Res.string.home_pass_and_play),
-                onClick = onPassAndPlay,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-            PillButton(
-                text = stringResource(Res.string.home_computer),
-                onClick = onPlayComputer,
-                tone = PillTone.LEAF,
-                compact = true
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            PillButton(
-                text = stringResource(Res.string.home_nearby),
-                onClick = onPlayBluetooth,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-            PillButton(
-                text = stringResource(Res.string.puzzles_title),
-                onClick = onOpenPuzzles,
-                tone = PillTone.LEAF,
-                compact = true
-            )
-            PillButton(
-                text = stringResource(Res.string.leaderboard_title),
-                onClick = onOpenLeaderboard,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            PillButton(
-                text = stringResource(Res.string.openings_title),
-                onClick = onOpenOpenings,
-                tone = PillTone.LEAF,
-                compact = true
-            )
-            PillButton(
-                text = stringResource(Res.string.editor_title),
-                onClick = onOpenEditor,
-                tone = PillTone.SOFT,
-                compact = true
-            )
-            PillButton(
-                text = stringResource(Res.string.flow_switch_to, stringResource(Res.string.flow_lichess_name)),
-                onClick = onSwitchFlow,
-                tone = PillTone.BAND,
-                compact = true
-            )
-        }
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
+        PillButton(
+            text = stringResource(Res.string.home_new_game),
+            onClick = onPlayOnline,
+            tone = PillTone.ACCENT,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.home_pass_and_play),
+            onClick = onPassAndPlay,
+            tone = PillTone.SOFT,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.home_computer),
+            onClick = onPlayComputer,
+            tone = PillTone.LEAF,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.home_nearby),
+            onClick = onPlayBluetooth,
+            tone = PillTone.SOFT,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.puzzles_title),
+            onClick = onOpenPuzzles,
+            tone = PillTone.LEAF,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.leaderboard_title),
+            onClick = onOpenLeaderboard,
+            tone = PillTone.SOFT,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.friends_title),
+            onClick = onOpenFriends,
+            tone = PillTone.SOFT,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.openings_title),
+            onClick = onOpenOpenings,
+            tone = PillTone.LEAF,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.editor_title),
+            onClick = onOpenEditor,
+            tone = PillTone.SOFT,
+            compact = true
+        )
+        PillButton(
+            text = stringResource(Res.string.flow_switch_to, stringResource(Res.string.flow_lichess_name)),
+            onClick = onSwitchFlow,
+            tone = PillTone.BAND,
+            compact = true
+        )
     }
 }
 
