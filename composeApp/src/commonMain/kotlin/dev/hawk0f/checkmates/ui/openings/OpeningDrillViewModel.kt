@@ -11,6 +11,7 @@ import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.shared.opening.OpeningBook
 import dev.hawk0f.checkmates.shared.opening.OpeningLine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +43,7 @@ class OpeningDrillViewModel(
 
     private val line = OpeningBook.byId(lineId) ?: OpeningBook.lines.first()
     private var game = ChessGame()
+    private var opponentJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         OpeningDrillUiState(
@@ -57,6 +59,7 @@ class OpeningDrillViewModel(
     }
 
     fun restart() {
+        opponentJob?.cancel()
         game = ChessGame()
         _uiState.value = _uiState.value.copy(
             gameState = game.state(),
@@ -141,9 +144,9 @@ class OpeningDrillViewModel(
         if (nextIsOurs) {
             return
         }
-        viewModelScope.launch {
+        opponentJob = viewModelScope.launch {
             delay(opponentDelayMillis)
-            if (game.applyUci(line.moves[played]) is MoveOutcome.Applied) {
+            if (game.state().uciHistory.size == played && game.applyUci(line.moves[played]) is MoveOutcome.Applied) {
                 _uiState.value = _uiState.value.copy(gameState = game.state())
                 if (game.state().uciHistory.size >= line.moves.size) {
                     complete()

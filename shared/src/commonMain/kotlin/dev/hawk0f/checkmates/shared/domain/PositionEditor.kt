@@ -19,7 +19,7 @@ object PositionEditor {
     fun buildFen(
         pieces: Map<Square, Piece>,
         sideToMove: PieceColor,
-        castling: String = "-",
+        castling: String? = null,
         enPassant: String = "-"
     ): String {
         val placement = (7 downTo 0).joinToString("/") { rank ->
@@ -43,7 +43,36 @@ object PositionEditor {
             }
         }
         val side = if (sideToMove == PieceColor.WHITE) "w" else "b"
-        return "$placement $side ${castling.ifBlank { "-" }} ${enPassant.ifBlank { "-" }} 0 1"
+        val rights = castling?.ifBlank { "-" } ?: castlingRights(pieces)
+        return "$placement $side $rights ${enPassant.ifBlank { "-" }} 0 1"
+    }
+
+    fun castlingRights(pieces: Map<Square, Piece>): String {
+        val rights = buildString {
+            appendCastlingFor(pieces, PieceColor.WHITE, homeRank = 0, kingSide = 'K', queenSide = 'Q')
+            appendCastlingFor(pieces, PieceColor.BLACK, homeRank = 7, kingSide = 'k', queenSide = 'q')
+        }
+        return rights.ifEmpty { "-" }
+    }
+
+    private fun StringBuilder.appendCastlingFor(
+        pieces: Map<Square, Piece>,
+        color: PieceColor,
+        homeRank: Int,
+        kingSide: Char,
+        queenSide: Char
+    ) {
+        val king = pieces[Square.of(4, homeRank)]
+        if (king?.kind != PieceKind.KING || king.color != color) {
+            return
+        }
+        val rook = Piece(color, PieceKind.ROOK)
+        if (pieces[Square.of(7, homeRank)] == rook) {
+            append(kingSide)
+        }
+        if (pieces[Square.of(0, homeRank)] == rook) {
+            append(queenSide)
+        }
     }
 
     fun validate(pieces: Map<Square, Piece>, sideToMove: PieceColor): PositionValidity {

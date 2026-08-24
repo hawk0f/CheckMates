@@ -18,20 +18,43 @@ import org.jetbrains.exposed.v1.jdbc.update
 
 class FriendRepository(private val database: Database) {
 
-    suspend fun add(userId: Long, displayName: String, nowMillis: Long = System.currentTimeMillis()): FriendSummary? =
+    suspend fun add(userId: Long, query: String, nowMillis: Long = System.currentTimeMillis()): FriendSummary? =
         dbQuery {
-            val friend = Users
+            val needle = query.trim()
+            if (needle.isEmpty()) {
+                return@dbQuery null
+            }
+            val byLogin = Users
                 .selectAll()
-                .where { (Users.displayName eq displayName.trim()) and (Users.id neq userId) }
-                .firstOrNull() ?: return@dbQuery null
+                .where { (Users.login eq needle.lowercase()) and (Users.id neq userId) }
+                .firstOrNull()
+            val friend = byLogin ?: Users
+                .selectAll()
+                .where { (Users.displayName eq needle) and (Users.id neq userId) }
+                .limit(2)
+                .toList()
+                .singleOrNull()
+                ?: return@dbQuery null
             val friendId = friend[Users.id]
             Friends.insertIgnore {
                 it[Friends.userId] = userId
                 it[friendUserId] = friendId
                 it[createdAtMillis] = nowMillis
             }
-            FriendSummary(userId = friendId, displayName = friend[Users.displayName])
+            FriendSummary(
+                userId = friendId,
+                displayName = friend[Users.displayName],
+                login = friend[Users.login]
+            )
         }
+
+    suspend fun isFriend(userId: Long, friendId: Long): Boolean = dbQuery {
+        Friends
+            .selectAll()
+            .where { (Friends.userId eq userId) and (Friends.friendUserId eq friendId) }
+            .empty()
+            .not()
+    }
 
     suspend fun remove(userId: Long, friendId: Long): Boolean = dbQuery {
         Friends.deleteWhere { (Friends.userId eq userId) and (friendUserId eq friendId) } > 0
@@ -47,7 +70,13 @@ class FriendRepository(private val database: Database) {
         }
         Users.selectAll()
             .where { Users.id inList ids }
-            .map { FriendSummary(userId = it[Users.id], displayName = it[Users.displayName]) }
+            .map {
+                FriendSummary(
+                    userId = it[Users.id],
+                    displayName = it[Users.displayName],
+                    login = it[Users.login]
+                )
+            }
     }
 
     suspend fun recentOpponents(userId: Long, limit: Int = 10): List<FriendSummary> = dbQuery {
@@ -71,11 +100,14 @@ class FriendRepository(private val database: Database) {
         }
         val known = Users.selectAll()
             .where { Users.displayName inList newestByName.keys.toList() }
-            .associate { it[Users.displayName] to it[Users.id] }
+            .groupBy({ it[Users.displayName] }, { it[Users.id] to it[Users.login] })
+            .filterValues { it.size == 1 }
+            .mapValues { (_, matches) -> matches.first() }
         newestByName.entries.take(limit).map { (name, millis) ->
             FriendSummary(
-                userId = known[name] ?: -1,
+                userId = known[name]?.first ?: -1,
                 displayName = name,
+                login = known[name]?.second.orEmpty(),
                 lastPlayedMillis = millis
             )
         }

@@ -1,5 +1,6 @@
 package dev.hawk0f.checkmates.server
 
+import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -91,5 +92,21 @@ class SeekPoolTest {
         val snapshot = room.snapshot()
         assertEquals(2, snapshot.players.size)
         assertEquals(setOf(180_000L), snapshot.players.map { it.remainingMillis }.toSet())
+        assertEquals(0L, snapshot.turnStartedAtMillis)
+    }
+
+    @Test
+    fun aPairedGameWithOddsSeatsBothClocksSeparately() = runTest {
+        val registry = RoomRegistry("http://localhost")
+        val pool = SeekPool(registry)
+        val odds = TimeControl(300, 0, blackInitialSeconds = 60)
+        pool.enqueue("Anna", 1L, odds, 1500)
+        val (_, second) = pool.enqueue("Boris", 2L, odds, 1500)
+        val match = second.await()
+
+        val snapshot = registry.byId(match.gameId)!!.snapshot()
+        val clocks = snapshot.players.associate { it.color to it.remainingMillis }
+        assertEquals(300_000L, clocks[PieceColor.WHITE])
+        assertEquals(60_000L, clocks[PieceColor.BLACK])
     }
 }

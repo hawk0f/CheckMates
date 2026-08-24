@@ -867,7 +867,7 @@ class GameViewModel(
     private fun submitMove(uci: String) {
         when (mode) {
             GameMode.Hotseat, is GameMode.Computer -> {
-                val mover = game.state().sideToMove.opposite
+                val mover = game.state().sideToMove
                 when (game.applyUci(uci)) {
                     is MoveOutcome.Applied -> {
                         chargeLocalClock(mover)

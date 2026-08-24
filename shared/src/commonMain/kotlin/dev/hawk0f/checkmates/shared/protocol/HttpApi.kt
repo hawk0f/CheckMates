@@ -136,6 +136,7 @@ data class GameHistoryResponse(val games: List<GameHistoryItem>)
 data class FriendSummary(
     val userId: Long,
     val displayName: String,
+    val login: String = "",
     val online: Boolean = false,
     val lastPlayedMillis: Long? = null
 )
@@ -147,7 +148,7 @@ data class FriendsResponse(
 )
 
 @Serializable
-data class AddFriendRequest(val displayName: String)
+data class AddFriendRequest(val query: String)
 
 @Serializable
 data class PushTokenRequest(val token: String)

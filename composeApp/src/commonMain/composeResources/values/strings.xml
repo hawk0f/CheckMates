@@ -76,7 +76,7 @@
     <string name="clock_mode_bronstein">Bronstein</string>
     <string name="clock_mode_delay">Delay</string>
     <string name="friends_title">Friends</string>
-    <string name="friends_add_label">Player name</string>
+    <string name="friends_add_label">Login or player name</string>
     <string name="friends_add">Add friend</string>
     <string name="friends_challenge">Challenge</string>
     <string name="friends_remove">Remove</string>

@@ -48,6 +48,21 @@ class FriendApiTest {
     }
 
     @Test
+    fun anAmbiguousDisplayNameIsRejectedButTheLoginResolves() = runTest {
+        val fixture = Fixture()
+        val me = newUser(fixture.users, "annalogin", "Anna")
+        newUser(fixture.users, "borislogin", "Boris")
+        val second = newUser(fixture.users, "boris2login", "Boris")
+
+        assertNull(fixture.friends.add(me, "Boris"))
+        val added = assertNotNull(fixture.friends.add(me, "boris2login"))
+        assertEquals(second, added.userId)
+        assertEquals("boris2login", added.login)
+        assertTrue(fixture.friends.isFriend(me, second))
+        assertFalse(fixture.friends.isFriend(second, me))
+    }
+
+    @Test
     fun addingAnUnknownNameOrYourselfFails() = runTest {
         val fixture = Fixture()
         val me = newUser(fixture.users, "annalogin", "Anna")
@@ -156,7 +171,7 @@ class FriendApiTest {
 
     @Test
     fun requestPayloadsCarryWhatTheApiNeeds() {
-        assertEquals("Boris", AddFriendRequest("Boris").displayName)
+        assertEquals("Boris", AddFriendRequest("Boris").query)
         assertEquals(7L, ChallengeRequest(7L).friendUserId)
         assertEquals("abc", PushTokenRequest("abc").token)
         assertTrue(FriendsResponse(emptyList(), emptyList()).friends.isEmpty())

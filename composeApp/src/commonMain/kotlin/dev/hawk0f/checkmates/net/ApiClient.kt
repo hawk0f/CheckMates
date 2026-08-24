@@ -102,11 +102,11 @@ class ApiClient(private val client: HttpClient) {
             bearerAuth(token)
         }.bodyOrError()
 
-    suspend fun addFriend(token: String, displayName: String): FriendSummary =
+    suspend fun addFriend(token: String, query: String): FriendSummary =
         client.post("${ServerConfig.baseUrl}/api/me/friends") {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody(AddFriendRequest(displayName))
+            setBody(AddFriendRequest(query))
         }.bodyOrError()
 
     suspend fun removeFriend(token: String, friendUserId: Long) {

@@ -89,6 +89,7 @@ class GameRoom(
         touch()
         val entry = players.entries.find { it.value.token == token } ?: return null
         entry.value.session = session
+        startClockWhenBothConnected()
         session.sendMessage(GameMessage.ColorAssigned(entry.key))
         session.sendMessage(resyncMessage())
         opponentOf(entry.key)?.let { opponent ->
@@ -137,9 +138,9 @@ class GameRoom(
             players[guestColor] = PlayerSlot(guestToken, guestName, null, guestUserId)
             status = RoomStatus.IN_PROGRESS
             if (timeControl != null) {
-                remainingMillis[PieceColor.WHITE] = timeControl.initialSeconds * 1000L
-                remainingMillis[PieceColor.BLACK] = timeControl.initialSeconds * 1000L
-                turnStartedAtMillis = System.currentTimeMillis()
+                remainingMillis[PieceColor.WHITE] = ClockRules.initialMillis(timeControl, PieceColor.WHITE)
+                remainingMillis[PieceColor.BLACK] = ClockRules.initialMillis(timeControl, PieceColor.BLACK)
+                turnStartedAtMillis = 0
             }
             persist()
             guestColor
@@ -188,7 +189,7 @@ class GameRoom(
             game.applyUci(uci)
         }
         status = snapshot.status
-        turnStartedAtMillis = System.currentTimeMillis()
+        turnStartedAtMillis = 0
         lastActivityMillis = snapshot.lastActivityMillis
     }
 
@@ -604,13 +605,25 @@ class GameRoom(
         )
     }
 
+    private fun startClockWhenBothConnected() {
+        if (timeControl == null || status != RoomStatus.IN_PROGRESS || turnStartedAtMillis != 0L) {
+            return
+        }
+        if (players.size == 2 && players.values.all { it.session != null }) {
+            turnStartedAtMillis = System.currentTimeMillis()
+        }
+    }
+
+    private fun elapsedOnTurn(color: PieceColor): Long {
+        if (turnStartedAtMillis == 0L || status != RoomStatus.IN_PROGRESS || game.sideToMove() != color) {
+            return 0
+        }
+        return System.currentTimeMillis() - turnStartedAtMillis
+    }
+
     private fun flagIsDown(color: PieceColor): Boolean {
         val remaining = remainingMillis[color] ?: return false
-        val elapsed = if (game.sideToMove() == color && status == RoomStatus.IN_PROGRESS) {
-            System.currentTimeMillis() - turnStartedAtMillis
-        } else {
-            0
-        }
+        val elapsed = elapsedOnTurn(color)
         return remaining - elapsed <= 0
     }
 
@@ -619,7 +632,7 @@ class GameRoom(
             return
         }
         val now = System.currentTimeMillis()
-        val elapsed = elapsedOverrideMillis ?: (now - turnStartedAtMillis)
+        val elapsed = elapsedOverrideMillis ?: if (turnStartedAtMillis == 0L) 0 else now - turnStartedAtMillis
         val left = ClockRules.remainingAfterMove(remainingMillis[color] ?: 0, elapsed, timeControl, color)
         remainingMillis[color] = left
         turnStartedAtMillis = now
@@ -637,12 +650,7 @@ class GameRoom(
 
     private fun currentClock(color: PieceColor): Long? {
         val remaining = remainingMillis[color] ?: return null
-        val elapsed = if (game.sideToMove() == color && status == RoomStatus.IN_PROGRESS) {
-            System.currentTimeMillis() - turnStartedAtMillis
-        } else {
-            0
-        }
-        return (remaining - elapsed).coerceAtLeast(0)
+        return (remaining - elapsedOnTurn(color)).coerceAtLeast(0)
     }
 
     companion object {

@@ -15,6 +15,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -145,14 +146,19 @@ fun App() {
             val navController = rememberNavController()
             LaunchedEffect(Unit) {
                 CrashStorage.installHandler()
-                val api = ApiClient(configuredHttpClient())
-                runCatching { CrashUploader.uploadPending(api) }
-                val authToken = AuthManager.token
-                if (authToken != null) {
-                    val pushToken = runCatching { currentPushToken() }.getOrNull()
-                    if (pushToken != null) {
-                        runCatching { api.savePushToken(authToken, pushToken) }
+                val client = configuredHttpClient()
+                try {
+                    val api = ApiClient(client)
+                    runCatching { CrashUploader.uploadPending(api) }
+                    val authToken = AuthManager.token
+                    if (authToken != null) {
+                        val pushToken = runCatching { currentPushToken() }.getOrNull()
+                        if (pushToken != null) {
+                            runCatching { api.savePushToken(authToken, pushToken) }
+                        }
                     }
+                } finally {
+                    client.close()
                 }
             }
             LaunchedEffect(Unit) {
@@ -188,11 +194,12 @@ fun App() {
                     .safeDrawingPadding(),
                 contentAlignment = Alignment.TopCenter
             ) {
-                val flow = FlowManager.current
-                val startDestination: Any = when (flow) {
-                    null -> FlowPickerRoute
-                    AppFlow.CHECKMATES -> HomeRoute
-                    AppFlow.LICHESS -> LichessHomeRoute
+                val startDestination: Any = remember {
+                    when (FlowManager.current) {
+                        null -> FlowPickerRoute
+                        AppFlow.CHECKMATES -> HomeRoute
+                        AppFlow.LICHESS -> LichessHomeRoute
+                    }
                 }
                 val openFlowHome: (AppFlow) -> Unit = { chosen ->
                     FlowManager.select(chosen)

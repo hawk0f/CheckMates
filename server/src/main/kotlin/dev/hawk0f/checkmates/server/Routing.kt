@@ -22,6 +22,7 @@ import dev.hawk0f.checkmates.shared.protocol.SeekJson
 import dev.hawk0f.checkmates.shared.protocol.SeekMessage
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 
@@ -113,9 +114,17 @@ fun Application.configureRouting(
                     Glicko2.DEFAULT_RATING.toInt()
                 }
                 val (seekId, result) = seekPool.enqueue(name, userId, timeControl, rating)
+                val watcher = launch {
+                    for (frame in incoming) {
+                        if (frame is Frame.Close) {
+                            break
+                        }
+                    }
+                    result.cancel()
+                }
                 try {
                     if (!result.isCompleted) {
-                        sendSeek(SeekMessage.Waiting(seekPool.queuedFor(timeControl), rating, speed))
+                        sendSeek(SeekMessage.Waiting(seekPool.queuedFor(timeControl) - 1, rating, speed))
                     }
                     val matched = result.await()
                     sendSeek(matched)
@@ -124,6 +133,7 @@ fun Application.configureRouting(
                 } catch (error: Exception) {
                     sendSeek(SeekMessage.Error("SEEK_FAILED", error.message ?: "seek failed"))
                 } finally {
+                    watcher.cancel()
                     seekPool.cancel(seekId)
                 }
             }

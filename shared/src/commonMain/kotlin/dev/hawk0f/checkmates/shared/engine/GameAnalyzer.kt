@@ -41,13 +41,15 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
     ): AnalysisSummary {
         val board = Board()
         val moves = mutableListOf<MoveAnalysis>()
+        var carried: EngineLine? = null
         for ((ply, uci) in uciHistory.withIndex()) {
-            val before = engine.analyse(board.fen, depth, nodeBudget)
+            val before = carried ?: engine.analyse(board.fen, depth, nodeBudget)
             val played = runCatching { board.doMove(moveOf(board, uci)) }.getOrNull()
             if (played != true) {
                 break
             }
             val afterOpponentView = engine.analyse(board.fen, depth, nodeBudget)
+            carried = afterOpponentView
             val scoreBefore = before.scoreCentipawns
             val scoreAfter = -afterOpponentView.scoreCentipawns
             val loss = (scoreBefore - scoreAfter).coerceAtLeast(0)
@@ -68,9 +70,6 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
             blackAverageLoss = averageLoss(moves, white = false)
         )
     }
-
-    fun whitePerspective(analysis: MoveAnalysis): Int =
-        if (analysis.ply % 2 == 0) analysis.scoreAfter else -analysis.scoreAfter
 
     private fun averageLoss(moves: List<MoveAnalysis>, white: Boolean): Int {
         val side = moves.filter { (it.ply % 2 == 0) == white }
@@ -98,6 +97,9 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
         const val INACCURACY_LOSS = 60
         const val MISTAKE_LOSS = 140
         const val BLUNDER_LOSS = 300
+
+        fun whitePerspective(analysis: MoveAnalysis): Int =
+            if (analysis.ply % 2 == 0) analysis.scoreAfter else -analysis.scoreAfter
 
         fun evaluationBarFraction(scoreCentipawns: Int): Float {
             val clamped = scoreCentipawns.coerceIn(-1000, 1000)

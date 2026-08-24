@@ -5,6 +5,7 @@ import dev.hawk0f.checkmates.shared.protocol.SeekMessage
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.http.encodeURLParameter
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import kotlinx.coroutines.channels.awaitClose
@@ -21,10 +22,10 @@ class SeekClient(private val client: HttpClient) {
             append("&increment=")
             append(timeControl.incrementSeconds)
             append("&name=")
-            append(name.encodeQueryValue())
+            append(name.encodeURLParameter())
             if (authToken != null) {
                 append("&token=")
-                append(authToken.encodeQueryValue())
+                append(authToken.encodeURLParameter())
             }
         }
         client.webSocket(url) {
@@ -41,18 +42,5 @@ class SeekClient(private val client: HttpClient) {
         }
         close()
         awaitClose { }
-    }
-}
-
-private fun String.encodeQueryValue(): String = buildString {
-    for (byte in this@encodeQueryValue.encodeToByteArray()) {
-        val value = byte.toInt() and 0xFF
-        val char = value.toChar()
-        if (char.isLetterOrDigit() || char in "-_.~") {
-            append(char)
-        } else {
-            append('%')
-            append(value.toString(16).uppercase().padStart(2, '0'))
-        }
     }
 }

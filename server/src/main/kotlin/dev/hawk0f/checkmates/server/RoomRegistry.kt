@@ -62,6 +62,9 @@ class RoomRegistry(
                 continue
             }
             val host = snapshot.players.firstOrNull() ?: continue
+            if (idsByCode.putIfAbsent(snapshot.shortCode, snapshot.gameId) != null) {
+                continue
+            }
             val room = GameRoom(
                 gameId = snapshot.gameId,
                 shortCode = snapshot.shortCode,
@@ -75,8 +78,10 @@ class RoomRegistry(
                 store = store
             )
             room.restoreFrom(snapshot)
-            roomsById[snapshot.gameId] = room
-            idsByCode[snapshot.shortCode] = snapshot.gameId
+            if (roomsById.putIfAbsent(snapshot.gameId, room) != null) {
+                idsByCode.remove(snapshot.shortCode, snapshot.gameId)
+                continue
+            }
             restored++
         }
         return restored

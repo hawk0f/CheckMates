@@ -99,6 +99,17 @@ class FriendsViewModel(
         }
     }
 
+    fun challengeRecent(opponent: FriendSummary) {
+        val token = AuthManager.token ?: return
+        if (_uiState.value.working || opponent.userId < 0) {
+            return
+        }
+        viewModelScope.launch {
+            runCatching { api.addFriend(token, opponent.login.ifBlank { opponent.displayName }) }
+            challenge(opponent)
+        }
+    }
+
     fun challenge(friend: FriendSummary) {
         val token = AuthManager.token ?: return
         if (_uiState.value.working || friend.userId < 0) {

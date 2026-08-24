@@ -107,6 +107,36 @@ class PositionEditorTest {
     }
 
     @Test
+    fun castlingRightsFollowKingsAndRooksOnTheirHomeSquares() {
+        val board = pieces(
+            "e1" to king(PieceColor.WHITE),
+            "a1" to Piece(PieceColor.WHITE, PieceKind.ROOK),
+            "h1" to Piece(PieceColor.WHITE, PieceKind.ROOK),
+            "e8" to king(PieceColor.BLACK),
+            "h8" to Piece(PieceColor.BLACK, PieceKind.ROOK)
+        )
+        val validity = PositionEditor.validate(board, PieceColor.WHITE)
+        val fen = (validity as PositionValidity.Valid).fen
+        assertEquals("KQk", fen.split(" ")[2])
+
+        val game = ChessGame()
+        game.loadFen(fen)
+        val kingMoves = game.legalDestinations(Square.fromUci("e1")!!).map(Square::toUci)
+        assertTrue("g1" in kingMoves)
+        assertTrue("c1" in kingMoves)
+    }
+
+    @Test
+    fun aMovedKingKeepsNoCastlingRights() {
+        val board = pieces(
+            "d1" to king(PieceColor.WHITE),
+            "a1" to Piece(PieceColor.WHITE, PieceKind.ROOK),
+            "e8" to king(PieceColor.BLACK)
+        )
+        assertEquals("-", PositionEditor.buildFen(board, PieceColor.WHITE).split(" ")[2])
+    }
+
+    @Test
     fun emptySquaresAreCollapsedIntoCounts() {
         val board = pieces("e1" to king(PieceColor.WHITE), "e8" to king(PieceColor.BLACK))
         assertEquals("4k3/8/8/8/8/8/8/4K3 w - - 0 1", PositionEditor.buildFen(board, PieceColor.WHITE))

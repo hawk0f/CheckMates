@@ -37,9 +37,9 @@ fun Route.friendRoutes(
     post("/api/me/friends") {
         val userId = call.authenticatedUserId(users) ?: return@post
         val request = call.receive<AddFriendRequest>()
-        val added = friends.add(userId, request.displayName)
+        val added = friends.add(userId, request.query)
         if (added == null) {
-            call.respond(HttpStatusCode.NotFound, ApiError("NO_PLAYER", "no player with that name"))
+            call.respond(HttpStatusCode.NotFound, ApiError("NO_PLAYER", "no player with that login or name"))
         } else {
             call.respond(added)
         }
@@ -71,6 +71,10 @@ fun Route.friendRoutes(
         post("/api/challenges") {
             val userId = call.authenticatedUserId(users) ?: return@post
             val request = call.receive<ChallengeRequest>()
+            if (!friends.isFriend(userId, request.friendUserId)) {
+                call.respond(HttpStatusCode.Forbidden, ApiError("NOT_A_FRIEND", "add this player as a friend first"))
+                return@post
+            }
             val myName = friends.displayNameOf(userId) ?: "Player"
             val created = registry.create(
                 hostName = myName,

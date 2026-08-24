@@ -46,6 +46,7 @@ class PuzzleViewModel(
 
     private var progress: MutableMap<String, PuzzleProgress> = store.loadProgress().toMutableMap()
     private var game = ChessGame()
+    private var solutionIndex = 0
 
     private val _uiState = MutableStateFlow(
         PuzzleUiState(
@@ -69,6 +70,7 @@ class PuzzleViewModel(
         }
         game = ChessGame()
         game.loadFen(puzzle.fen)
+        solutionIndex = 0
         val state = game.state()
         _uiState.value = _uiState.value.copy(
             puzzle = puzzle,
@@ -113,21 +115,36 @@ class PuzzleViewModel(
 
     fun showHint() {
         val puzzle = _uiState.value.puzzle ?: return
-        val from = puzzle.solution.firstOrNull()?.take(2) ?: return
+        val from = puzzle.solution.getOrNull(solutionIndex)?.take(2) ?: return
         _uiState.value = _uiState.value.copy(hintSquare = Square.fromUci(from))
     }
 
     private fun submit(from: Square, to: Square, promotion: Char?) {
         val puzzle = _uiState.value.puzzle ?: return
         val uci = from.toUci() + to.toUci() + (promotion?.lowercaseChar() ?: "")
-        val expected = puzzle.solution.first()
+        val expected = puzzle.solution.getOrNull(solutionIndex) ?: return
         if (uci != expected) {
             finish(puzzle, solved = false)
             return
         }
-        if (game.applyUci(uci) is MoveOutcome.Applied) {
-            finish(puzzle, solved = true)
+        if (game.applyUci(uci) !is MoveOutcome.Applied) {
+            return
         }
+        solutionIndex++
+        val reply = puzzle.solution.getOrNull(solutionIndex)
+        if (reply != null && game.applyUci(reply) is MoveOutcome.Applied) {
+            solutionIndex++
+        }
+        if (solutionIndex >= puzzle.solution.size) {
+            finish(puzzle, solved = true)
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            gameState = game.state(),
+            selected = null,
+            legalTargets = emptySet(),
+            hintSquare = null
+        )
     }
 
     private fun finish(puzzle: Puzzle, solved: Boolean) {

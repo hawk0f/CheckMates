@@ -149,7 +149,7 @@ fun FriendsScreen(
                             FriendRow(
                                 friend = opponent,
                                 working = uiState.working,
-                                onChallenge = { viewModel.challenge(opponent) },
+                                onChallenge = { viewModel.challengeRecent(opponent) },
                                 onRemove = null
                             )
                         }
@@ -187,11 +187,19 @@ private fun FriendRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = friend.displayName,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = friend.displayName,
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (friend.login.isNotBlank()) {
+                Text(
+                    text = "@${friend.login}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         PillButton(
             text = stringResource(Res.string.friends_challenge),
             onClick = onChallenge,

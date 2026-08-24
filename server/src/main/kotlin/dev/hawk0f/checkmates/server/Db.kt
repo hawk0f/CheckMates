@@ -155,12 +155,20 @@ object Db {
             exec("CREATE INDEX IF NOT EXISTS user_ratings_board ON user_ratings(speed, rating)")
         }
         if (current in 1 until 5) {
-            runCatching { exec("ALTER TABLE game_rooms ADD COLUMN clock_mode TEXT NOT NULL DEFAULT 'fischer'") }
-            runCatching { exec("ALTER TABLE game_rooms ADD COLUMN black_initial_seconds INTEGER NOT NULL DEFAULT -1") }
-            runCatching { exec("ALTER TABLE game_rooms ADD COLUMN black_increment_seconds INTEGER NOT NULL DEFAULT -1") }
+            if (!columnExists("game_rooms", "clock_mode")) {
+                exec("ALTER TABLE game_rooms ADD COLUMN clock_mode TEXT NOT NULL DEFAULT 'fischer'")
+            }
+            if (!columnExists("game_rooms", "black_initial_seconds")) {
+                exec("ALTER TABLE game_rooms ADD COLUMN black_initial_seconds INTEGER NOT NULL DEFAULT -1")
+            }
+            if (!columnExists("game_rooms", "black_increment_seconds")) {
+                exec("ALTER TABLE game_rooms ADD COLUMN black_increment_seconds INTEGER NOT NULL DEFAULT -1")
+            }
         }
         if (current in 1 until 6) {
-            runCatching { exec("ALTER TABLE users ADD COLUMN push_token TEXT") }
+            if (!columnExists("users", "push_token")) {
+                exec("ALTER TABLE users ADD COLUMN push_token TEXT")
+            }
         }
         writeVersion(LATEST_VERSION)
     }

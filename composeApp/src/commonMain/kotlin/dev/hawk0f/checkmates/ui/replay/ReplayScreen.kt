@@ -151,9 +151,7 @@ fun ReplayScreen(
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (analysis.summary != null) {
                 EvaluationBar(
-                    whiteScore = currentAnalysis?.let { move ->
-                        if (move.ply % 2 == 0) move.scoreAfter else -move.scoreAfter
-                    } ?: 0,
+                    whiteScore = currentAnalysis?.let(GameAnalyzer::whitePerspective) ?: 0,
                     flipped = flipped,
                     modifier = Modifier.fillMaxHeight().padding(start = 20.dp, top = 8.dp, bottom = 8.dp)
                 )
