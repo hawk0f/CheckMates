@@ -31,6 +31,10 @@ import dev.hawk0f.checkmates.ui.flow.FlowPickerScreen
 import dev.hawk0f.checkmates.ui.game.GameMode
 import dev.hawk0f.checkmates.ui.game.GameScreen
 import dev.hawk0f.checkmates.ui.home.HomeScreen
+import dev.hawk0f.checkmates.shared.domain.GameOverReason
+import dev.hawk0f.checkmates.shared.domain.PositionEditor
+import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
+import dev.hawk0f.checkmates.ui.editor.BoardEditorScreen
 import dev.hawk0f.checkmates.ui.leaderboard.LeaderboardScreen
 import dev.hawk0f.checkmates.ui.puzzle.PuzzleScreen
 import dev.hawk0f.checkmates.ui.lichess.LichessHomeScreen
@@ -57,13 +61,13 @@ object FlowPickerRoute
 object HomeRoute
 
 @Serializable
-object HotseatGameRoute
+data class HotseatGameRoute(val startFen: String? = null)
 
 @Serializable
 object ComputerSetupRoute
 
 @Serializable
-data class ComputerGameRoute(val level: Int, val playsWhite: Boolean)
+data class ComputerGameRoute(val level: Int, val playsWhite: Boolean, val startFen: String? = null)
 
 @Serializable
 data class OnlineLobbyRoute(val prefillCode: String? = null)
@@ -97,6 +101,9 @@ data class LichessReviewRoute(val gameId: String)
 
 @Serializable
 object RemoteGameRoute
+
+@Serializable
+data class EditorRoute(val startFen: String? = null)
 
 @Serializable
 object PuzzleRoute
@@ -180,12 +187,13 @@ fun App() {
                     }
                     composable<HomeRoute> {
                         HomeScreen(
-                            onPassAndPlay = { navController.navigate(HotseatGameRoute) },
+                            onPassAndPlay = { navController.navigate(HotseatGameRoute()) },
                             onPlayOnline = { navController.navigate(OnlineLobbyRoute()) },
                             onPlayBluetooth = { navController.navigate(BleLobbyRoute) },
                             onPlayComputer = { navController.navigate(ComputerSetupRoute) },
                             onSwitchFlow = { openFlowHome(AppFlow.LICHESS) },
                             onOpenPuzzles = { navController.navigate(PuzzleRoute) },
+                            onOpenEditor = { navController.navigate(EditorRoute()) },
                             onOpenLeaderboard = { navController.navigate(LeaderboardRoute) },
                             onOpenProfile = { navController.navigate(ProfileRoute) },
                             onOpenSettings = { navController.navigate(SettingsRoute) },
@@ -244,13 +252,46 @@ fun App() {
                                 level = EngineLevel.byId(route.level),
                                 myColor = if (route.playsWhite) PieceColor.WHITE else PieceColor.BLACK
                             ),
-                            onExit = { navController.popBackStack() }
+                            onExit = { navController.popBackStack() },
+                            startFen = route.startFen
                         )
                     }
-                    composable<HotseatGameRoute> {
+                    composable<HotseatGameRoute> { entry ->
+                        val route = entry.toRoute<HotseatGameRoute>()
                         GameScreen(
                             mode = GameMode.Hotseat,
-                            onExit = { navController.popBackStack() }
+                            onExit = { navController.popBackStack() },
+                            startFen = route.startFen
+                        )
+                    }
+                    composable<EditorRoute> { entry ->
+                        val route = entry.toRoute<EditorRoute>()
+                        BoardEditorScreen(
+                            onPlayHotseat = { fen -> navController.navigate(HotseatGameRoute(fen)) },
+                            onPlayComputer = { fen ->
+                                navController.navigate(
+                                    ComputerGameRoute(
+                                        level = EngineLevel.DEFAULT.id,
+                                        playsWhite = PositionEditor.sideToMoveFromFen(fen) == PieceColor.WHITE,
+                                        startFen = fen
+                                    )
+                                )
+                            },
+                            onOpenImportedGame = { moves ->
+                                ReplayHolder.current = GameHistoryItem(
+                                    id = 0,
+                                    mode = "import",
+                                    myColor = PieceColor.WHITE,
+                                    whiteName = "White",
+                                    blackName = "Black",
+                                    winner = null,
+                                    reason = GameOverReason.RESIGNATION,
+                                    uciHistory = moves,
+                                    finishedAtMillis = 0
+                                )
+                                navController.navigate(ReplayRoute)
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable<OnlineLobbyRoute> { entry ->

@@ -18,6 +18,7 @@ import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
+import dev.hawk0f.checkmates.shared.protocol.ClockRules
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.protocol.GameSpeed
 import dev.hawk0f.checkmates.shared.transport.TransportConnectionState
@@ -88,7 +89,8 @@ private const val MAX_CHAT_CHARS = 140
 class GameViewModel(
     private val mode: GameMode,
     private val savedGames: HotseatGamePersistence = HotseatGameStore,
-    private val engineContext: CoroutineContext = Dispatchers.Default
+    private val engineContext: CoroutineContext = Dispatchers.Default,
+    private val startFen: String? = null
 ) : ViewModel() {
 
     private var game = ChessGame()
@@ -98,6 +100,7 @@ class GameViewModel(
     private var serverSchedulesPremoves = (mode as? GameMode.Remote)?.session?.kind == "online"
     private var premovesSentToServer: List<String> = emptyList()
     private var timeoutClaimed = false
+    private var localTurnStartedAtMillis = epochMillis()
     private val engine = ChessEngine()
     private var engineJob: Job? = null
 
@@ -105,13 +108,17 @@ class GameViewModel(
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
     init {
+        if (startFen != null) {
+            game.loadFen(startFen)
+            _uiState.value = _uiState.value.copy(gameState = game.state())
+        }
         when (mode) {
             is GameMode.Remote -> observeSession(mode.session)
             is GameMode.Computer -> {
                 _uiState.value = _uiState.value.copy(myColor = mode.myColor, showTimePicker = false)
                 maybeStartEngineTurn()
             }
-            GameMode.Hotseat -> restoreHotseatGame()
+            GameMode.Hotseat -> if (startFen == null) restoreHotseatGame()
         }
         startClockTicker()
     }
@@ -147,7 +154,7 @@ class GameViewModel(
     }
 
     private fun persistHotseatGame() {
-        if (mode !is GameMode.Hotseat) {
+        if (mode !is GameMode.Hotseat || startFen != null) {
             return
         }
         val state = _uiState.value
@@ -176,8 +183,8 @@ class GameViewModel(
         hotseatTimeControl = timeControl
         _uiState.value = _uiState.value.copy(
             timeControl = timeControl,
-            whiteMillis = timeControl?.let { it.initialSeconds * 1000L },
-            blackMillis = timeControl?.let { it.initialSeconds * 1000L },
+            whiteMillis = timeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
+            blackMillis = timeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) },
             showTimePicker = false
         )
     }
@@ -495,8 +502,8 @@ class GameViewModel(
             drawOfferOutgoing = false,
             rematchOfferIncoming = false,
             rematchOfferOutgoing = false,
-            whiteMillis = current.timeControl?.let { it.initialSeconds * 1000L },
-            blackMillis = current.timeControl?.let { it.initialSeconds * 1000L }
+            whiteMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
+            blackMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) }
         )
     }
 
@@ -729,8 +736,8 @@ class GameViewModel(
             val series = _uiState.value
             _uiState.value = initialUiState().copy(
                 timeControl = hotseatTimeControl,
-                whiteMillis = hotseatTimeControl?.let { it.initialSeconds * 1000L },
-                blackMillis = hotseatTimeControl?.let { it.initialSeconds * 1000L },
+                whiteMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
+                blackMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) },
                 showTimePicker = false,
                 seriesMyWins = series.seriesMyWins,
                 seriesOpponentWins = series.seriesOpponentWins,
@@ -860,8 +867,10 @@ class GameViewModel(
     private fun submitMove(uci: String) {
         when (mode) {
             GameMode.Hotseat, is GameMode.Computer -> {
+                val mover = game.state().sideToMove.opposite
                 when (game.applyUci(uci)) {
                     is MoveOutcome.Applied -> {
+                        chargeLocalClock(mover)
                         _uiState.value = clearedSelection().copy(hint = null)
                         maybeUploadRecord()
                         persistHotseatGame()
@@ -883,6 +892,29 @@ class GameViewModel(
         }
     }
 
+    private fun chargeLocalClock(color: PieceColor) {
+        if (mode is GameMode.Remote) {
+            return
+        }
+        val state = _uiState.value
+        val timeControl = state.timeControl ?: return
+        val remaining = if (color == PieceColor.WHITE) state.whiteMillis else state.blackMillis
+        if (remaining == null) {
+            return
+        }
+        val now = epochMillis()
+        val elapsed = (now - localTurnStartedAtMillis).coerceAtLeast(0)
+        localTurnStartedAtMillis = now
+        val charged = ClockRules
+            .remainingAfterMove(remaining + elapsed, elapsed, timeControl, color)
+            .coerceAtLeast(0)
+        _uiState.value = if (color == PieceColor.WHITE) {
+            state.copy(whiteMillis = charged)
+        } else {
+            state.copy(blackMillis = charged)
+        }
+    }
+
     private fun maybeStartEngineTurn() {
         val computer = mode as? GameMode.Computer ?: return
         engineJob?.cancel()
@@ -899,7 +931,9 @@ class GameViewModel(
                 _uiState.value = _uiState.value.copy(engineThinking = false)
                 return@launch
             }
+            val engineColor = game.state().sideToMove
             game.applyUci(move)
+            chargeLocalClock(engineColor)
             _uiState.value = clearedSelection().copy(engineThinking = false, hint = null)
             maybeUploadRecord()
         }

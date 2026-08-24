@@ -1,6 +1,7 @@
 package dev.hawk0f.checkmates.server
 
 import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.shared.protocol.ClockMode
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,6 +55,9 @@ class SqliteRoomStore(private val database: Database) : RoomStore {
             row[status] = snapshot.status.name
             row[initialSeconds] = snapshot.timeControl?.initialSeconds ?: -1
             row[incrementSeconds] = snapshot.timeControl?.incrementSeconds ?: -1
+            row[clockMode] = (snapshot.timeControl?.mode ?: ClockMode.FISCHER).id
+            row[blackInitialSeconds] = snapshot.timeControl?.blackInitialSeconds ?: -1
+            row[blackIncrementSeconds] = snapshot.timeControl?.blackIncrementSeconds ?: -1
             row[uciHistory] = snapshot.uciHistory.joinToString(" ")
             row[turnStartedAtMillis] = snapshot.turnStartedAtMillis
             row[lastActivityMillis] = snapshot.lastActivityMillis
@@ -114,7 +118,17 @@ class SqliteRoomStore(private val database: Database) : RoomStore {
                     gameId = row[GameRooms.gameId],
                     shortCode = row[GameRooms.shortCode],
                     status = RoomStatus.IN_PROGRESS,
-                    timeControl = if (initial >= 0 && increment >= 0) TimeControl(initial, increment) else null,
+                    timeControl = if (initial >= 0 && increment >= 0) {
+                        TimeControl(
+                            initialSeconds = initial,
+                            incrementSeconds = increment,
+                            mode = ClockMode.byId(row[GameRooms.clockMode]),
+                            blackInitialSeconds = row[GameRooms.blackInitialSeconds].takeIf { it >= 0 },
+                            blackIncrementSeconds = row[GameRooms.blackIncrementSeconds].takeIf { it >= 0 }
+                        )
+                    } else {
+                        null
+                    },
                     uciHistory = row[GameRooms.uciHistory].split(" ").filter { it.isNotBlank() },
                     players = players,
                     turnStartedAtMillis = row[GameRooms.turnStartedAtMillis],

@@ -4,6 +4,7 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.shared.protocol.ClockRules
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.protocol.GameSpeed
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
@@ -112,8 +113,8 @@ class GameRoom(
         players[guestColor] = PlayerSlot(guestToken, guestName, session, guestUserId)
         status = RoomStatus.IN_PROGRESS
         if (timeControl != null) {
-            remainingMillis[PieceColor.WHITE] = timeControl.initialSeconds * 1000L
-            remainingMillis[PieceColor.BLACK] = timeControl.initialSeconds * 1000L
+            remainingMillis[PieceColor.WHITE] = ClockRules.initialMillis(timeControl, PieceColor.WHITE)
+            remainingMillis[PieceColor.BLACK] = ClockRules.initialMillis(timeControl, PieceColor.BLACK)
             turnStartedAtMillis = System.currentTimeMillis()
         }
         session.sendMessage(GameMessage.ColorAssigned(guestColor))
@@ -326,8 +327,8 @@ class GameRoom(
         players.clear()
         players.putAll(swapped)
         if (timeControl != null) {
-            remainingMillis[PieceColor.WHITE] = timeControl.initialSeconds * 1000L
-            remainingMillis[PieceColor.BLACK] = timeControl.initialSeconds * 1000L
+            remainingMillis[PieceColor.WHITE] = ClockRules.initialMillis(timeControl, PieceColor.WHITE)
+            remainingMillis[PieceColor.BLACK] = ClockRules.initialMillis(timeControl, PieceColor.BLACK)
             turnStartedAtMillis = System.currentTimeMillis()
         }
         for ((color, slot) in players) {
@@ -619,7 +620,7 @@ class GameRoom(
         }
         val now = System.currentTimeMillis()
         val elapsed = elapsedOverrideMillis ?: (now - turnStartedAtMillis)
-        val left = (remainingMillis[color] ?: 0) - elapsed + timeControl.incrementSeconds * 1000L
+        val left = ClockRules.remainingAfterMove(remainingMillis[color] ?: 0, elapsed, timeControl, color)
         remainingMillis[color] = left
         turnStartedAtMillis = now
     }

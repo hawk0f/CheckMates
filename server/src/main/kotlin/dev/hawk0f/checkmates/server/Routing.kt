@@ -45,9 +45,7 @@ fun Application.configureRouting(
                 val hostUserId = call.bearerToken()?.let { users.userIdByToken(it) }
                 val created = registry.create(
                     hostName = hostName,
-                    timeControl = request.timeControl?.takeIf {
-                        it.initialSeconds in 10..86400 && it.incrementSeconds in 0..600
-                    },
+                    timeControl = request.timeControl?.takeIf { it.isSupported() },
                     hostUserId = hostUserId
                 )
                 call.respond(
@@ -211,4 +209,16 @@ private suspend fun WebSocketServerSession.dispatch(
 
 private suspend fun WebSocketServerSession.sendSeek(message: SeekMessage) {
     send(Frame.Text(SeekJson.encode(message)))
+}
+
+private fun TimeControl.isSupported(): Boolean {
+    if (initialSeconds !in 10..86400 || incrementSeconds !in 0..600) {
+        return false
+    }
+    val blackInitial = blackInitialSeconds
+    if (blackInitial != null && blackInitial !in 10..86400) {
+        return false
+    }
+    val blackIncrement = blackIncrementSeconds
+    return blackIncrement == null || blackIncrement in 0..600
 }

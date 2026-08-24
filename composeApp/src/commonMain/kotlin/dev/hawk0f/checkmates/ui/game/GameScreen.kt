@@ -46,6 +46,7 @@ import dev.hawk0f.checkmates.shared.domain.GameState
 import dev.hawk0f.checkmates.shared.domain.SanFormatter
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
+import dev.hawk0f.checkmates.shared.protocol.ClockMode
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.shared.transport.TransportConnectionState
 import dev.hawk0f.checkmates.ui.profile.pieceDrawable
@@ -57,6 +58,7 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.StatTile
@@ -77,6 +79,9 @@ import dev.hawk0f.checkmates.resources.game_chat_placeholder
 import dev.hawk0f.checkmates.resources.game_chat_send
 import dev.hawk0f.checkmates.resources.game_chat_title
 import dev.hawk0f.checkmates.resources.game_claim_win
+import dev.hawk0f.checkmates.resources.clock_mode_bronstein
+import dev.hawk0f.checkmates.resources.clock_mode_delay
+import dev.hawk0f.checkmates.resources.clock_mode_fischer
 import dev.hawk0f.checkmates.resources.game_clock_title
 import dev.hawk0f.checkmates.resources.game_close
 import dev.hawk0f.checkmates.resources.game_connection_lost
@@ -149,15 +154,16 @@ import dev.hawk0f.checkmates.shared.domain.Square
 fun GameScreen(
     mode: GameMode,
     onExit: () -> Unit,
-    onOpenReview: ((String) -> Unit)? = null
+    onOpenReview: ((String) -> Unit)? = null,
+    startFen: String? = null
 ) {
     val viewModelKey = when (mode) {
         is GameMode.Remote -> "remote"
-        is GameMode.Computer -> "computer-${mode.level.id}-${mode.myColor}"
-        GameMode.Hotseat -> "hotseat"
+        is GameMode.Computer -> "computer-${mode.level.id}-${mode.myColor}-${startFen.orEmpty()}"
+        GameMode.Hotseat -> "hotseat-${startFen.orEmpty()}"
     }
     val viewModel: GameViewModel = viewModel(key = viewModelKey) {
-        GameViewModel(mode)
+        GameViewModel(mode = mode, startFen = startFen)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gameState = uiState.gameState
@@ -1308,15 +1314,26 @@ private val timeControlChoices = listOf(
 
 @Composable
 private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
+    var clockMode by remember { mutableStateOf(ClockMode.FISCHER) }
     AlertDialog(
         onDismissRequest = { onPick(null) },
         title = { Text(stringResource(Res.string.game_clock_title), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (option in ClockMode.entries) {
+                        SelectPill(
+                            text = clockModeLabel(option),
+                            selected = option == clockMode,
+                            onClick = { clockMode = option }
+                        )
+                    }
+                }
                 for (choice in timeControlChoices) {
+                    val withMode = choice?.copy(mode = clockMode)
                     PillButton(
-                        text = choice?.label ?: stringResource(Res.string.game_no_clock),
-                        onClick = { onPick(choice) },
+                        text = withMode?.label ?: stringResource(Res.string.game_no_clock),
+                        onClick = { onPick(withMode) },
                         tone = PillTone.SOFT,
                         compact = true,
                         modifier = Modifier.fillMaxWidth()
@@ -1327,6 +1344,15 @@ private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
         confirmButton = {}
     )
 }
+
+@Composable
+private fun clockModeLabel(mode: ClockMode): String = stringResource(
+    when (mode) {
+        ClockMode.FISCHER -> Res.string.clock_mode_fischer
+        ClockMode.BRONSTEIN -> Res.string.clock_mode_bronstein
+        ClockMode.DELAY -> Res.string.clock_mode_delay
+    }
+)
 
 @Composable
 private fun PromotionDialog(

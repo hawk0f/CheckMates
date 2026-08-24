@@ -49,6 +49,9 @@ object GameRooms : Table("game_rooms") {
     val status = varchar("status", 24)
     val initialSeconds = integer("initial_seconds").default(-1)
     val incrementSeconds = integer("increment_seconds").default(-1)
+    val clockMode = varchar("clock_mode", 12).default("fischer")
+    val blackInitialSeconds = integer("black_initial_seconds").default(-1)
+    val blackIncrementSeconds = integer("black_increment_seconds").default(-1)
     val uciHistory = text("uci_history").default("")
     val turnStartedAtMillis = long("turn_started_at_millis").default(0)
     val lastActivityMillis = long("last_activity_millis").default(0)
@@ -82,7 +85,7 @@ object SchemaVersion : Table("schema_version") {
 
 object Db {
 
-    const val LATEST_VERSION = 4
+    const val LATEST_VERSION = 5
 
     fun init(path: String): Database {
         File(path).parentFile?.mkdirs()
@@ -122,6 +125,11 @@ object Db {
         }
         if (current < 4) {
             exec("CREATE INDEX IF NOT EXISTS user_ratings_board ON user_ratings(speed, rating)")
+        }
+        if (current in 1 until 5) {
+            runCatching { exec("ALTER TABLE game_rooms ADD COLUMN clock_mode TEXT NOT NULL DEFAULT 'fischer'") }
+            runCatching { exec("ALTER TABLE game_rooms ADD COLUMN black_initial_seconds INTEGER NOT NULL DEFAULT -1") }
+            runCatching { exec("ALTER TABLE game_rooms ADD COLUMN black_increment_seconds INTEGER NOT NULL DEFAULT -1") }
         }
         writeVersion(LATEST_VERSION)
     }

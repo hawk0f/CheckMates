@@ -5,9 +5,44 @@ import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 
 @Serializable
-data class TimeControl(val initialSeconds: Int, val incrementSeconds: Int) {
+enum class ClockMode(val id: String) {
+    FISCHER("fischer"),
+    BRONSTEIN("bronstein"),
+    DELAY("delay");
+
+    companion object {
+        fun byId(id: String?): ClockMode = entries.find { it.id == id } ?: FISCHER
+    }
+}
+
+@Serializable
+data class TimeControl(
+    val initialSeconds: Int,
+    val incrementSeconds: Int,
+    val mode: ClockMode = ClockMode.FISCHER,
+    val blackInitialSeconds: Int? = null,
+    val blackIncrementSeconds: Int? = null
+) {
     val label: String
-        get() = "${initialSeconds / 60}+$incrementSeconds"
+        get() {
+            val base = "${initialSeconds / 60}+$incrementSeconds"
+            val suffix = when (mode) {
+                ClockMode.FISCHER -> ""
+                ClockMode.BRONSTEIN -> " B"
+                ClockMode.DELAY -> " D"
+            }
+            val odds = if (hasOdds) " ⚖" else ""
+            return base + suffix + odds
+        }
+
+    val hasOdds: Boolean
+        get() = blackInitialSeconds != null || blackIncrementSeconds != null
+
+    fun initialSecondsFor(color: PieceColor): Int =
+        if (color == PieceColor.BLACK) blackInitialSeconds ?: initialSeconds else initialSeconds
+
+    fun incrementSecondsFor(color: PieceColor): Int =
+        if (color == PieceColor.BLACK) blackIncrementSeconds ?: incrementSeconds else incrementSeconds
 }
 
 @Serializable
