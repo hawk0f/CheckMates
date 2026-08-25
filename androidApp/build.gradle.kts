@@ -17,6 +17,10 @@ dependencies {
     implementation(libs.firebase.messaging)
 }
 
+base {
+    archivesName = "CheckMates"
+}
+
 android {
     namespace = "dev.hawk0f.checkmates.app"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -49,6 +53,9 @@ android {
         }
     }
     buildTypes {
+        getByName("debug") {
+            versionNameSuffix = "-dev"
+        }
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -68,6 +75,14 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set(output.versionName.map { version -> "CheckMates-$version.apk" })
+        }
     }
 }
 
