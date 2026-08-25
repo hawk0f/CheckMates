@@ -104,7 +104,17 @@ object SchemaVersion : Table("schema_version") {
 
 object Db {
 
-    const val LATEST_VERSION = 6
+    const val LATEST_VERSION = 7
+
+    private val ADDED_COLUMNS = listOf(
+        Triple("auth_sessions", "expires_at_millis", "INTEGER NOT NULL DEFAULT 0"),
+        Triple("game_rooms", "clock_mode", "TEXT NOT NULL DEFAULT 'fischer'"),
+        Triple("game_rooms", "black_initial_seconds", "INTEGER NOT NULL DEFAULT -1"),
+        Triple("game_rooms", "black_increment_seconds", "INTEGER NOT NULL DEFAULT -1"),
+        Triple("user_ratings", "games", "INTEGER NOT NULL DEFAULT 0"),
+        Triple("user_ratings", "last_played_millis", "INTEGER NOT NULL DEFAULT 0"),
+        Triple("users", "push_token", "TEXT")
+    )
 
     fun init(path: String): Database {
         File(path).parentFile?.mkdirs()
@@ -141,9 +151,7 @@ object Db {
             return
         }
         if (current < 2) {
-            if (!columnExists("auth_sessions", "expires_at_millis")) {
-                exec("ALTER TABLE auth_sessions ADD COLUMN expires_at_millis INTEGER NOT NULL DEFAULT 0")
-            }
+            ensureColumn("auth_sessions", "expires_at_millis", "INTEGER NOT NULL DEFAULT 0")
             exec("CREATE INDEX IF NOT EXISTS auth_sessions_user_id ON auth_sessions(user_id)")
             exec("CREATE INDEX IF NOT EXISTS game_records_user_finished ON game_records(user_id, finished_at_millis)")
         }
@@ -154,20 +162,9 @@ object Db {
         if (current < 4) {
             exec("CREATE INDEX IF NOT EXISTS user_ratings_board ON user_ratings(speed, rating)")
         }
-        if (current in 1 until 5) {
-            if (!columnExists("game_rooms", "clock_mode")) {
-                exec("ALTER TABLE game_rooms ADD COLUMN clock_mode TEXT NOT NULL DEFAULT 'fischer'")
-            }
-            if (!columnExists("game_rooms", "black_initial_seconds")) {
-                exec("ALTER TABLE game_rooms ADD COLUMN black_initial_seconds INTEGER NOT NULL DEFAULT -1")
-            }
-            if (!columnExists("game_rooms", "black_increment_seconds")) {
-                exec("ALTER TABLE game_rooms ADD COLUMN black_increment_seconds INTEGER NOT NULL DEFAULT -1")
-            }
-        }
-        if (current in 1 until 6) {
-            if (!columnExists("users", "push_token")) {
-                exec("ALTER TABLE users ADD COLUMN push_token TEXT")
+        if (current < 7) {
+            for ((table, column, definition) in ADDED_COLUMNS) {
+                ensureColumn(table, column, definition)
             }
         }
         writeVersion(LATEST_VERSION)
@@ -177,6 +174,12 @@ object Db {
         exec("SELECT version FROM schema_version WHERE id = 1") { rs ->
             if (rs.next()) rs.getInt("version") else 0
         } ?: 0
+
+    private fun JdbcTransaction.ensureColumn(table: String, column: String, definition: String) {
+        if (!columnExists(table, column)) {
+            exec("ALTER TABLE $table ADD COLUMN $column $definition")
+        }
+    }
 
     private fun JdbcTransaction.columnExists(table: String, column: String): Boolean =
         exec("PRAGMA table_info($table)") { rs ->
