@@ -730,20 +730,39 @@ class GameViewModel(
     }
 
     fun newGame() {
-        if (mode is GameMode.Hotseat) {
-            game = ChessGame()
-            recordUploaded = false
-            val series = _uiState.value
-            _uiState.value = initialUiState().copy(
-                timeControl = hotseatTimeControl,
-                whiteMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
-                blackMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) },
-                showTimePicker = false,
-                seriesMyWins = series.seriesMyWins,
-                seriesOpponentWins = series.seriesOpponentWins,
-                seriesDraws = series.seriesDraws
-            )
-            savedGames.clear()
+        when (mode) {
+            GameMode.Hotseat -> {
+                game = ChessGame()
+                recordUploaded = false
+                val series = _uiState.value
+                _uiState.value = initialUiState().copy(
+                    timeControl = hotseatTimeControl,
+                    whiteMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
+                    blackMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) },
+                    showTimePicker = false,
+                    seriesMyWins = series.seriesMyWins,
+                    seriesOpponentWins = series.seriesOpponentWins,
+                    seriesDraws = series.seriesDraws
+                )
+                savedGames.clear()
+            }
+
+            is GameMode.Computer -> {
+                engineJob?.cancel()
+                game = ChessGame()
+                recordUploaded = false
+                val series = _uiState.value
+                _uiState.value = initialUiState().copy(
+                    myColor = mode.myColor,
+                    showTimePicker = false,
+                    seriesMyWins = series.seriesMyWins,
+                    seriesOpponentWins = series.seriesOpponentWins,
+                    seriesDraws = series.seriesDraws
+                )
+                maybeStartEngineTurn()
+            }
+
+            is GameMode.Remote -> Unit
         }
     }
 

@@ -1052,7 +1052,9 @@ private fun GameOverPanel(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    val pairs = allMovePairs(uiState.gameState.uciHistory)
+                    val pairs = remember(uiState.gameState.uciHistory) {
+                        allMovePairs(uiState.gameState.uciHistory)
+                    }
                     if (pairs.isEmpty()) {
                         Text(
                             text = stringResource(Res.string.game_no_moves_were_played),
@@ -1256,12 +1258,13 @@ private fun connectionNote(uiState: GameUiState): String? = when {
 }
 
 private fun allMovePairs(history: List<String>): List<String> {
+    val moves = readableMoves(history)
     val pairs = mutableListOf<String>()
     var index = 0
-    while (index < history.size) {
+    while (index < moves.size) {
         val number = index / 2 + 1
-        val white = history[index]
-        val black = history.getOrNull(index + 1)
+        val white = moves[index]
+        val black = moves.getOrNull(index + 1)
         pairs.add(if (black != null) "$number. $white  $black" else "$number. $white")
         index += 2
     }
@@ -1273,17 +1276,21 @@ private fun movePairs(history: List<String>): List<String> {
     if (history.isEmpty()) {
         return listOf(stringResource(Res.string.game_no_moves_yet))
     }
+    val moves = remember(history) { readableMoves(history) }
     val pairs = mutableListOf<String>()
     var index = 0
-    while (index < history.size) {
+    while (index < moves.size) {
         val number = index / 2 + 1
-        val white = history[index]
-        val black = history.getOrNull(index + 1)
+        val white = moves[index]
+        val black = moves.getOrNull(index + 1)
         pairs.add(if (black != null) "$number. $white $black" else "$number. $white")
         index += 2
     }
     return pairs.takeLast(2)
 }
+
+private fun readableMoves(history: List<String>): List<String> =
+    SanFormatter.sanMoves(history).takeIf { it.size == history.size } ?: history
 
 private fun seriesValue(uiState: GameUiState): String =
     "${uiState.seriesMyWins} · ${uiState.seriesOpponentWins} · ${uiState.seriesDraws}"

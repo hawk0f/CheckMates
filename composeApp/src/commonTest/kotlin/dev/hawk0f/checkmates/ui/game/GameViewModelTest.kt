@@ -17,6 +17,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -405,6 +406,44 @@ class GameViewModelTest {
         fixture.session.messages.tryEmit(GameMessage.GameOver(GameOverReason.RESIGNATION, PieceColor.BLACK))
         dispatcher.scheduler.runCurrent()
         assertTrue(viewModel.uiState.value.premoves.isEmpty())
+    }
+
+    @Test
+    fun newGameResetsAComputerGame() {
+        val viewModel = GameViewModel(
+            GameMode.Computer(level = EngineLevel.ONE, myColor = PieceColor.WHITE),
+            FakeSavedGames(),
+            dispatcher
+        )
+        dispatcher.scheduler.runCurrent()
+        viewModel.tap("e2", "e4")
+        repeat(6) { dispatcher.scheduler.runCurrent() }
+        assertTrue(viewModel.uiState.value.gameState.uciHistory.isNotEmpty())
+
+        viewModel.newGame()
+        repeat(6) { dispatcher.scheduler.runCurrent() }
+
+        assertTrue(viewModel.uiState.value.gameState.uciHistory.isEmpty())
+        assertEquals(PieceColor.WHITE, viewModel.uiState.value.gameState.sideToMove)
+        assertEquals(PieceColor.WHITE, viewModel.uiState.value.myColor)
+        assertFalse(viewModel.uiState.value.showTimePicker)
+    }
+
+    @Test
+    fun newGameLetsTheComputerOpenWhenIPlayBlack() {
+        val viewModel = GameViewModel(
+            GameMode.Computer(level = EngineLevel.ONE, myColor = PieceColor.BLACK),
+            FakeSavedGames(),
+            dispatcher
+        )
+        repeat(8) { dispatcher.scheduler.runCurrent() }
+        assertEquals(1, viewModel.uiState.value.gameState.uciHistory.size)
+
+        viewModel.newGame()
+        repeat(8) { dispatcher.scheduler.runCurrent() }
+
+        assertEquals(1, viewModel.uiState.value.gameState.uciHistory.size)
+        assertEquals(PieceColor.BLACK, viewModel.uiState.value.gameState.sideToMove)
     }
 
     @Test
