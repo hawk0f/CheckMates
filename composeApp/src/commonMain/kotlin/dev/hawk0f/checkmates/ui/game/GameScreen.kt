@@ -1,19 +1,15 @@
 package dev.hawk0f.checkmates.ui.game
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -47,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
@@ -165,6 +163,7 @@ import dev.hawk0f.checkmates.resources.game_premoves_queued
 import dev.hawk0f.checkmates.shared.domain.Square
 
 private val SheetPeekHeight = 172.dp
+private val RevealSlide = 18.dp
 
 @Composable
 fun GameScreen(
@@ -301,6 +300,12 @@ private fun PlayingPanel(
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
     val expanded = sheetState.targetValue == SheetValue.Expanded
+    val offerIncoming = uiState.drawOfferIncoming || uiState.takebackOfferIncoming
+    LaunchedEffect(offerIncoming) {
+        if (offerIncoming) {
+            sheetState.expand()
+        }
+    }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -349,7 +354,7 @@ private fun PlayingPanel(
                     sideColor = bottomColor.opposite,
                     alignEnd = true,
                     clockSize = false,
-                    rotated = !viewModel.isRemote
+                    rotated = viewModel.isHotseat
                 )
             }
 
@@ -375,7 +380,10 @@ private fun PlayingPanel(
                     listOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
                 }.toSet()
             }
-            BoardBox(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), maxSize = 560.dp) { boardModifier ->
+            BoardBox(
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(vertical = 6.dp),
+                maxSize = 560.dp
+            ) { boardModifier ->
                 ChessBoard(
                     gameState = previewState ?: uiState.premoveState ?: gameState,
                     selected = if (previewState == null) selected else null,
@@ -384,6 +392,7 @@ private fun PlayingPanel(
                     onSquareTap = viewModel::onSquareTap,
                     interactive = previewState == null,
                     premoveSquares = if (previewState == null) premoveSquares + hintSquares else emptySet(),
+                    rotatedColor = if (viewModel.isHotseat) bottomColor.opposite else null,
                     modifier = boardModifier
                 )
             }
@@ -474,133 +483,6 @@ private fun GameSheet(
             bottomColor = bottomColor,
             isRemote = viewModel.isRemote
         )
-
-        SheetReveal(visible = expanded) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (uiState.engineThinking || uiState.hint != null) {
-                    Text(
-                        text = if (uiState.engineThinking) {
-                            stringResource(Res.string.computer_thinking)
-                        } else {
-                            stringResource(Res.string.game_hint_move, uiState.hint.orEmpty())
-                        },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = accents.onBand
-                    )
-                }
-                if (uiState.premoves.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SectionLabel(
-                            text = stringResource(Res.string.game_premoves_queued, uiState.premoves.size),
-                            color = accents.bandStrong
-                        )
-                        PillButton(
-                            text = stringResource(Res.string.game_clear_premoves),
-                            onClick = viewModel::clearPremoves,
-                            tone = PillTone.SOFT,
-                            compact = true
-                        )
-                    }
-                }
-                AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
-                MovesGrid(
-                    history = uiState.gameState.uciHistory,
-                    previewPly = previewPly,
-                    onSelectPly = onSelectPly,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 280.dp)
-                )
-            }
-        }
-
-        if (uiState.drawOfferIncoming) {
-            SoftCard(container = accents.band, corner = 20.dp, modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(Res.string.game_draw_offered),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = accents.onBand,
-                        modifier = Modifier.weight(1f)
-                    )
-                    PillButton(
-                        text = stringResource(Res.string.game_accept),
-                        onClick = viewModel::acceptDraw,
-                        tone = PillTone.INK,
-                        compact = true
-                    )
-                    PillButton(
-                        text = stringResource(Res.string.game_decline),
-                        onClick = viewModel::declineDraw,
-                        tone = PillTone.SOFT,
-                        compact = true
-                    )
-                }
-            }
-        }
-
-        if (takebackIncoming || uiState.takebackOfferIncoming) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(scheme.surfaceVariant)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(Res.string.game_takeback_requested),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f)
-                )
-                PillButton(
-                    text = stringResource(Res.string.game_allow),
-                    onClick = { viewModel.answerTakeback(true) },
-                    tone = PillTone.ACCENT,
-                    compact = true
-                )
-                PillButton(
-                    text = "No",
-                    onClick = { viewModel.answerTakeback(false) },
-                    tone = PillTone.SOFT,
-                    compact = true
-                )
-            }
-        }
-
-        val goneSeconds = opponentGone
-        if (lichess != null && goneSeconds != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (goneSeconds > 0) {
-                        stringResource(Res.string.game_opponent_gone_countdown, goneSeconds)
-                    } else {
-                        stringResource(Res.string.game_opponent_gone)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-                PillButton(
-                    text = stringResource(Res.string.game_claim_win),
-                    onClick = viewModel::claimVictory,
-                    tone = PillTone.INK,
-                    compact = true,
-                    enabled = goneSeconds == 0
-                )
-            }
-        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -726,6 +608,135 @@ private fun GameSheet(
             style = MaterialTheme.typography.bodySmall,
             color = scheme.outline
         )
+
+        SheetReveal(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (uiState.drawOfferIncoming) {
+                    SoftCard(container = accents.band, corner = 20.dp, modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.game_draw_offered),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = accents.onBand,
+                                modifier = Modifier.weight(1f)
+                            )
+                            PillButton(
+                                text = stringResource(Res.string.game_accept),
+                                onClick = viewModel::acceptDraw,
+                                tone = PillTone.INK,
+                                compact = true
+                            )
+                            PillButton(
+                                text = stringResource(Res.string.game_decline),
+                                onClick = viewModel::declineDraw,
+                                tone = PillTone.SOFT,
+                                compact = true
+                            )
+                        }
+                    }
+                }
+
+                if (takebackIncoming || uiState.takebackOfferIncoming) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(scheme.surfaceVariant)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.game_takeback_requested),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        PillButton(
+                            text = stringResource(Res.string.game_allow),
+                            onClick = { viewModel.answerTakeback(true) },
+                            tone = PillTone.ACCENT,
+                            compact = true
+                        )
+                        PillButton(
+                            text = "No",
+                            onClick = { viewModel.answerTakeback(false) },
+                            tone = PillTone.SOFT,
+                            compact = true
+                        )
+                    }
+                }
+
+                val goneSeconds = opponentGone
+                if (lichess != null && goneSeconds != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (goneSeconds > 0) {
+                                stringResource(Res.string.game_opponent_gone_countdown, goneSeconds)
+                            } else {
+                                stringResource(Res.string.game_opponent_gone)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        PillButton(
+                            text = stringResource(Res.string.game_claim_win),
+                            onClick = viewModel::claimVictory,
+                            tone = PillTone.INK,
+                            compact = true,
+                            enabled = goneSeconds == 0
+                        )
+                    }
+                }
+
+                if (uiState.engineThinking || uiState.hint != null) {
+                    Text(
+                        text = if (uiState.engineThinking) {
+                            stringResource(Res.string.computer_thinking)
+                        } else {
+                            stringResource(Res.string.game_hint_move, uiState.hint.orEmpty())
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        color = accents.onBand
+                    )
+                }
+
+                if (uiState.premoves.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SectionLabel(
+                            text = stringResource(Res.string.game_premoves_queued, uiState.premoves.size),
+                            color = accents.bandStrong
+                        )
+                        PillButton(
+                            text = stringResource(Res.string.game_clear_premoves),
+                            onClick = viewModel::clearPremoves,
+                            tone = PillTone.SOFT,
+                            compact = true
+                        )
+                    }
+                }
+
+                AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
+                MovesGrid(
+                    history = uiState.gameState.uciHistory,
+                    previewPly = previewPly,
+                    onSelectPly = onSelectPly,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 280.dp)
+                )
+            }
+        }
     }
 }
 
@@ -734,14 +745,16 @@ private fun SheetReveal(
     visible: Boolean,
     content: @Composable () -> Unit
 ) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(220, delayMillis = 60)) +
-            expandVertically(tween(260)) +
-            slideInVertically(tween(260)) { it / 3 },
-        exit = fadeOut(tween(140)) +
-            shrinkVertically(tween(220)) +
-            slideOutVertically(tween(220)) { it / 3 }
+    val progress by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 260)
+    )
+    val slide = with(LocalDensity.current) { RevealSlide.toPx() }
+    Box(
+        modifier = Modifier.graphicsLayer {
+            alpha = progress
+            translationY = (1f - progress) * slide
+        }
     ) {
         content()
     }
@@ -1351,6 +1364,7 @@ private val timeControlChoices = listOf(
     TimeControl(900, 10)
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
     var clockMode by remember { mutableStateOf(ClockMode.FISCHER) }
@@ -1359,7 +1373,10 @@ private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
         title = { Text(stringResource(Res.string.game_clock_title), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     for (option in ClockMode.entries) {
                         SelectPill(
                             text = clockModeLabel(option),

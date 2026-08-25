@@ -33,6 +33,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -167,7 +168,8 @@ fun ChessBoard(
     modifier: Modifier = Modifier,
     showCoordinates: Boolean = true,
     interactive: Boolean = true,
-    premoveSquares: Set<Square> = emptySet()
+    premoveSquares: Set<Square> = emptySet(),
+    rotatedColor: PieceColor? = null
 ) {
     var boardSizePx by remember { mutableStateOf(0) }
     var dragFrom by remember(gameState.fen) { mutableStateOf<Square?>(null) }
@@ -291,7 +293,7 @@ fun ChessBoard(
                                 .size(cellDp),
                             contentAlignment = Alignment.Center
                         ) {
-                            PieceGlyph(tracked.piece)
+                            PieceGlyph(tracked.piece, rotated = tracked.piece.color == rotatedColor)
                         }
                     }
                 }
@@ -310,7 +312,7 @@ fun ChessBoard(
                         }
                         .size(with(LocalDensity.current) { cell.toDp() })
                 ) {
-                    PieceGlyph(piece)
+                    PieceGlyph(piece, rotated = piece.color == rotatedColor)
                 }
             }
         }
@@ -386,7 +388,7 @@ private fun BoardCell(
 }
 
 @Composable
-private fun PieceGlyph(piece: Piece) {
+private fun PieceGlyph(piece: Piece, rotated: Boolean = false) {
     val resource = when (piece.color to piece.kind) {
         PieceColor.WHITE to PieceKind.KING -> Res.drawable.piece_wk
         PieceColor.WHITE to PieceKind.QUEEN -> Res.drawable.piece_wq
@@ -404,7 +406,9 @@ private fun PieceGlyph(piece: Piece) {
     Image(
         painter = painterResource(resource),
         contentDescription = null,
-        modifier = Modifier.fillMaxSize(0.92f)
+        modifier = Modifier
+            .fillMaxSize(0.92f)
+            .then(if (rotated) Modifier.rotate(180f) else Modifier)
     )
 }
 

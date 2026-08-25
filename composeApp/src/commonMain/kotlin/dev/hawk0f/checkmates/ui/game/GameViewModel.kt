@@ -777,6 +777,8 @@ class GameViewModel(
 
     val isRemote: Boolean get() = mode is GameMode.Remote
 
+    val isHotseat: Boolean get() = mode is GameMode.Hotseat
+
     val supportsRematch: Boolean get() = (mode as? GameMode.Remote)?.session?.kind == "online"
 
     val lichessTransport: LichessGameTransport?
