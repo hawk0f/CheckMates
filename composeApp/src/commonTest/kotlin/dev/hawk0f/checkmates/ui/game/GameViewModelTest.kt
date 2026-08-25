@@ -276,6 +276,41 @@ class GameViewModelTest {
     }
 
     @Test
+    fun aResyncAfterAMissedGameOverEndsTheGame() {
+        val fixture = RemoteFixture(PieceColor.BLACK)
+        val viewModel = remote(fixture)
+        viewModel.tap("e7", "e5")
+        assertTrue(viewModel.uiState.value.premoves.isNotEmpty())
+
+        fixture.session.messages.tryEmit(
+            GameMessage.Resync(
+                fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                uciHistory = emptyList(),
+                drawOfferPending = false,
+                resultReason = GameOverReason.TIMEOUT,
+                resultWinner = PieceColor.BLACK
+            )
+        )
+        dispatcher.scheduler.runCurrent()
+
+        val result = assertNotNull(viewModel.uiState.value.gameState.result)
+        assertEquals(GameOverReason.TIMEOUT, result.reason)
+        assertEquals(PieceColor.BLACK, result.winner)
+        assertTrue(viewModel.uiState.value.premoves.isEmpty())
+    }
+
+    @Test
+    fun aResyncOfALiveGameLeavesItRunning() {
+        val fixture = RemoteFixture(PieceColor.BLACK)
+        val viewModel = remote(fixture)
+
+        fixture.resync("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        dispatcher.scheduler.runCurrent()
+
+        assertNull(viewModel.uiState.value.gameState.result)
+    }
+
+    @Test
     fun premovesQueueWhileItIsNotMyTurn() {
         val fixture = RemoteFixture(PieceColor.BLACK)
         val viewModel = remote(fixture)

@@ -183,7 +183,9 @@ sealed interface GameMessage {
         val drawOfferPending: Boolean,
         val timeControl: TimeControl? = null,
         val whiteMillis: Long? = null,
-        val blackMillis: Long? = null
+        val blackMillis: Long? = null,
+        val resultReason: GameOverReason? = null,
+        val resultWinner: PieceColor? = null
     ) : GameMessage
 
     @Serializable

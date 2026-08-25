@@ -323,6 +323,10 @@ class GameViewModel(
                 if (replayFailed || game.fen() != message.fen) {
                     rebuildFromFen(message.fen)
                 }
+                val missedResult = message.resultReason?.takeIf { game.state().result == null }
+                if (missedResult != null) {
+                    game.finish(missedResult, message.resultWinner)
+                }
                 _uiState.value = _uiState.value.copy(
                     gameState = game.state(),
                     takebackOfferIncoming = false,
@@ -330,10 +334,15 @@ class GameViewModel(
                     drawOfferIncoming = message.drawOfferPending && _uiState.value.drawOfferIncoming,
                     selected = null,
                     legalTargets = emptySet(),
+                    premoves = if (missedResult != null) emptyList() else _uiState.value.premoves,
+                    premoveState = if (missedResult != null) null else _uiState.value.premoveState,
                     timeControl = message.timeControl ?: _uiState.value.timeControl,
                     whiteMillis = message.whiteMillis ?: _uiState.value.whiteMillis,
                     blackMillis = message.blackMillis ?: _uiState.value.blackMillis
                 )
+                if (missedResult != null) {
+                    maybeUploadRecord()
+                }
             }
 
             is GameMessage.GameOver -> {

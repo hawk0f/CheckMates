@@ -669,7 +669,9 @@ class GameRoom(
         drawOfferPending = drawOfferedBy != null,
         timeControl = timeControl,
         whiteMillis = currentClock(PieceColor.WHITE),
-        blackMillis = currentClock(PieceColor.BLACK)
+        blackMillis = currentClock(PieceColor.BLACK),
+        resultReason = game.state().result?.reason,
+        resultWinner = game.state().result?.winner
     )
 
     private suspend fun broadcast(message: GameMessage) {
