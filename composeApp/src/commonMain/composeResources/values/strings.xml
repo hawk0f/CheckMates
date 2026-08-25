@@ -10,6 +10,7 @@
     <string name="home_tap_to_keep_playing">Tap to keep playing</string>
     <string name="home_white_moves_first">White moves first</string>
     <string name="home_resume">Resume</string>
+    <string name="home_resuming">Reconnecting…</string>
     <string name="home_start">Start</string>
     <string name="home_new_game">New game</string>
     <string name="home_lichess">Lichess</string>
@@ -303,7 +304,7 @@ Lichess account</string>
     <string name="lichess_nav_watch">Watch</string>
     <string name="lichess_nav_players">Players</string>
     <string name="lichess_your_turn">your turn</string>
-    <string name="lichess_their_turn">their turn</string>
+    <string name="lichess_their_turn">opponent to move</string>
     <string name="seek_title">Find a game</string>
     <string name="seek_looking_for">Looking for a %1$s game</string>
     <string name="seek_stream_note">The seek stays open while this request streams. Closing it cancels.</string>
@@ -365,7 +366,7 @@ Lichess account</string>
     <string name="game_stream_reconnecting">reconnecting</string>
     <string name="game_advantage">Advantage</string>
     <string name="game_advantage_mine">+%1$d you · material</string>
-    <string name="game_advantage_theirs">%1$d them · material</string>
+    <string name="game_advantage_theirs">%1$d opponent · material</string>
     <string name="game_advantage_level">level · material</string>
     <string name="game_moves_with_count">Moves · %1$d</string>
     <string name="game_no_moves_yet">No moves yet</string>
@@ -374,7 +375,7 @@ Lichess account</string>
     <string name="game_wants_rematch">%1$s wants a rematch</string>
     <string name="game_opponent_fallback">Opponent</string>
     <string name="game_moves_played">Moves played</string>
-    <string name="game_series_remote">You · them · drawn</string>
+    <string name="game_series_remote">You · opponent · drawn</string>
     <string name="game_series_local">White · black · drawn</string>
     <string name="game_the_game">The game</string>
     <string name="game_no_moves_were_played">No moves were played.</string>
@@ -385,7 +386,7 @@ Lichess account</string>
     <string name="game_exit">Exit</string>
     <string name="game_you">You</string>
     <string name="game_your_move">Your move</string>
-    <string name="game_their_move">Their move</string>
+    <string name="game_their_move">Opponent to move</string>
     <string name="game_white_to_move">White to move</string>
     <string name="game_black_to_move">Black to move</string>
     <string name="game_opening_move">Opening move</string>
@@ -448,7 +449,7 @@ Lichess account</string>
     <string name="flow_checkmates_details">Bullet, blitz and rapid with friends, pass and play, Bluetooth, play against the computer, puzzles and analysis.</string>
     <string name="flow_lichess_name">Lichess</string>
     <string name="flow_lichess_tagline">Your lichess.org account</string>
-    <string name="flow_lichess_details">Rapid and classical seeks, tournaments, puzzles, the opening explorer and live broadcasts. Their Board API does not allow bullet or blitz.</string>
+    <string name="flow_lichess_details">Rapid and classical seeks, tournaments, puzzles, the opening explorer and live broadcasts. The Lichess Board API does not allow bullet or blitz.</string>
     <string name="flow_continue">Continue</string>
     <string name="flow_switch_to">Switch to %1$s</string>
     <string name="flow_current">Playing on %1$s</string>
@@ -458,7 +459,7 @@ Lichess account</string>
     <string name="flow_switch_confirm">Switch</string>
     <string name="flow_switch_cancel">Stay</string>
     <string name="a11y_switch_service">Switch service</string>
-    <string name="lichess_speed_note">Lichess allows only rapid and slower over their Board API. Bullet and blitz live in the CheckMates service.</string>
+    <string name="lichess_speed_note">Lichess allows only rapid and slower over the Lichess Board API. Bullet and blitz live in the CheckMates service.</string>
     <string name="computer_title">Play the computer</string>
     <string name="computer_level">Level %1$d</string>
     <string name="computer_level_label">Strength</string>

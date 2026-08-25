@@ -85,7 +85,13 @@ class OnlineLobbyViewModel : ViewModel() {
                     gameId = created.gameId,
                     playerToken = created.playerToken
                 )
-                val session = ActiveGameSession(transport, kind = "online", myName = state.playerName.ifBlank { "Host" })
+                val session = ActiveGameSession(
+                    transport = transport,
+                    kind = "online",
+                    myName = state.playerName.ifBlank { "Host" },
+                    gameId = created.gameId,
+                    playerToken = created.playerToken
+                )
                 GameSessionHolder.install(session)
                 transport.start(session.scope)
                 _uiState.value = _uiState.value.copy(
@@ -191,7 +197,13 @@ class OnlineLobbyViewModel : ViewModel() {
             gameId = matched.gameId,
             playerToken = matched.playerToken
         )
-        val session = ActiveGameSession(transport, kind = "online", myName = name)
+        val session = ActiveGameSession(
+            transport = transport,
+            kind = "online",
+            myName = name,
+            gameId = matched.gameId,
+            playerToken = matched.playerToken
+        )
         GameSessionHolder.install(session)
         transport.start(session.scope)
         session.myColor.filter { it != null }.first()

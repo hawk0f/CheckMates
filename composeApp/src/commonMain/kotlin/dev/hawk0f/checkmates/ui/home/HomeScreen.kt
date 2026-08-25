@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,7 +34,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.session.AuthManager
-import dev.hawk0f.checkmates.session.GameSessionHolder
 import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
@@ -70,6 +70,7 @@ import dev.hawk0f.checkmates.resources.home_result_draw_short
 import dev.hawk0f.checkmates.resources.home_result_loss_short
 import dev.hawk0f.checkmates.resources.home_result_win_short
 import dev.hawk0f.checkmates.resources.home_resume
+import dev.hawk0f.checkmates.resources.home_resuming
 import dev.hawk0f.checkmates.resources.home_start
 import dev.hawk0f.checkmates.resources.home_tap_to_keep_playing
 import dev.hawk0f.checkmates.resources.home_two_players_one_device
@@ -106,16 +107,26 @@ fun HomeScreen(
 ) {
     val profile by AuthManager.profile.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
-    val liveSession = GameSessionHolder.current
+    val resumable by viewModel.resumable.collectAsStateWithLifecycle()
+    val resuming by viewModel.resuming.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshResumable()
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         HeroCard(
             profile = profile,
-            opponentName = liveSession?.opponentName?.value,
-            hasLiveGame = liveSession != null,
+            opponentName = resumable?.opponentName,
+            hasLiveGame = resumable != null,
+            resuming = resuming,
             onOpenProfile = onOpenProfile,
             onOpenSettings = onOpenSettings,
-            onPrimaryAction = if (liveSession != null) onResumeGame else onPassAndPlay
+            onPrimaryAction = if (resumable != null) {
+                { viewModel.resumeGame(onResumeGame) }
+            } else {
+                onPassAndPlay
+            }
         )
         Column(
             modifier = Modifier
@@ -150,6 +161,7 @@ private fun HeroCard(
     profile: ProfileResponse?,
     opponentName: String?,
     hasLiveGame: Boolean,
+    resuming: Boolean,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onPrimaryAction: () -> Unit
@@ -299,8 +311,15 @@ private fun HeroCard(
                 color = accents.onBand
             )
             PillButton(
-                text = stringResource(if (hasLiveGame) Res.string.home_resume else Res.string.home_start),
+                text = stringResource(
+                    when {
+                        resuming -> Res.string.home_resuming
+                        hasLiveGame -> Res.string.home_resume
+                        else -> Res.string.home_start
+                    }
+                ),
                 onClick = onPrimaryAction,
+                enabled = !resuming,
                 tone = PillTone.INK,
                 compact = true
             )

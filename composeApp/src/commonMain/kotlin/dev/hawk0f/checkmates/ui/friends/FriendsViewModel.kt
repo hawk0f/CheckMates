@@ -126,7 +126,13 @@ class FriendsViewModel(
                     playerToken = challenge.playerToken
                 )
                 val myName = AuthManager.profile.value?.displayName.orEmpty().ifBlank { "Host" }
-                val session = ActiveGameSession(transport, kind = "online", myName = myName)
+                val session = ActiveGameSession(
+                    transport = transport,
+                    kind = "online",
+                    myName = myName,
+                    gameId = challenge.gameId,
+                    playerToken = challenge.playerToken
+                )
                 GameSessionHolder.install(session)
                 transport.start(session.scope)
                 _uiState.value = _uiState.value.copy(

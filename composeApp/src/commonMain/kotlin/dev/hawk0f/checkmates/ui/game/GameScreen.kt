@@ -1,5 +1,13 @@
 package dev.hawk0f.checkmates.ui.game
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,8 +29,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -150,6 +164,8 @@ import dev.hawk0f.checkmates.resources.game_hint_move
 import dev.hawk0f.checkmates.resources.game_premoves_queued
 import dev.hawk0f.checkmates.shared.domain.Square
 
+private val SheetPeekHeight = 172.dp
+
 @Composable
 fun GameScreen(
     mode: GameMode,
@@ -261,6 +277,7 @@ fun GameScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlayingPanel(
     uiState: GameUiState,
@@ -273,100 +290,117 @@ private fun PlayingPanel(
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val gameState = uiState.gameState
+    val history = gameState.uciHistory
+    var previewPly by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(history.size) {
+        previewPly = null
+    }
+    val sheetState = rememberStandardBottomSheetState(
+        initialValue = SheetValue.PartiallyExpanded,
+        skipHiddenState = true
+    )
+    val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
+    val expanded = sheetState.targetValue == SheetValue.Expanded
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircleButton(
-                    onClick = onExit,
-                    container = scheme.onSurface.copy(alpha = 0.08f),
-                    contentDescription = stringResource(Res.string.a11y_back)
-                ) {
-                    ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
-                }
-                uiState.connectionState?.let { state ->
-                    StreamChip(connected = state is TransportConnectionState.Connected)
-                }
-            }
-            PlayerBlock(
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = SheetPeekHeight,
+        sheetContainerColor = scheme.background,
+        sheetContentColor = scheme.onSurface,
+        sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        sheetTonalElevation = 0.dp,
+        containerColor = accents.pageAlt,
+        sheetContent = {
+            GameSheet(
                 uiState = uiState,
-                sideColor = bottomColor.opposite,
-                alignEnd = true,
-                clockSize = false,
-                rotated = !viewModel.isRemote
+                viewModel = viewModel,
+                bottomColor = bottomColor,
+                expanded = expanded,
+                previewPly = previewPly,
+                onSelectPly = { ply -> previewPly = ply?.takeIf { it != history.size } },
+                onResignRequest = onResignRequest,
+                onOpenReview = onOpenReview
             )
         }
-
-        val selected = uiState.selected
-        val legalTargets = uiState.legalTargets
-        val flipped = uiState.myColor == PieceColor.BLACK
-        val history = gameState.uciHistory
-        var previewPly by remember { mutableStateOf<Int?>(null) }
-        LaunchedEffect(history.size) {
-            previewPly = null
-        }
-        val previewState = remember(history, previewPly) {
-            previewPly?.let { ply ->
-                val replay = ChessGame()
-                for (uci in history.take(ply)) {
-                    replay.applyUci(uci)
+    ) { contentPadding ->
+        Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircleButton(
+                        onClick = onExit,
+                        container = scheme.onSurface.copy(alpha = 0.08f),
+                        contentDescription = stringResource(Res.string.a11y_back)
+                    ) {
+                        ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+                    }
+                    uiState.connectionState?.let { state ->
+                        StreamChip(connected = state is TransportConnectionState.Connected)
+                    }
                 }
-                replay.state()
+                PlayerBlock(
+                    uiState = uiState,
+                    sideColor = bottomColor.opposite,
+                    alignEnd = true,
+                    clockSize = false,
+                    rotated = !viewModel.isRemote
+                )
+            }
+
+            val selected = uiState.selected
+            val legalTargets = uiState.legalTargets
+            val flipped = uiState.myColor == PieceColor.BLACK
+            val previewState = remember(history, previewPly) {
+                previewPly?.let { ply ->
+                    val replay = ChessGame()
+                    for (uci in history.take(ply)) {
+                        replay.applyUci(uci)
+                    }
+                    replay.state()
+                }
+            }
+            val hintSquares = remember(uiState.hint) {
+                uiState.hint?.takeIf { it.length >= 4 }?.let { uci ->
+                    setOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
+                } ?: emptySet()
+            }
+            val premoveSquares = remember(uiState.premoves) {
+                uiState.premoves.flatMap { uci ->
+                    listOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
+                }.toSet()
+            }
+            BoardBox(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), maxSize = 560.dp) { boardModifier ->
+                ChessBoard(
+                    gameState = previewState ?: uiState.premoveState ?: gameState,
+                    selected = if (previewState == null) selected else null,
+                    legalTargets = if (previewState == null) legalTargets else emptySet(),
+                    flipped = flipped,
+                    onSquareTap = viewModel::onSquareTap,
+                    interactive = previewState == null,
+                    premoveSquares = if (previewState == null) premoveSquares + hintSquares else emptySet(),
+                    modifier = boardModifier
+                )
             }
         }
-        val hintSquares = remember(uiState.hint) {
-            uiState.hint?.takeIf { it.length >= 4 }?.let { uci ->
-                setOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
-            } ?: emptySet()
-        }
-        val premoveSquares = remember(uiState.premoves) {
-            uiState.premoves.flatMap { uci ->
-                listOf(Square.fromUci(uci.substring(0, 2)), Square.fromUci(uci.substring(2, 4)))
-            }.toSet()
-        }
-        BoardBox(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), maxSize = 560.dp) { boardModifier ->
-            ChessBoard(
-                gameState = previewState ?: uiState.premoveState ?: gameState,
-                selected = if (previewState == null) selected else null,
-                legalTargets = if (previewState == null) legalTargets else emptySet(),
-                flipped = flipped,
-                onSquareTap = viewModel::onSquareTap,
-                interactive = previewState == null,
-                premoveSquares = if (previewState == null) premoveSquares + hintSquares else emptySet(),
-                modifier = boardModifier
-            )
-        }
-
-        BottomSheet(
-            uiState = uiState,
-            viewModel = viewModel,
-            bottomColor = bottomColor,
-            onResignRequest = onResignRequest,
-            onOpenReview = onOpenReview,
-            previewPly = previewPly,
-            onSelectPly = { ply -> previewPly = ply?.takeIf { it != history.size } },
-            modifier = Modifier.weight(1f)
-        )
     }
 }
 
 @Composable
-private fun BottomSheet(
+private fun GameSheet(
     uiState: GameUiState,
     viewModel: GameViewModel,
     bottomColor: PieceColor,
-    onResignRequest: () -> Unit,
-    onOpenReview: ((String) -> Unit)?,
+    expanded: Boolean,
     previewPly: Int?,
     onSelectPly: (Int?) -> Unit,
-    modifier: Modifier = Modifier
+    onResignRequest: () -> Unit,
+    onOpenReview: ((String) -> Unit)?
 ) {
     val lichess = viewModel.lichessTransport
     val takebackIncoming by (lichess?.takebackIncoming ?: MutableStateFlow(false))
@@ -378,7 +412,6 @@ private fun BottomSheet(
     val chatLines = uiState.chat
     var chatOpen by remember { mutableStateOf(false) }
     var chatDraft by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(true) }
 
     if (chatOpen && viewModel.supportsChat) {
         AlertDialog(
@@ -431,80 +464,56 @@ private fun BottomSheet(
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp)
-            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .background(scheme.background)
-            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
+            .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 22.dp, vertical = 8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(44.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(scheme.onSurface.copy(alpha = 0.2f))
-            )
-        }
-
         MyPlayerRow(
             uiState = uiState,
             bottomColor = bottomColor,
             isRemote = viewModel.isRemote
         )
 
-        if (uiState.engineThinking || uiState.hint != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (uiState.engineThinking) {
-                        stringResource(Res.string.computer_thinking)
-                    } else {
-                        stringResource(Res.string.game_hint_move, uiState.hint.orEmpty())
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = accents.onBand
+        SheetReveal(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (uiState.engineThinking || uiState.hint != null) {
+                    Text(
+                        text = if (uiState.engineThinking) {
+                            stringResource(Res.string.computer_thinking)
+                        } else {
+                            stringResource(Res.string.game_hint_move, uiState.hint.orEmpty())
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        color = accents.onBand
+                    )
+                }
+                if (uiState.premoves.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SectionLabel(
+                            text = stringResource(Res.string.game_premoves_queued, uiState.premoves.size),
+                            color = accents.bandStrong
+                        )
+                        PillButton(
+                            text = stringResource(Res.string.game_clear_premoves),
+                            onClick = viewModel::clearPremoves,
+                            tone = PillTone.SOFT,
+                            compact = true
+                        )
+                    }
+                }
+                AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
+                MovesGrid(
+                    history = uiState.gameState.uciHistory,
+                    previewPly = previewPly,
+                    onSelectPly = onSelectPly,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 280.dp)
                 )
             }
-        }
-        if (uiState.premoves.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionLabel(
-                    text = stringResource(Res.string.game_premoves_queued, uiState.premoves.size),
-                    color = accents.bandStrong
-                )
-                PillButton(
-                    text = stringResource(Res.string.game_clear_premoves),
-                    onClick = viewModel::clearPremoves,
-                    tone = PillTone.SOFT,
-                    compact = true
-                )
-            }
-        }
-
-        if (expanded) {
-            AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
-            MovesGrid(
-                history = uiState.gameState.uciHistory,
-                previewPly = previewPly,
-                onSelectPly = onSelectPly,
-                modifier = Modifier.fillMaxWidth().weight(1f)
-            )
         }
 
         if (uiState.drawOfferIncoming) {
@@ -607,17 +616,22 @@ private fun BottomSheet(
                     modifier = Modifier.weight(1f)
                 )
             } else {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    val pairs = if (expanded) emptyList() else movePairs(uiState.gameState.uciHistory)
-                    for ((index, pair) in pairs.withIndex()) {
-                        Text(
-                            text = pair,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (index == pairs.lastIndex) scheme.onSurface else scheme.onSurfaceVariant
-                        )
+                Box(modifier = Modifier.weight(1f)) {
+                    SheetReveal(visible = !expanded) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            val pairs = movePairs(uiState.gameState.uciHistory)
+                            for ((index, pair) in pairs.withIndex()) {
+                                Text(
+                                    text = pair,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (index == pairs.lastIndex) {
+                                        scheme.onSurface
+                                    } else {
+                                        scheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -712,6 +726,24 @@ private fun BottomSheet(
             style = MaterialTheme.typography.bodySmall,
             color = scheme.outline
         )
+    }
+}
+
+@Composable
+private fun SheetReveal(
+    visible: Boolean,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(220, delayMillis = 60)) +
+            expandVertically(tween(260)) +
+            slideInVertically(tween(260)) { it / 3 },
+        exit = fadeOut(tween(140)) +
+            shrinkVertically(tween(220)) +
+            slideOutVertically(tween(220)) { it / 3 }
+    ) {
+        content()
     }
 }
 
