@@ -200,7 +200,7 @@ fun GameScreen(
     val bottomColor = uiState.myColor ?: PieceColor.WHITE
     var confirmingResign by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(accents.pageAlt)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (gameState.result != null) {
             GameOverPanel(
                 uiState = uiState,
@@ -310,11 +310,12 @@ private fun PlayingPanel(
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = SheetPeekHeight,
-        sheetContainerColor = scheme.background,
+        sheetContainerColor = scheme.surfaceContainer,
         sheetContentColor = scheme.onSurface,
         sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         sheetTonalElevation = 0.dp,
-        containerColor = accents.pageAlt,
+        sheetShadowElevation = 12.dp,
+        containerColor = scheme.background,
         sheetContent = {
             GameSheet(
                 uiState = uiState,

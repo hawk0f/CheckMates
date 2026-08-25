@@ -95,7 +95,7 @@ fun ReplayScreen(
     val shareText = rememberShareText()
     val total = item.uciHistory.size
 
-    Column(modifier = Modifier.fillMaxSize().background(accents.pageAlt)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
