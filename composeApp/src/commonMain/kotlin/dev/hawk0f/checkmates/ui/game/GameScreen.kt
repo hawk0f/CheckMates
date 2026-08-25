@@ -474,7 +474,7 @@ private fun BottomSheet(
                         stringResource(Res.string.game_hint_move, uiState.hint.orEmpty())
                     },
                     style = MaterialTheme.typography.labelLarge,
-                    color = accents.band
+                    color = accents.onBand
                 )
             }
         }
