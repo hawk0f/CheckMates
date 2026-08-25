@@ -156,6 +156,7 @@ import dev.hawk0f.checkmates.resources.game_back_to_live
 import dev.hawk0f.checkmates.resources.game_viewing_ply
 import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.resources.a11y_hint
+import dev.hawk0f.checkmates.resources.computer_opponent
 import dev.hawk0f.checkmates.resources.computer_thinking
 import dev.hawk0f.checkmates.resources.game_clear_premoves
 import dev.hawk0f.checkmates.resources.game_hint_move
@@ -1043,7 +1044,7 @@ private fun GameOverPanel(
                 Text(
                     text = stringResource(
                         Res.string.game_wants_rematch,
-                        uiState.opponentName ?: stringResource(Res.string.game_opponent_fallback)
+                        opponentLabel(uiState)
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = scheme.primary
@@ -1258,6 +1259,13 @@ private fun ClockText(millis: Long, active: Boolean, big: Boolean) {
 }
 
 @Composable
+private fun opponentLabel(uiState: GameUiState): String {
+    uiState.opponentName?.let { return it }
+    uiState.computerLevel?.let { return stringResource(Res.string.computer_opponent, it) }
+    return stringResource(Res.string.game_opponent_fallback)
+}
+
+@Composable
 private fun playerName(uiState: GameUiState, sideColor: PieceColor, isMine: Boolean): String {
     if (uiState.myColor == null) {
         return stringResource(
@@ -1267,7 +1275,7 @@ private fun playerName(uiState: GameUiState, sideColor: PieceColor, isMine: Bool
     return if (isMine) {
         stringResource(Res.string.game_you)
     } else {
-        uiState.opponentName ?: stringResource(Res.string.game_opponent_fallback)
+        opponentLabel(uiState)
     }
 }
 
@@ -1297,7 +1305,7 @@ private fun connectionNote(uiState: GameUiState): String? = when {
 
     !uiState.opponentConnected && uiState.myColor != null -> stringResource(
         Res.string.game_opponent_reconnecting,
-        uiState.opponentName ?: stringResource(Res.string.game_opponent_fallback)
+        opponentLabel(uiState)
     )
 
     else -> null

@@ -60,6 +60,7 @@ data class GameUiState(
     val myColor: PieceColor?,
     val opponentName: String?,
     val opponentConnected: Boolean,
+    val computerLevel: Int? = null,
     val drawOfferIncoming: Boolean,
     val drawOfferOutgoing: Boolean,
     val connectionState: TransportConnectionState?,
@@ -115,7 +116,11 @@ class GameViewModel(
         when (mode) {
             is GameMode.Remote -> observeSession(mode.session)
             is GameMode.Computer -> {
-                _uiState.value = _uiState.value.copy(myColor = mode.myColor, showTimePicker = false)
+                _uiState.value = _uiState.value.copy(
+                    myColor = mode.myColor,
+                    computerLevel = mode.level.id,
+                    showTimePicker = false
+                )
                 maybeStartEngineTurn()
             }
             GameMode.Hotseat -> if (startFen == null) restoreHotseatGame()
