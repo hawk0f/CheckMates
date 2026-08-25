@@ -63,7 +63,13 @@ class PuzzleViewModel(
     }
 
     fun loadNext() {
-        val puzzle = SpacedRepetition.nextPuzzle(puzzles, progress, _uiState.value.rating, now())
+        val puzzle = SpacedRepetition.nextPuzzle(
+            puzzles = puzzles,
+            progress = progress,
+            playerRating = _uiState.value.rating,
+            nowMillis = now(),
+            currentId = _uiState.value.puzzle?.id
+        )
         if (puzzle == null) {
             _uiState.value = _uiState.value.copy(puzzle = null, gameState = null)
             return

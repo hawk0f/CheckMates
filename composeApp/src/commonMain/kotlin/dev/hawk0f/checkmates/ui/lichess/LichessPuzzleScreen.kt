@@ -35,6 +35,7 @@ import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.puzzle_daily
 import dev.hawk0f.checkmates.resources.puzzle_dialog_title
 import dev.hawk0f.checkmates.resources.puzzle_find_the_move
@@ -180,7 +181,7 @@ fun LichessPuzzleScreen(
             title = { Text(stringResource(Res.string.puzzle_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }

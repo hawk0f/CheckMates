@@ -24,6 +24,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import dev.hawk0f.checkmates.platform.rememberShareText
 import dev.hawk0f.checkmates.resources.Res
 import dev.hawk0f.checkmates.resources.a11y_back
@@ -74,6 +76,7 @@ private val brushOrder = listOf(
 )
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun BoardEditorScreen(
     onPlayHotseat: (String) -> Unit,
     onPlayComputer: (String) -> Unit,
@@ -182,7 +185,10 @@ fun BoardEditorScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 PillButton(
                     text = stringResource(Res.string.editor_reset),
                     onClick = viewModel::resetToStart,

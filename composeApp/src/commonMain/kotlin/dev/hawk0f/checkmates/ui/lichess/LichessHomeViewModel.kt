@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.resources.lichess_sign_in_first
+import dev.hawk0f.checkmates.resources.Res
+import org.jetbrains.compose.resources.getString
 
 data class LichessHomeUiState(
     val username: String? = null,
@@ -92,7 +95,9 @@ class LichessHomeViewModel : ViewModel() {
         if (LichessSessionStarter.open(gameId)) {
             _uiState.value = _uiState.value.copy(gameReady = true)
         } else {
-            _uiState.value = _uiState.value.copy(error = "sign in first")
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(error = getString(Res.string.lichess_sign_in_first))
+            }
         }
     }
 

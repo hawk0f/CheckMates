@@ -37,6 +37,8 @@ import dev.hawk0f.checkmates.ui.theme.ChevronIcon
 import dev.hawk0f.checkmates.ui.theme.CloseIcon
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.watch_live_broadcasts
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.watch_import_to_review
 import dev.hawk0f.checkmates.resources.watch_rounds_count
 import dev.hawk0f.checkmates.resources.watch_streamers_live
@@ -155,7 +157,7 @@ fun LichessWatchScreen(
 
             if (uiState.broadcasts.isNotEmpty()) {
                 Text(
-                    text = "LIVE BROADCASTS",
+                    text = stringResource(Res.string.watch_live_broadcasts),
                     style = MaterialTheme.typography.labelSmall,
                     color = watchFaint
                 )
@@ -205,7 +207,7 @@ fun LichessWatchScreen(
             title = { Text(stringResource(Res.string.watch_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }

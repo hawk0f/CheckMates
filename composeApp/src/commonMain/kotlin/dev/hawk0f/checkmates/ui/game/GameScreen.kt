@@ -98,8 +98,6 @@ import dev.hawk0f.checkmates.resources.game_clock_title
 import dev.hawk0f.checkmates.resources.game_close
 import dev.hawk0f.checkmates.resources.game_connection_lost
 import dev.hawk0f.checkmates.resources.game_decline
-import dev.hawk0f.checkmates.resources.game_drag_down_hint
-import dev.hawk0f.checkmates.resources.game_drag_up_hint
 import dev.hawk0f.checkmates.resources.game_draw_offered
 import dev.hawk0f.checkmates.resources.game_exit
 import dev.hawk0f.checkmates.resources.game_keep_playing
@@ -162,6 +160,13 @@ import dev.hawk0f.checkmates.resources.game_clear_premoves
 import dev.hawk0f.checkmates.resources.game_hint_move
 import dev.hawk0f.checkmates.resources.game_premoves_queued
 import dev.hawk0f.checkmates.shared.domain.Square
+import androidx.compose.ui.unit.Dp
+import dev.hawk0f.checkmates.resources.a11y_first_move
+import dev.hawk0f.checkmates.resources.a11y_last_move
+import dev.hawk0f.checkmates.resources.a11y_next_move
+import dev.hawk0f.checkmates.resources.a11y_previous_move
+import dev.hawk0f.checkmates.resources.game_moves_browse
+import dev.hawk0f.checkmates.ui.theme.LocalBoardColors
 
 private val SheetPeekHeight = 172.dp
 private val RevealSlide = 18.dp
@@ -363,9 +368,10 @@ private fun PlayingPanel(
             val selected = uiState.selected
             val legalTargets = uiState.legalTargets
             val flipped = uiState.myColor == PieceColor.BLACK
-            val previewState = remember(history, previewPly) {
+            val previewState = remember(history, previewPly, viewModel.startPositionFen) {
                 previewPly?.let { ply ->
                     val replay = ChessGame()
+                    viewModel.startPositionFen?.let { replay.loadFen(it) }
                     for (uci in history.take(ply)) {
                         replay.applyUci(uci)
                     }
@@ -603,16 +609,14 @@ private fun GameSheet(
             )
         }
 
-        Text(
-            text = stringResource(
-                if (expanded) Res.string.game_drag_down_hint else Res.string.game_drag_up_hint
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.outline
-        )
-
         SheetReveal(visible = expanded) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(scheme.outlineVariant.copy(alpha = 0.5f))
+                )
                 if (uiState.drawOfferIncoming) {
                     SoftCard(container = accents.band, corner = 20.dp, modifier = Modifier.fillMaxWidth()) {
                         Row(
@@ -664,7 +668,7 @@ private fun GameSheet(
                             compact = true
                         )
                         PillButton(
-                            text = "No",
+                            text = stringResource(Res.string.game_decline),
                             onClick = { viewModel.answerTakeback(false) },
                             tone = PillTone.SOFT,
                             compact = true
@@ -731,6 +735,11 @@ private fun GameSheet(
                 }
 
                 AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
+                MoveNavRow(
+                    historySize = uiState.gameState.uciHistory.size,
+                    previewPly = previewPly,
+                    onSelectPly = onSelectPly
+                )
                 MovesGrid(
                     history = uiState.gameState.uciHistory,
                     previewPly = previewPly,
@@ -819,7 +828,57 @@ private fun MyPlayerRow(
                 color = if (active) scheme.onPrimaryContainer else accents.bandStrong
             )
         }
+        MaterialChip(gameState = uiState.gameState, bottomColor = bottomColor)
         CapturedRow(uiState.gameState, capturedFrom = bottomColor.opposite)
+    }
+}
+
+@Composable
+private fun MoveNavRow(
+    historySize: Int,
+    previewPly: Int?,
+    onSelectPly: (Int?) -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val current = previewPly ?: historySize
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SectionLabel(text = stringResource(Res.string.game_moves_browse), modifier = Modifier.weight(1f))
+        CircleButton(
+            onClick = { onSelectPly(0) },
+            size = 38.dp,
+            enabled = current > 0,
+            contentDescription = stringResource(Res.string.a11y_first_move)
+        ) {
+            ChevronIcon(direction = ChevronDirection.LEFT, color = scheme.onSurface, size = 16.dp, doubled = true)
+        }
+        CircleButton(
+            onClick = { onSelectPly((current - 1).coerceAtLeast(0)) },
+            size = 38.dp,
+            enabled = current > 0,
+            contentDescription = stringResource(Res.string.a11y_previous_move)
+        ) {
+            ChevronIcon(direction = ChevronDirection.LEFT, color = scheme.onSurface, size = 16.dp)
+        }
+        CircleButton(
+            onClick = { onSelectPly((current + 1).coerceAtMost(historySize)) },
+            size = 38.dp,
+            enabled = current < historySize,
+            contentDescription = stringResource(Res.string.a11y_next_move)
+        ) {
+            ChevronIcon(direction = ChevronDirection.RIGHT, color = scheme.onSurface, size = 16.dp)
+        }
+        CircleButton(
+            onClick = { onSelectPly(null) },
+            size = 38.dp,
+            enabled = previewPly != null,
+            contentDescription = stringResource(Res.string.a11y_last_move)
+        ) {
+            ChevronIcon(direction = ChevronDirection.RIGHT, color = scheme.onSurface, size = 16.dp, doubled = true)
+        }
     }
 }
 
@@ -1489,33 +1548,66 @@ private val initialCounts = mapOf(
     PieceKind.QUEEN to 1
 )
 
-@Composable
-private fun CapturedRow(gameState: GameState, capturedFrom: PieceColor) {
+private fun capturedPieces(gameState: GameState, capturedFrom: PieceColor): List<PieceKind> {
     val remaining = gameState.pieces.values
         .filter { it.color == capturedFrom }
         .groupingBy { it.kind }
         .eachCount()
-    val captured = buildList {
+    return buildList {
         for ((kind, initial) in initialCounts) {
             repeat(initial - (remaining[kind] ?: 0)) {
                 add(kind)
             }
         }
     }.sortedByDescending { pieceValues[it] }
+}
+
+@Composable
+private fun CapturedRow(
+    gameState: GameState,
+    capturedFrom: PieceColor,
+    modifier: Modifier = Modifier,
+    pieceSize: Dp = 17.dp
+) {
+    val captured = capturedPieces(gameState, capturedFrom)
     if (captured.isEmpty()) {
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(modifier = modifier.height(pieceSize))
         return
     }
     Row(
-        modifier = Modifier.alpha(0.65f),
-        horizontalArrangement = Arrangement.spacedBy(1.dp)
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(LocalBoardColors.current.lightSquare)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         for (kind in captured.take(10)) {
             Image(
                 painter = painterResource(pieceDrawable(pieceCode(capturedFrom, kind))),
                 contentDescription = null,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(pieceSize)
             )
         }
     }
+}
+
+@Composable
+private fun MaterialChip(gameState: GameState, bottomColor: PieceColor) {
+    val balance = materialBalance(gameState)
+    val mine = if (bottomColor == PieceColor.WHITE) balance else -balance
+    if (mine == 0) {
+        return
+    }
+    val accents = LocalAppAccents.current
+    val positive = mine > 0
+    Text(
+        text = if (positive) "+$mine" else mine.toString(),
+        style = MaterialTheme.typography.labelLarge,
+        color = if (positive) accents.positive else accents.negative,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 7.dp, vertical = 2.dp)
+    )
 }

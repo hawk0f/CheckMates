@@ -55,6 +55,7 @@ import dev.hawk0f.checkmates.ui.theme.ScreenIcon
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import org.jetbrains.compose.resources.painterResource
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.lichess_accept
 import dev.hawk0f.checkmates.resources.lichess_also_playing
 import dev.hawk0f.checkmates.resources.lichess_casual
@@ -293,7 +294,7 @@ fun LichessHomeScreen(
             title = { Text(stringResource(Res.string.lichess_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }

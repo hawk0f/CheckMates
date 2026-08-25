@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.resources.lichess_puzzle_load_failed
+import dev.hawk0f.checkmates.resources.lichess_puzzle_move_mismatch
+import dev.hawk0f.checkmates.resources.Res
+import org.jetbrains.compose.resources.getString
 
 enum class PuzzleFeedback {
     NONE,
@@ -159,7 +163,11 @@ class LichessPuzzleViewModel : ViewModel() {
 
     private fun applySolutionMove(uci: String) {
         if (game.applyUci(uci) is MoveOutcome.Illegal) {
-            _uiState.value = _uiState.value.copy(error = "puzzle move $uci did not fit the position")
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(
+                    error = getString(Res.string.lichess_puzzle_move_mismatch, uci)
+                )
+            }
         }
     }
 
@@ -171,7 +179,7 @@ class LichessPuzzleViewModel : ViewModel() {
                 .onFailure {
                     _uiState.value = _uiState.value.copy(
                         loading = false,
-                        error = it.message ?: "could not load a puzzle"
+                        error = it.message ?: getString(Res.string.lichess_puzzle_load_failed)
                     )
                 }
         }

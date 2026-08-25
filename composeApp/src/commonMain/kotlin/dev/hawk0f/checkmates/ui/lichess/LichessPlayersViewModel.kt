@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.resources.lichess_challenge_send_failed
+import dev.hawk0f.checkmates.resources.lichess_challenge_sent_casual
+import dev.hawk0f.checkmates.resources.lichess_sign_in_challenge
+import dev.hawk0f.checkmates.resources.lichess_sign_in_link
+import dev.hawk0f.checkmates.resources.Res
+import org.jetbrains.compose.resources.getString
 
 data class LichessPlayersUiState(
     val loading: Boolean = true,
@@ -84,7 +90,9 @@ class LichessPlayersViewModel : ViewModel() {
     fun challenge(username: String) {
         val token = LichessAuth.token
         if (token == null) {
-            _uiState.value = _uiState.value.copy(message = "Sign in to challenge players")
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(message = getString(Res.string.lichess_sign_in_challenge))
+            }
             return
         }
         viewModelScope.launch {
@@ -98,11 +106,11 @@ class LichessPlayersViewModel : ViewModel() {
                 )
             }.onSuccess {
                 _uiState.value = _uiState.value.copy(
-                    message = "Challenge sent to $username · 10+0 casual"
+                    message = getString(Res.string.lichess_challenge_sent_casual, username)
                 )
             }.onFailure {
                 _uiState.value = _uiState.value.copy(
-                    message = it.message ?: "could not send the challenge"
+                    message = it.message ?: getString(Res.string.lichess_challenge_send_failed)
                 )
             }
         }
@@ -111,7 +119,9 @@ class LichessPlayersViewModel : ViewModel() {
     fun createOpenChallenge() {
         val token = LichessAuth.token
         if (token == null) {
-            _uiState.value = _uiState.value.copy(message = "Sign in to create a link")
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(message = getString(Res.string.lichess_sign_in_link))
+            }
             return
         }
         viewModelScope.launch {

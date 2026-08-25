@@ -16,6 +16,18 @@ import dev.hawk0f.checkmates.net.lichess.LichessClockLimits
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.lichess_sign_in_first
+import dev.hawk0f.checkmates.resources.seek_challenge_declined
+import dev.hawk0f.checkmates.resources.seek_challenge_failed
+import dev.hawk0f.checkmates.resources.seek_enter_username
+import dev.hawk0f.checkmates.resources.seek_failed
+import dev.hawk0f.checkmates.resources.seek_game_start_failed
+import dev.hawk0f.checkmates.resources.seek_link_failed
+import dev.hawk0f.checkmates.resources.seek_starting_game
+import dev.hawk0f.checkmates.resources.seek_waiting_for
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 
 data class LichessClockOption(
     val label: String,
@@ -145,7 +157,7 @@ class LichessSeekViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     openChallengeUrl = created.url ?: created.urlWhite
                 )
-            }.onFailure { fail(it.message ?: "could not create the link") }
+            }.onFailure { fail(it.message ?: getString(Res.string.seek_link_failed)) }
         }
     }
 
@@ -206,7 +218,7 @@ class LichessSeekViewModel : ViewModel() {
         seekJob = viewModelScope.launch {
             if (option.isCorrespondence) {
                 runCatching { api.seekCorrespondence(token, option.days ?: 2, state.rated) }
-                    .onFailure { fail(it.message ?: "seek failed") }
+                    .onFailure { fail(it.message ?: getString(Res.string.seek_failed)) }
                 return@launch
             }
             while (awaitingGame) {
@@ -223,7 +235,7 @@ class LichessSeekViewModel : ViewModel() {
                     break
                 }
                 if (result.isFailure) {
-                    fail(result.exceptionOrNull()?.message ?: "seek failed")
+                    fail(result.exceptionOrNull()?.message ?: getString(Res.string.seek_failed))
                     break
                 }
                 delay(1000)
@@ -235,12 +247,14 @@ class LichessSeekViewModel : ViewModel() {
         val token = LichessAuth.token ?: return
         val state = _uiState.value
         if (state.friendName.isBlank()) {
-            fail("Enter a lichess username")
+            failWith(Res.string.seek_enter_username)
             return
         }
         awaitingGame = true
-        _uiState.value = state.copy(step = LichessStep.Waiting("Waiting for ${state.friendName}"))
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                step = LichessStep.Waiting(getString(Res.string.seek_waiting_for, state.friendName))
+            )
             runCatching {
                 api.challengeUser(
                     token = token,
@@ -252,7 +266,7 @@ class LichessSeekViewModel : ViewModel() {
             }.onSuccess {
                 pendingChallengeId = it
                 refresh()
-            }.onFailure { fail(it.message ?: "challenge failed") }
+            }.onFailure { fail(it.message ?: getString(Res.string.seek_challenge_failed)) }
         }
     }
 
@@ -260,8 +274,8 @@ class LichessSeekViewModel : ViewModel() {
         val token = LichessAuth.token ?: return
         val state = _uiState.value
         awaitingGame = true
-        _uiState.value = state.copy(step = LichessStep.Waiting("Starting game"))
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(step = LichessStep.Waiting(getString(Res.string.seek_starting_game)))
             runCatching {
                 api.challengeAi(
                     token,
@@ -270,7 +284,7 @@ class LichessSeekViewModel : ViewModel() {
                     state.directClock.incrementSeconds
                 )
             }.onSuccess { openGame(it) }
-                .onFailure { fail(it.message ?: "could not start the game") }
+                .onFailure { fail(it.message ?: getString(Res.string.seek_game_start_failed)) }
         }
     }
 
@@ -318,7 +332,7 @@ class LichessSeekViewModel : ViewModel() {
                 if (id != null && id == pendingChallengeId && event.typeName() != "challenge") {
                     pendingChallengeId = null
                     awaitingGame = false
-                    _uiState.value = _uiState.value.copy(step = LichessStep.Failed("Challenge declined"))
+                    failWith(Res.string.seek_challenge_declined)
                 }
                 refresh()
             }
@@ -332,8 +346,12 @@ class LichessSeekViewModel : ViewModel() {
         if (LichessSessionStarter.open(gameId)) {
             _uiState.value = _uiState.value.copy(step = LichessStep.GameReady)
         } else {
-            fail("sign in first")
+            failWith(Res.string.lichess_sign_in_first)
         }
+    }
+
+    private fun failWith(resource: StringResource) {
+        viewModelScope.launch { fail(getString(resource)) }
     }
 
     private fun fail(message: String) {

@@ -40,6 +40,11 @@ import dev.hawk0f.checkmates.ui.theme.SegmentedTabs
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.seek_label_rated
+import dev.hawk0f.checkmates.resources.seek_label_rating_range
+import dev.hawk0f.checkmates.resources.seek_label_username
+import dev.hawk0f.checkmates.resources.seek_value_no
+import dev.hawk0f.checkmates.resources.seek_value_yes
 import dev.hawk0f.checkmates.resources.common_cancel
 import dev.hawk0f.checkmates.resources.lichess_title
 import dev.hawk0f.checkmates.resources.seek_ai_unrated_note
@@ -261,15 +266,15 @@ private fun SetupContent(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("rated", color = accents.bandStrong)
+                SectionLabel(stringResource(Res.string.seek_label_rated), color = accents.bandStrong)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     SelectPill(
-                        text = "false",
+                        text = stringResource(Res.string.seek_value_no),
                         selected = !uiState.rated,
                         onClick = { viewModel.onRatedChange(false) }
                     )
                     SelectPill(
-                        text = "true",
+                        text = stringResource(Res.string.seek_value_yes),
                         selected = uiState.rated,
                         onClick = { viewModel.onRatedChange(true) }
                     )
@@ -289,7 +294,7 @@ private fun SetupContent(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        SectionLabel("ratingRange", color = accents.bandStrong)
+                        SectionLabel(stringResource(Res.string.seek_label_rating_range), color = accents.bandStrong)
                         CodeChip(
                             text = uiState.myRating?.let { rating ->
                                 if (uiState.ratingSpread <= 0) {
@@ -322,7 +327,7 @@ private fun SetupContent(
 
             if (uiState.mode == SeekMode.FRIEND) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel("username", color = accents.bandStrong)
+                    SectionLabel(stringResource(Res.string.seek_label_username), color = accents.bandStrong)
                     SoftTextField(
                         value = uiState.friendName,
                         onValueChange = viewModel::onFriendNameChange,

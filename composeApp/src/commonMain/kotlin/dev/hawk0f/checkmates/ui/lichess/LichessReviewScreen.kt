@@ -39,6 +39,7 @@ import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.review_accuracy
 import dev.hawk0f.checkmates.resources.review_accuracy_black
 import dev.hawk0f.checkmates.resources.review_accuracy_white
@@ -277,7 +278,7 @@ fun LichessReviewScreen(
             title = { Text(stringResource(Res.string.review_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }

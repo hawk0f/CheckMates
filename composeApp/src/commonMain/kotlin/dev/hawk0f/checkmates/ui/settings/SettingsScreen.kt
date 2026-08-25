@@ -42,6 +42,11 @@ import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
 import dev.hawk0f.checkmates.ui.theme.ThemePalette
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.theme_amber
+import dev.hawk0f.checkmates.resources.theme_emerald
+import dev.hawk0f.checkmates.resources.theme_ocean
+import dev.hawk0f.checkmates.resources.theme_royal
+import dev.hawk0f.checkmates.resources.theme_sage
 import dev.hawk0f.checkmates.resources.settings_appearance
 import dev.hawk0f.checkmates.resources.settings_board_theme
 import dev.hawk0f.checkmates.resources.settings_dark_mode_dark
@@ -148,7 +153,7 @@ private fun PaletteRow(palette: ThemePalette, selected: Boolean, onSelect: () ->
             BoardSwatch(palette.boardLight)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = palette.title,
+                    text = paletteTitle(palette),
                     style = MaterialTheme.typography.titleMedium,
                     color = if (selected) scheme.onPrimary else scheme.onSurface
                 )
@@ -215,5 +220,16 @@ private fun darkModeLabel(preference: DarkModePreference): String = stringResour
         DarkModePreference.SYSTEM -> Res.string.settings_dark_mode_system
         DarkModePreference.LIGHT -> Res.string.settings_dark_mode_light
         DarkModePreference.DARK -> Res.string.settings_dark_mode_dark
+    }
+)
+
+@Composable
+private fun paletteTitle(palette: ThemePalette): String = stringResource(
+    when (palette) {
+        ThemePalette.SAGE -> Res.string.theme_sage
+        ThemePalette.ROYAL -> Res.string.theme_royal
+        ThemePalette.EMERALD -> Res.string.theme_emerald
+        ThemePalette.OCEAN -> Res.string.theme_ocean
+        ThemePalette.AMBER -> Res.string.theme_amber
     }
 )

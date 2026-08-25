@@ -6,6 +6,7 @@ import dev.hawk0f.checkmates.shared.puzzle.PuzzleProgress
 import dev.hawk0f.checkmates.shared.puzzle.SpacedRepetition
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -57,6 +58,20 @@ class PuzzleTrainingTest {
             .associate { it.id to PuzzleProgress(it.id, box = 3, dueAtMillis = now + 1000) }
         val chosen = SpacedRepetition.nextPuzzle(BundledPuzzles.all, progress, playerRating = 1200, nowMillis = now)
         assertEquals(BundledPuzzles.all.last().id, assertNotNull(chosen).id)
+    }
+
+    @Test
+    fun aFailedPuzzleIsNotServedTwiceInARow() {
+        val failed = BundledPuzzles.all.first()
+        val progress = mapOf(failed.id to SpacedRepetition.onFailed(PuzzleProgress(failed.id), now))
+        val chosen = SpacedRepetition.nextPuzzle(
+            puzzles = BundledPuzzles.all,
+            progress = progress,
+            playerRating = failed.rating,
+            nowMillis = now,
+            currentId = failed.id
+        )
+        assertNotEquals(failed.id, assertNotNull(chosen).id)
     }
 
     @Test

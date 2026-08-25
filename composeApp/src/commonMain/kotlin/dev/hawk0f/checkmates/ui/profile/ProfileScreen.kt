@@ -55,6 +55,7 @@ import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.ui.theme.StatTile
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.common_cancel
 import dev.hawk0f.checkmates.resources.mode_nearby
 import dev.hawk0f.checkmates.resources.mode_online
@@ -111,7 +112,7 @@ fun ProfileScreen(
             title = { Text(stringResource(Res.string.profile_error_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
             }
         )
     }

@@ -48,13 +48,15 @@ object SpacedRepetition {
         puzzles: List<Puzzle>,
         progress: Map<String, PuzzleProgress>,
         playerRating: Int,
-        nowMillis: Long
+        nowMillis: Long,
+        currentId: String? = null
     ): Puzzle? {
-        val due = puzzles.filter { puzzle ->
+        val candidates = puzzles.filterNot { it.id == currentId }.ifEmpty { puzzles }
+        val due = candidates.filter { puzzle ->
             val entry = progress[puzzle.id] ?: return@filter true
             entry.dueAtMillis <= nowMillis
         }
-        val pool = due.ifEmpty { puzzles }
+        val pool = due.ifEmpty { candidates }
         return pool.minByOrNull { puzzle ->
             val entry = progress[puzzle.id]
             val seenPenalty = (entry?.solved ?: 0) * 400

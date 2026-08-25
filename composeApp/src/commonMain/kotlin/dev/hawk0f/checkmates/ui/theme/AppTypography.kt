@@ -6,24 +6,46 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.bitter_extrabold
 import dev.hawk0f.checkmates.resources.caprasimo_regular
 import dev.hawk0f.checkmates.resources.figtree_bold
 import dev.hawk0f.checkmates.resources.figtree_regular
 import dev.hawk0f.checkmates.resources.figtree_semibold
+import dev.hawk0f.checkmates.resources.onest_bold
+import dev.hawk0f.checkmates.resources.onest_regular
+import dev.hawk0f.checkmates.resources.onest_semibold
 import org.jetbrains.compose.resources.Font
 
-@Composable
-fun displayFamily(): FontFamily = FontFamily(Font(Res.font.caprasimo_regular))
+private val cyrillicLanguages = setOf("ru", "uk", "be", "bg", "sr", "mk", "kk")
 
 @Composable
-fun textFamily(): FontFamily = FontFamily(
-    Font(Res.font.figtree_regular, FontWeight.Normal),
-    Font(Res.font.figtree_semibold, FontWeight.SemiBold),
-    Font(Res.font.figtree_bold, FontWeight.Bold)
-)
+private fun needsCyrillic(): Boolean = Locale.current.language in cyrillicLanguages
+
+@Composable
+fun displayFamily(): FontFamily = if (needsCyrillic()) {
+    FontFamily(Font(Res.font.bitter_extrabold, FontWeight.Bold))
+} else {
+    FontFamily(Font(Res.font.caprasimo_regular))
+}
+
+@Composable
+fun textFamily(): FontFamily = if (needsCyrillic()) {
+    FontFamily(
+        Font(Res.font.onest_regular, FontWeight.Normal),
+        Font(Res.font.onest_semibold, FontWeight.SemiBold),
+        Font(Res.font.onest_bold, FontWeight.Bold)
+    )
+} else {
+    FontFamily(
+        Font(Res.font.figtree_regular, FontWeight.Normal),
+        Font(Res.font.figtree_semibold, FontWeight.SemiBold),
+        Font(Res.font.figtree_bold, FontWeight.Bold)
+    )
+}
 
 @Composable
 fun appTypography(): Typography {

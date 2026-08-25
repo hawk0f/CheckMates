@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.resources.lichess_sign_in_tournaments
+import dev.hawk0f.checkmates.resources.Res
+import org.jetbrains.compose.resources.getString
 
 data class LichessArenasUiState(
     val loading: Boolean = true,
@@ -54,7 +57,9 @@ class LichessArenasViewModel : ViewModel() {
     fun join(id: String) {
         val token = LichessAuth.token
         if (token == null) {
-            _uiState.value = _uiState.value.copy(message = "Sign in to join tournaments")
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(message = getString(Res.string.lichess_sign_in_tournaments))
+            }
             return
         }
         viewModelScope.launch {

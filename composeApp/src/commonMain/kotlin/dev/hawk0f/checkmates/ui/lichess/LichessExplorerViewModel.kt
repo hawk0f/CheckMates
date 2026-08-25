@@ -10,6 +10,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.resources.lichess_explorer_failed
+import dev.hawk0f.checkmates.resources.lichess_explorer_needs_token
+import dev.hawk0f.checkmates.resources.lichess_explorer_sign_in_own
+import dev.hawk0f.checkmates.resources.Res
+import org.jetbrains.compose.resources.getString
 
 enum class ExplorerSource {
     LICHESS,
@@ -50,7 +55,9 @@ class LichessExplorerViewModel(private val startFen: String? = null) : ViewModel
 
     fun onSourceChange(source: ExplorerSource) {
         if (source == ExplorerSource.PLAYER && _uiState.value.username == null) {
-            _uiState.value = _uiState.value.copy(error = "sign in to see your own openings")
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(error = getString(Res.string.lichess_explorer_sign_in_own))
+            }
             return
         }
         _uiState.value = _uiState.value.copy(source = source)
@@ -89,10 +96,12 @@ class LichessExplorerViewModel(private val startFen: String? = null) : ViewModel
     private fun fetch() {
         val token = LichessAuth.token
         if (token == null) {
-            _uiState.value = _uiState.value.copy(
-                loading = false,
-                error = "The opening explorer needs a lichess token — sign in first."
-            )
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = getString(Res.string.lichess_explorer_needs_token)
+                )
+            }
             return
         }
         val fen = game.fen()
@@ -121,7 +130,7 @@ class LichessExplorerViewModel(private val startFen: String? = null) : ViewModel
             }.onFailure {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = it.message ?: "explorer request failed"
+                    error = it.message ?: getString(Res.string.lichess_explorer_failed)
                 )
             }
         }

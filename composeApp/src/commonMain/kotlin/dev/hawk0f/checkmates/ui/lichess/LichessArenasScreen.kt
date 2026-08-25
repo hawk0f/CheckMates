@@ -35,6 +35,7 @@ import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.arenas_casual
 import dev.hawk0f.checkmates.resources.arenas_clock_and_players
 import dev.hawk0f.checkmates.resources.arenas_in
@@ -214,7 +215,7 @@ fun LichessArenasScreen(
             title = { Text(stringResource(Res.string.arenas_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissMessage, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissMessage, compact = true)
             }
         )
     }

@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.hawk0f.checkmates.resources.lichess_review_running
+import dev.hawk0f.checkmates.resources.lichess_review_unfinished
+import dev.hawk0f.checkmates.resources.Res
+import org.jetbrains.compose.resources.getString
 
 data class LichessReviewUiState(
     val gameId: String,
@@ -62,11 +66,12 @@ class LichessReviewViewModel(gameId: String) : ViewModel() {
     private fun load() {
         val gameId = _uiState.value.gameId
         if (LichessSessionStarter.currentGameId() == gameId) {
-            _uiState.value = _uiState.value.copy(
-                loading = false,
-                blocked = "This game is running right now. Engine evaluation during your own game " +
-                    "is engine assistance and closes lichess accounts."
-            )
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    blocked = getString(Res.string.lichess_review_running)
+                )
+            }
             return
         }
         viewModelScope.launch {
@@ -75,7 +80,7 @@ class LichessReviewViewModel(gameId: String) : ViewModel() {
                     if (export.status == "started" || export.status == "created") {
                         _uiState.value = _uiState.value.copy(
                             loading = false,
-                            blocked = "The game is still being played. Review opens once it is over."
+                            blocked = getString(Res.string.lichess_review_unfinished)
                         )
                         return@onSuccess
                     }

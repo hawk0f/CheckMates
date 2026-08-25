@@ -35,6 +35,7 @@ import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.common_ok
 import dev.hawk0f.checkmates.resources.players_challenge
 import dev.hawk0f.checkmates.resources.players_create_link
 import dev.hawk0f.checkmates.resources.players_following_online
@@ -219,7 +220,7 @@ fun LichessPlayersScreen(
             title = { Text(stringResource(Res.string.players_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = "OK", onClick = viewModel::dismissMessage, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissMessage, compact = true)
             }
         )
     }
