@@ -1,10 +1,18 @@
 package dev.hawk0f.checkmates.ui.game
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +56,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.math.abs
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.platform.playMoveSound
 import dev.hawk0f.checkmates.platform.rememberShareText
@@ -176,6 +185,8 @@ import dev.hawk0f.checkmates.resources.settings_facing_turn
 import dev.hawk0f.checkmates.resources.settings_hotseat_facing
 
 private val SheetPeekHeight = 232.dp
+private val SheetDragThreshold = 24.dp
+private const val SHEET_FLING_VELOCITY = 220f
 private val RevealSlide = 18.dp
 
 @Composable
@@ -344,7 +355,15 @@ private fun PlayingPanel(
     ) { contentPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
             if (viewModel.isHotseat) {
-                OpponentSheet(uiState = uiState, topColor = bottomColor.opposite, onExit = onExit)
+                OpponentSheet(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    topColor = bottomColor.opposite,
+                    previewPly = previewPly,
+                    onSelectPly = { ply -> previewPly = ply?.takeIf { it != history.size } },
+                    onResignRequest = onResignRequest,
+                    onExit = onExit
+                )
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 14.dp),
@@ -899,31 +918,114 @@ private fun BoardSettingsDialog(onDismiss: () -> Unit) {
 @Composable
 private fun OpponentSheet(
     uiState: GameUiState,
+    viewModel: GameViewModel,
     topColor: PieceColor,
+    previewPly: Int?,
+    onSelectPly: (Int?) -> Unit,
+    onResignRequest: () -> Unit,
     onExit: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+    var expanded by remember { mutableStateOf(false) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    val dragThreshold = with(LocalDensity.current) { SheetDragThreshold.toPx() }
+    val dragState = rememberDraggableState { delta -> dragOffset += delta }
     Box(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .shadow(elevation = 12.dp, shape = shape)
                 .background(color = scheme.surfaceContainer, shape = shape)
-                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 10.dp),
+                .draggable(
+                    state = dragState,
+                    orientation = Orientation.Vertical,
+                    onDragStopped = { velocity ->
+                        val amount = dragOffset
+                        dragOffset = 0f
+                        if (abs(velocity) > SHEET_FLING_VELOCITY) {
+                            expanded = velocity > 0f
+                        } else if (abs(amount) > dragThreshold) {
+                            expanded = amount > 0f
+                        }
+                    }
+                )
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            AnimatedVisibility(
+                visible = expanded,
+                modifier = Modifier.fillMaxWidth().padding(start = 56.dp),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().rotate(180f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (viewModel.supportsTakeback) {
+                            CircleButton(
+                                onClick = viewModel::offerTakeback,
+                                enabled = uiState.gameState.uciHistory.isNotEmpty(),
+                                contentDescription = stringResource(Res.string.a11y_takeback)
+                            ) {
+                                Text(
+                                    text = "↩",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = scheme.onSurface
+                                )
+                            }
+                        }
+                        CircleButton(
+                            onClick = viewModel::newGame,
+                            contentDescription = stringResource(Res.string.a11y_new_game)
+                        ) {
+                            Text(
+                                text = "↺",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = scheme.onSurface
+                            )
+                        }
+                        CircleButton(
+                            onClick = onResignRequest,
+                            container = scheme.primaryContainer,
+                            contentDescription = stringResource(Res.string.a11y_resign)
+                        ) {
+                            FlagIcon(color = scheme.onPrimaryContainer, size = 17.dp)
+                        }
+                    }
+                    MoveNavRow(
+                        historySize = uiState.gameState.uciHistory.size,
+                        previewPly = previewPly,
+                        onSelectPly = onSelectPly
+                    )
+                }
+            }
             Box(modifier = Modifier.fillMaxWidth().rotate(180f).padding(start = 56.dp)) {
                 MyPlayerRow(uiState = uiState, bottomColor = topColor, isRemote = false)
             }
             Box(
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .size(width = 32.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(scheme.onSurfaceVariant.copy(alpha = 0.4f))
-            )
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 32.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(scheme.onSurfaceVariant.copy(alpha = 0.4f))
+                )
+            }
         }
         CircleButton(
             onClick = onExit,
