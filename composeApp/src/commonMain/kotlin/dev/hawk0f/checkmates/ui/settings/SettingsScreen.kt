@@ -55,6 +55,10 @@ import dev.hawk0f.checkmates.resources.settings_dark_mode_system
 import dev.hawk0f.checkmates.resources.settings_title
 import org.jetbrains.compose.resources.stringResource
 import dev.hawk0f.checkmates.resources.a11y_back
+import dev.hawk0f.checkmates.resources.settings_facing_owner
+import dev.hawk0f.checkmates.resources.settings_facing_turn
+import dev.hawk0f.checkmates.resources.settings_hotseat_facing
+import dev.hawk0f.checkmates.ui.theme.HotseatFacing
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onSwitchFlow: () -> Unit = {}) {
@@ -116,6 +120,18 @@ fun SettingsScreen(onBack: () -> Unit, onSwitchFlow: () -> Unit = {}) {
                     options = DarkModePreference.entries.map { preference -> darkModeLabel(preference) },
                     selectedIndex = DarkModePreference.entries.indexOf(ThemeManager.darkMode),
                     onSelect = { index -> ThemeManager.selectDarkMode(DarkModePreference.entries[index]) }
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                SectionLabel(stringResource(Res.string.settings_hotseat_facing))
+                SegmentedPills(
+                    options = listOf(
+                        stringResource(Res.string.settings_facing_owner),
+                        stringResource(Res.string.settings_facing_turn)
+                    ),
+                    selectedIndex = HotseatFacing.entries.indexOf(ThemeManager.hotseatFacing),
+                    onSelect = { index -> ThemeManager.selectHotseatFacing(HotseatFacing.entries[index]) }
                 )
             }
 

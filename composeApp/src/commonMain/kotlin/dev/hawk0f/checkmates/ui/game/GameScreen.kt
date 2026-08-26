@@ -165,8 +165,11 @@ import dev.hawk0f.checkmates.resources.a11y_next_move
 import dev.hawk0f.checkmates.resources.a11y_previous_move
 import dev.hawk0f.checkmates.resources.game_moves_browse
 import dev.hawk0f.checkmates.ui.theme.LocalBoardColors
+import androidx.compose.ui.draw.shadow
+import dev.hawk0f.checkmates.ui.theme.HotseatFacing
+import dev.hawk0f.checkmates.ui.theme.ThemeManager
 
-private val SheetPeekHeight = 172.dp
+private val SheetPeekHeight = 232.dp
 private val RevealSlide = 18.dp
 
 @Composable
@@ -334,38 +337,44 @@ private fun PlayingPanel(
         }
     ) { contentPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
+            if (viewModel.isHotseat) {
+                OpponentSheet(uiState = uiState, topColor = bottomColor.opposite, onExit = onExit)
+            } else {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    CircleButton(
-                        onClick = onExit,
-                        container = scheme.onSurface.copy(alpha = 0.08f),
-                        contentDescription = stringResource(Res.string.a11y_back)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+                        CircleButton(
+                            onClick = onExit,
+                            container = scheme.onSurface.copy(alpha = 0.08f),
+                            contentDescription = stringResource(Res.string.a11y_back)
+                        ) {
+                            ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+                        }
+                        uiState.connectionState?.let { state ->
+                            StreamChip(connected = state is TransportConnectionState.Connected)
+                        }
                     }
-                    uiState.connectionState?.let { state ->
-                        StreamChip(connected = state is TransportConnectionState.Connected)
-                    }
+                    PlayerBlock(
+                        uiState = uiState,
+                        sideColor = bottomColor.opposite,
+                        alignEnd = true,
+                        clockSize = false,
+                        rotated = false
+                    )
                 }
-                PlayerBlock(
-                    uiState = uiState,
-                    sideColor = bottomColor.opposite,
-                    alignEnd = true,
-                    clockSize = false,
-                    rotated = viewModel.isHotseat
-                )
             }
 
             val selected = uiState.selected
             val legalTargets = uiState.legalTargets
             val flipped = uiState.myColor == PieceColor.BLACK
+            val facesSideToMove = viewModel.isHotseat &&
+                ThemeManager.hotseatFacing == HotseatFacing.SIDE_TO_MOVE
             val previewState = remember(history, previewPly, viewModel.startPositionFen) {
                 previewPly?.let { ply ->
                     val replay = ChessGame()
@@ -398,7 +407,8 @@ private fun PlayingPanel(
                     onSquareTap = viewModel::onSquareTap,
                     interactive = previewState == null,
                     premoveSquares = if (previewState == null) premoveSquares + hintSquares else emptySet(),
-                    rotatedColor = if (viewModel.isHotseat) bottomColor.opposite else null,
+                    rotatedColor = if (viewModel.isHotseat && !facesSideToMove) bottomColor.opposite else null,
+                    rotateAllPieces = facesSideToMove && gameState.sideToMove == PieceColor.BLACK,
                     modifier = boardModifier
                 )
             }
@@ -598,6 +608,12 @@ private fun GameSheet(
             }
         }
 
+        MoveNavRow(
+            historySize = uiState.gameState.uciHistory.size,
+            previewPly = previewPly,
+            onSelectPly = onSelectPly
+        )
+
         val connectionNote = connectionNote(uiState)
         if (connectionNote != null) {
             Text(
@@ -733,11 +749,6 @@ private fun GameSheet(
                 }
 
                 AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
-                MoveNavRow(
-                    historySize = uiState.gameState.uciHistory.size,
-                    previewPly = previewPly,
-                    onSelectPly = onSelectPly
-                )
                 MovesGrid(
                     history = uiState.gameState.uciHistory,
                     previewPly = previewPly,
@@ -828,6 +839,46 @@ private fun MyPlayerRow(
         }
         MaterialChip(gameState = uiState.gameState, bottomColor = bottomColor)
         CapturedRow(uiState.gameState, capturedFrom = bottomColor.opposite)
+    }
+}
+
+@Composable
+private fun OpponentSheet(
+    uiState: GameUiState,
+    topColor: PieceColor,
+    onExit: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accents = LocalAppAccents.current
+    val shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(elevation = 12.dp, shape = shape)
+                .background(color = scheme.surfaceContainer, shape = shape)
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().rotate(180f).padding(start = 56.dp)) {
+                MyPlayerRow(uiState = uiState, bottomColor = topColor, isRemote = false)
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .size(width = 32.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(scheme.onSurfaceVariant.copy(alpha = 0.4f))
+            )
+        }
+        CircleButton(
+            onClick = onExit,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 10.dp),
+            container = scheme.onSurface.copy(alpha = 0.08f),
+            contentDescription = stringResource(Res.string.a11y_back)
+        ) {
+            ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand)
+        }
     }
 }
 

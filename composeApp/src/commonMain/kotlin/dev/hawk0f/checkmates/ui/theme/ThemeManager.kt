@@ -9,6 +9,7 @@ object ThemeManager {
 
     private const val KEY_PALETTE = "theme.palette"
     private const val KEY_DARK_MODE = "theme.darkMode"
+    private const val KEY_HOTSEAT_FACING = "theme.hotseatFacing"
 
     private val settings: Settings? by lazy { runCatching { Settings() }.getOrNull() }
 
@@ -17,6 +18,14 @@ object ThemeManager {
 
     var darkMode by mutableStateOf(DarkModePreference.byId(settings?.getStringOrNull(KEY_DARK_MODE)))
         private set
+
+    var hotseatFacing by mutableStateOf(HotseatFacing.byId(settings?.getStringOrNull(KEY_HOTSEAT_FACING)))
+        private set
+
+    fun selectHotseatFacing(value: HotseatFacing) {
+        hotseatFacing = value
+        settings?.putString(KEY_HOTSEAT_FACING, value.id)
+    }
 
     fun selectPalette(value: ThemePalette) {
         palette = value

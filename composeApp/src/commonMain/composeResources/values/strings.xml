@@ -509,4 +509,7 @@ Lichess account</string>
     <string name="home_section_play">Play</string>
     <string name="home_section_practice">Practice</string>
     <string name="home_section_community">Community</string>
+    <string name="settings_hotseat_facing">Pieces in pass and play</string>
+    <string name="settings_facing_owner">Face each player</string>
+    <string name="settings_facing_turn">Face the side to move</string>
 </resources>

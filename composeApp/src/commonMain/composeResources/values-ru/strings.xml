@@ -509,4 +509,7 @@
     <string name="home_section_play">Играть</string>
     <string name="home_section_practice">Тренировка</string>
     <string name="home_section_community">Сообщество</string>
+    <string name="settings_hotseat_facing">Фигуры в игре на одном телефоне</string>
+    <string name="settings_facing_owner">К каждому игроку</string>
+    <string name="settings_facing_turn">К тому, кто ходит</string>
 </resources>

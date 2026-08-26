@@ -169,7 +169,8 @@ fun ChessBoard(
     showCoordinates: Boolean = true,
     interactive: Boolean = true,
     premoveSquares: Set<Square> = emptySet(),
-    rotatedColor: PieceColor? = null
+    rotatedColor: PieceColor? = null,
+    rotateAllPieces: Boolean = false
 ) {
     var boardSizePx by remember { mutableStateOf(0) }
     var dragFrom by remember(gameState.fen) { mutableStateOf<Square?>(null) }
@@ -293,7 +294,10 @@ fun ChessBoard(
                                 .size(cellDp),
                             contentAlignment = Alignment.Center
                         ) {
-                            PieceGlyph(tracked.piece, rotated = tracked.piece.color == rotatedColor)
+                            PieceGlyph(
+                                tracked.piece,
+                                rotated = rotateAllPieces || tracked.piece.color == rotatedColor
+                            )
                         }
                     }
                 }
@@ -312,7 +316,7 @@ fun ChessBoard(
                         }
                         .size(with(LocalDensity.current) { cell.toDp() })
                 ) {
-                    PieceGlyph(piece, rotated = piece.color == rotatedColor)
+                    PieceGlyph(piece, rotated = rotateAllPieces || piece.color == rotatedColor)
                 }
             }
         }

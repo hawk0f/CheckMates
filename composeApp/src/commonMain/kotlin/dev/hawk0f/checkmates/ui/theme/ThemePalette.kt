@@ -267,6 +267,15 @@ enum class ThemePalette(
     }
 }
 
+enum class HotseatFacing(val id: String) {
+    OWNER("owner"),
+    SIDE_TO_MOVE("turn");
+
+    companion object {
+        fun byId(id: String?): HotseatFacing = entries.firstOrNull { it.id == id } ?: OWNER
+    }
+}
+
 enum class DarkModePreference(val id: String) {
     SYSTEM("system"),
     LIGHT("light"),
