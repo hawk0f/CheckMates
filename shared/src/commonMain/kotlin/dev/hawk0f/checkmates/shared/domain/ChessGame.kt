@@ -74,12 +74,13 @@ class ChessGame {
         if (agreedResult != null || detectEnding() != null) {
             return MoveOutcome.Illegal
         }
-        val move = runCatching { LibMove(uci, board.sideToMove) }.getOrNull() ?: return MoveOutcome.Illegal
+        val normalized = uci.lowercase()
+        val move = runCatching { LibMove(normalized, board.sideToMove) }.getOrNull() ?: return MoveOutcome.Illegal
         if (move !in board.legalMoves()) {
             return MoveOutcome.Illegal
         }
         board.doMove(move)
-        history.add(uci)
+        history.add(normalized)
         return MoveOutcome.Applied(state())
     }
 

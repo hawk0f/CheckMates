@@ -93,6 +93,14 @@ class ChessGameTest {
     }
 
     @Test
+    fun aMixedCaseUciIsNormalised() {
+        val game = ChessGame()
+        val outcome = game.applyUci("E2E4")
+        assertIs<MoveOutcome.Applied>(outcome)
+        assertEquals(listOf("e2e4"), game.state().uciHistory)
+    }
+
+    @Test
     fun sanFormatterFollowsACustomStartPosition() {
         val startFen = "8/P6k/8/8/8/8/6p1/6K1 w - - 0 1"
         assertEquals(

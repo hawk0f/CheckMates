@@ -59,7 +59,8 @@ object SpacedRepetition {
         val pool = due.ifEmpty { candidates }
         return pool.minByOrNull { puzzle ->
             val entry = progress[puzzle.id]
-            val seenPenalty = (entry?.solved ?: 0) * 400
+            val attempts = (entry?.solved ?: 0) + (entry?.failed ?: 0)
+            val seenPenalty = attempts * 400
             abs(puzzle.rating - playerRating) + seenPenalty
         }
     }

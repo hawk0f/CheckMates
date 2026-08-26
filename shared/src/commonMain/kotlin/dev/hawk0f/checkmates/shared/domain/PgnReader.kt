@@ -16,14 +16,32 @@ object PgnReader {
         }.getOrElse { emptyList() }
     }
 
+    private val resultTokens = setOf("1-0", "0-1", "1/2-1/2", "*")
+
     private fun strip(pgn: String): String = pgn
         .lines()
         .filterNot { it.trimStart().startsWith("[") }
         .joinToString(" ")
         .replace(Regex("\\{[^}]*\\}"), " ")
+        .let(::dropVariations)
         .replace(Regex("\\d+\\.(\\.\\.)?"), " ")
         .replace(Regex("[?!]+"), " ")
-        .replace(Regex("\\b(1-0|0-1|1/2-1/2|\\*)\\b"), " ")
-        .replace(Regex("\\s+"), " ")
+        .replace(Regex("\\$\\d+"), " ")
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() && it !in resultTokens }
+        .joinToString(" ")
         .trim()
+
+    private fun dropVariations(text: String): String {
+        val builder = StringBuilder()
+        var depth = 0
+        for (character in text) {
+            when (character) {
+                '(' -> depth++
+                ')' -> if (depth > 0) depth-- else builder.append(' ')
+                else -> if (depth == 0) builder.append(character)
+            }
+        }
+        return builder.toString()
+    }
 }

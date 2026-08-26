@@ -32,7 +32,11 @@ data class EngineLine(
 
 class ChessEngine(private val random: Random = Random.Default) {
 
-    fun bestMove(fen: String, level: EngineLevel = EngineLevel.DEFAULT): String? {
+    fun bestMove(
+        fen: String,
+        level: EngineLevel = EngineLevel.DEFAULT,
+        shouldContinue: () -> Boolean = { true }
+    ): String? {
         val board = loadBoard(fen) ?: return null
         val moves = board.legalMoves()
         if (moves.isEmpty()) {
@@ -41,20 +45,33 @@ class ChessEngine(private val random: Random = Random.Default) {
         if (level.blunderChance > 0 && random.nextDouble() < level.blunderChance) {
             return moves[random.nextInt(moves.size)].toUci()
         }
-        return analyse(board, level.depth, level.nodeBudget).bestMove ?: moves.first().toUci()
+        return analyse(board, level.depth, level.nodeBudget, shouldContinue).bestMove ?: moves.first().toUci()
     }
 
-    fun analyse(fen: String, depth: Int = 6, nodeBudget: Int = 400_000): EngineLine {
+    fun analyse(
+        fen: String,
+        depth: Int = 6,
+        nodeBudget: Int = 400_000,
+        shouldContinue: () -> Boolean = { true }
+    ): EngineLine {
         val board = loadBoard(fen) ?: return EngineLine(null, 0, null, 0)
-        return analyse(board, depth, nodeBudget)
+        return analyse(board, depth, nodeBudget, shouldContinue)
     }
 
-    private fun analyse(board: Board, depth: Int, nodeBudget: Int): EngineLine {
-        val search = Search(nodeBudget)
+    private fun analyse(
+        board: Board,
+        depth: Int,
+        nodeBudget: Int,
+        shouldContinue: () -> Boolean
+    ): EngineLine {
+        val search = Search(nodeBudget, shouldContinue)
         var best: Move? = null
         var bestScore = 0
         var reached = 0
         for (currentDepth in 1..depth) {
+            if (currentDepth > 1 && !shouldContinue()) {
+                break
+            }
             val result = search.root(board, currentDepth, best)
             if (search.aborted && currentDepth > 1) {
                 break
@@ -89,7 +106,10 @@ class ChessEngine(private val random: Random = Random.Default) {
 
     private class RootResult(val move: Move?, val score: Int)
 
-    private class Search(private val nodeBudget: Int) {
+    private class Search(
+        private val nodeBudget: Int,
+        private val shouldContinue: () -> Boolean = { true }
+    ) {
 
         var aborted = false
             private set
@@ -104,7 +124,11 @@ class ChessEngine(private val random: Random = Random.Default) {
             val beta = Evaluation.MATE_SCORE
             var bestMove: Move? = null
             var bestScore = -Evaluation.MATE_SCORE
-            for (move in ordered(board, 0, previousBest)) {
+            val moves = ordered(board, 0, previousBest)
+            if (moves.isEmpty()) {
+                return RootResult(null, if (board.isMated) -Evaluation.MATE_SCORE else 0)
+            }
+            for (move in moves) {
                 board.doMove(move)
                 val score = -negamax(board, depth - 1, 1, -beta, -alpha)
                 board.undoMove()
@@ -127,7 +151,7 @@ class ChessEngine(private val random: Random = Random.Default) {
                 return 0
             }
             nodes++
-            if (nodes > nodeBudget) {
+            if (nodes > nodeBudget || (nodes % CANCEL_CHECK_NODES == 0 && !shouldContinue())) {
                 aborted = true
                 return 0
             }
@@ -164,7 +188,7 @@ class ChessEngine(private val random: Random = Random.Default) {
 
         private fun quiescence(board: Board, ply: Int, alphaIn: Int, beta: Int): Int {
             nodes++
-            if (nodes > nodeBudget) {
+            if (nodes > nodeBudget || (nodes % CANCEL_CHECK_NODES == 0 && !shouldContinue())) {
                 aborted = true
                 return 0
             }
@@ -232,6 +256,7 @@ class ChessEngine(private val random: Random = Random.Default) {
 
     companion object {
         const val MAX_PLY = 64
+        const val CANCEL_CHECK_NODES = 2048
     }
 }
 

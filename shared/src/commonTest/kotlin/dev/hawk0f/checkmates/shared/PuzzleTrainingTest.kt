@@ -28,6 +28,26 @@ class PuzzleTrainingTest {
     }
 
     @Test
+    fun aFailedPuzzleStopsDominatingTheQueue() {
+        val puzzles = BundledPuzzles.all
+        val failed = puzzles.first()
+        val progress = mutableMapOf(
+            failed.id to SpacedRepetition.onFailed(PuzzleProgress(failed.id), now)
+        )
+
+        val served = SpacedRepetition.nextPuzzle(
+            puzzles = puzzles,
+            progress = progress,
+            playerRating = failed.rating,
+            nowMillis = now,
+            currentId = null
+        )
+
+        assertNotNull(served)
+        assertNotEquals(failed.id, served.id)
+    }
+
+    @Test
     fun theBoxNeverGrowsPastTheLongestInterval() {
         var progress = PuzzleProgress("cm-fork-1")
         repeat(20) { progress = SpacedRepetition.onSolved(progress, now) }

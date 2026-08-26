@@ -10,6 +10,7 @@ object PgnBuilder {
         winner: PieceColor?,
         reason: GameOverReason?,
         uciHistory: List<String>,
+        startFen: String? = null,
         dateMillis: Long? = null,
         event: String = "Casual game",
         site: String = "chess.hawk0f.icu"
@@ -23,9 +24,11 @@ object PgnBuilder {
         val movesText = if (uciHistory.isEmpty()) {
             ""
         } else {
-            val moveList = MoveList()
-            moveList.loadFromText(uciHistory.joinToString(" "))
-            moveList.toSanWithMoveNumbers().trim()
+            runCatching {
+                val moveList = if (startFen == null) MoveList() else MoveList(startFen)
+                moveList.loadFromText(uciHistory.joinToString(" "))
+                moveList.toSanWithMoveNumbers().trim()
+            }.getOrElse { uciHistory.joinToString(" ") }
         }
         val termination = when (reason) {
             GameOverReason.RESIGNATION -> "Normal"
@@ -43,6 +46,10 @@ object PgnBuilder {
             appendLine("[Black \"${escape(blackName)}\"]")
             appendLine("[Result \"$resultTag\"]")
             appendLine("[Termination \"$termination\"]")
+            if (startFen != null) {
+                appendLine("[SetUp \"1\"]")
+                appendLine("[FEN \"${escape(startFen)}\"]")
+            }
             appendLine()
             if (movesText.isEmpty()) {
                 appendLine(resultTag)

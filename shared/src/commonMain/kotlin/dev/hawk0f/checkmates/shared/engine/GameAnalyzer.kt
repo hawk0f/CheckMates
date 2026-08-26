@@ -37,22 +37,26 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
         uciHistory: List<String>,
         depth: Int = DEFAULT_DEPTH,
         nodeBudget: Int = DEFAULT_NODE_BUDGET,
+        shouldContinue: () -> Boolean = { true },
         onProgress: (Int) -> Unit = {}
     ): AnalysisSummary {
         val board = Board()
         val moves = mutableListOf<MoveAnalysis>()
         var carried: EngineLine? = null
         for ((ply, uci) in uciHistory.withIndex()) {
-            val before = carried ?: engine.analyse(board.fen, depth, nodeBudget)
+            if (!shouldContinue()) {
+                break
+            }
+            val before = carried ?: engine.analyse(board.fen, depth, nodeBudget, shouldContinue)
             val played = runCatching { board.doMove(moveOf(board, uci)) }.getOrNull()
             if (played != true) {
                 break
             }
-            val afterOpponentView = engine.analyse(board.fen, depth, nodeBudget)
+            val afterOpponentView = engine.analyse(board.fen, depth, nodeBudget, shouldContinue)
             carried = afterOpponentView
             val scoreBefore = before.scoreCentipawns
             val scoreAfter = -afterOpponentView.scoreCentipawns
-            val loss = (scoreBefore - scoreAfter).coerceAtLeast(0)
+            val loss = (clampForLoss(scoreBefore) - clampForLoss(scoreAfter)).coerceAtLeast(0)
             moves += MoveAnalysis(
                 ply = ply,
                 uci = uci,
@@ -70,6 +74,8 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
             blackAverageLoss = averageLoss(moves, white = false)
         )
     }
+
+    private fun clampForLoss(score: Int): Int = score.coerceIn(-MAX_LOSS_EVAL, MAX_LOSS_EVAL)
 
     private fun averageLoss(moves: List<MoveAnalysis>, white: Boolean): Int {
         val side = moves.filter { (it.ply % 2 == 0) == white }
@@ -97,6 +103,7 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
         const val INACCURACY_LOSS = 60
         const val MISTAKE_LOSS = 140
         const val BLUNDER_LOSS = 300
+        const val MAX_LOSS_EVAL = 1000
 
         fun whitePerspective(analysis: MoveAnalysis): Int =
             if (analysis.ply % 2 == 0) analysis.scoreAfter else -analysis.scoreAfter
