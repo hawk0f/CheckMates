@@ -92,6 +92,13 @@ spec, renders it full screen and switches light/dark on the spot.
 adb shell am start -n dev.hawk0f.checkmates/.PreviewGalleryActivity
 ```
 
+`--es spec <id>` opens one spec directly and `--es mode system|light|dark` picks the theme, which makes
+the gallery scriptable as a crash smoke test over the whole catalog.
+
+```bash
+adb shell am start -n dev.hawk0f.checkmates/.PreviewGalleryActivity --es spec screen-profile-account --es mode dark
+```
+
 ```bash
 ./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.verify=true
 ./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.record=true

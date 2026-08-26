@@ -35,8 +35,8 @@ import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
 
 @Composable
-fun PreviewGallery(onExit: () -> Unit = {}) {
-    var openSpecId by remember { mutableStateOf<String?>(null) }
+fun PreviewGallery(initialSpecId: String? = null, onExit: () -> Unit = {}) {
+    var openSpecId by remember { mutableStateOf(initialSpecId) }
     val spec = previewSpecs.firstOrNull { it.id == openSpecId }
 
     if (spec == null) {
