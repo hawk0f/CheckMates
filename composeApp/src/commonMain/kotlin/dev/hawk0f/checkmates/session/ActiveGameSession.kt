@@ -97,4 +97,9 @@ object GameSessionHolder {
         current = null
         OnlineGameStore.clear()
     }
+
+    fun detach() {
+        current?.shutdown()
+        current = null
+    }
 }

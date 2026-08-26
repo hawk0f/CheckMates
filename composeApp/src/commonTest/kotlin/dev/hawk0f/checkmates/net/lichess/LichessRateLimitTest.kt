@@ -1,10 +1,22 @@
 package dev.hawk0f.checkmates.net.lichess
 
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 class LichessRateLimitTest {
+
+    @BeforeTest
+    fun clearBefore() = runTest {
+        LichessRateLimit.clearCooldown()
+    }
+
+    @AfterTest
+    fun clearAfter() = runTest {
+        LichessRateLimit.clearCooldown()
+    }
 
     @Test
     fun cooldownStartsClear() = runTest {

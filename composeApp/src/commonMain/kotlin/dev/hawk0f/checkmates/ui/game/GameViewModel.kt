@@ -8,6 +8,7 @@ import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.net.lichess.LichessGameTransport
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
+import dev.hawk0f.checkmates.session.OnlineGameStore
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.shared.domain.ChessGame
@@ -110,6 +111,7 @@ class GameViewModel(
     private var localTurnStartedAtMillis = epochMillis()
     private val engine = ChessEngine()
     private var engineJob: Job? = null
+    private var clockJob: Job? = null
 
     private val _uiState = MutableStateFlow(initialUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -201,7 +203,8 @@ class GameViewModel(
     }
 
     private fun startClockTicker() {
-        viewModelScope.launch {
+        clockJob?.cancel()
+        clockJob = viewModelScope.launch {
             var last = epochMillis()
             while (true) {
                 delay(200)
@@ -209,7 +212,10 @@ class GameViewModel(
                 val delta = now - last
                 last = now
                 val state = _uiState.value
-                if (state.timeControl == null || state.gameState.result != null) {
+                if (state.gameState.result != null) {
+                    break
+                }
+                if (state.timeControl == null) {
                     continue
                 }
                 if (mode is GameMode.Hotseat && state.gameState.uciHistory.isEmpty()) {
@@ -342,7 +348,7 @@ class GameViewModel(
                     gameState = game.state(),
                     takebackOfferIncoming = false,
                     takebackOfferOutgoing = false,
-                    drawOfferIncoming = message.drawOfferPending && _uiState.value.drawOfferIncoming,
+                    drawOfferIncoming = message.drawOfferPending,
                     selected = null,
                     legalTargets = emptySet(),
                     premoves = if (missedResult != null) emptyList() else _uiState.value.premoves,
@@ -352,6 +358,7 @@ class GameViewModel(
                     blackMillis = message.blackMillis ?: _uiState.value.blackMillis
                 )
                 if (missedResult != null) {
+                    forgetResumePoint()
                     maybeUploadRecord()
                 }
             }
@@ -363,8 +370,11 @@ class GameViewModel(
                     premoves = emptyList(),
                     premoveState = null,
                     drawOfferIncoming = false,
-                    drawOfferOutgoing = false
+                    drawOfferOutgoing = false,
+                    takebackOfferIncoming = false,
+                    takebackOfferOutgoing = false
                 )
+                forgetResumePoint()
                 maybeUploadRecord()
             }
 
@@ -458,6 +468,9 @@ class GameViewModel(
         if (session?.kind == "lichess" || session?.kind == "online") {
             return
         }
+        if (startFen != null) {
+            return
+        }
         val myColor = if (session == null) null else _uiState.value.myColor
         val myName = session?.myName ?: "White"
         val opponent = session?.let { _uiState.value.opponentName ?: "Opponent" } ?: "Black"
@@ -522,9 +535,22 @@ class GameViewModel(
             drawOfferOutgoing = false,
             rematchOfferIncoming = false,
             rematchOfferOutgoing = false,
+            takebackOfferIncoming = false,
+            takebackOfferOutgoing = false,
+            ratingChange = null,
+            hint = null,
+            premoves = emptyList(),
+            premoveState = null,
             whiteMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
             blackMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) }
         )
+        startClockTicker()
+    }
+
+    private fun resetGame(): ChessGame {
+        val fresh = ChessGame()
+        startFen?.let { fresh.loadFen(it) }
+        return fresh
     }
 
     private fun rebuildFromFen(fen: String) {
@@ -771,7 +797,7 @@ class GameViewModel(
     fun newGame() {
         when (mode) {
             GameMode.Hotseat -> {
-                game = ChessGame()
+                game = resetGame()
                 recordUploaded = false
                 val series = _uiState.value
                 _uiState.value = initialUiState().copy(
@@ -784,20 +810,23 @@ class GameViewModel(
                     seriesDraws = series.seriesDraws
                 )
                 savedGames.clear()
+                startClockTicker()
             }
 
             is GameMode.Computer -> {
                 engineJob?.cancel()
-                game = ChessGame()
+                game = resetGame()
                 recordUploaded = false
                 val series = _uiState.value
                 _uiState.value = initialUiState().copy(
                     myColor = mode.myColor,
+                    computerLevel = mode.level.id,
                     showTimePicker = false,
                     seriesMyWins = series.seriesMyWins,
                     seriesOpponentWins = series.seriesOpponentWins,
                     seriesDraws = series.seriesDraws
                 )
+                startClockTicker()
                 maybeStartEngineTurn()
             }
 
@@ -922,6 +951,7 @@ class GameViewModel(
             winner = state.result?.winner,
             reason = state.result?.reason,
             uciHistory = state.uciHistory,
+            startFen = startFen,
             dateMillis = epochMillis()
         )
     }
@@ -988,7 +1018,10 @@ class GameViewModel(
         val fen = game.fen()
         _uiState.value = _uiState.value.copy(engineThinking = true)
         engineJob = viewModelScope.launch {
-            val move = withContext(engineContext) { engine.bestMove(fen, computer.level) }
+            val searchJob = coroutineContext[Job]
+            val move = withContext(engineContext) {
+                engine.bestMove(fen, computer.level) { searchJob?.isActive != false }
+            }
             if (move == null || game.fen() != fen) {
                 _uiState.value = _uiState.value.copy(engineThinking = false)
                 return@launch
@@ -1051,8 +1084,16 @@ class GameViewModel(
     }
 
     override fun onCleared() {
+        engineJob?.cancel()
+        clockJob?.cancel()
         if (mode is GameMode.Remote) {
-            GameSessionHolder.clear()
+            GameSessionHolder.detach()
+        }
+    }
+
+    private fun forgetResumePoint() {
+        if (mode is GameMode.Remote) {
+            OnlineGameStore.clear()
         }
     }
 }

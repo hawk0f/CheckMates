@@ -87,6 +87,7 @@ fun BleLobbyScreen(
             CircleButton(
                 onClick = {
                     viewModel.stopScan()
+                    viewModel.stopHosting()
                     onBack()
                 },
                 contentDescription = stringResource(Res.string.a11y_close)

@@ -2,6 +2,7 @@ package dev.hawk0f.checkmates.session
 
 import com.russhwolf.settings.Settings
 import dev.hawk0f.checkmates.platform.epochMillis
+import dev.hawk0f.checkmates.shared.protocol.ClockMode
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 
 data class SavedHotseatGame(
@@ -28,6 +29,9 @@ object HotseatGameStore : HotseatGamePersistence {
     private const val KEY_INCREMENT_SECONDS = "hotseat.incrementSeconds"
     private const val KEY_WHITE_MILLIS = "hotseat.whiteMillis"
     private const val KEY_BLACK_MILLIS = "hotseat.blackMillis"
+    private const val KEY_CLOCK_MODE = "hotseat.clockMode"
+    private const val KEY_BLACK_INITIAL_SECONDS = "hotseat.blackInitialSeconds"
+    private const val KEY_BLACK_INCREMENT_SECONDS = "hotseat.blackIncrementSeconds"
     private const val KEY_SAVED_AT = "hotseat.savedAt"
     private const val KEY_SERIES_WHITE = "hotseat.seriesWhite"
     private const val KEY_SERIES_BLACK = "hotseat.seriesBlack"
@@ -40,6 +44,9 @@ object HotseatGameStore : HotseatGamePersistence {
         settings.putString(KEY_HISTORY, game.uciHistory.joinToString(" "))
         settings.putInt(KEY_INITIAL_SECONDS, game.timeControl?.initialSeconds ?: -1)
         settings.putInt(KEY_INCREMENT_SECONDS, game.timeControl?.incrementSeconds ?: -1)
+        settings.putString(KEY_CLOCK_MODE, game.timeControl?.mode?.id ?: "")
+        settings.putInt(KEY_BLACK_INITIAL_SECONDS, game.timeControl?.blackInitialSeconds ?: -1)
+        settings.putInt(KEY_BLACK_INCREMENT_SECONDS, game.timeControl?.blackIncrementSeconds ?: -1)
         settings.putLong(KEY_WHITE_MILLIS, game.whiteMillis ?: -1)
         settings.putLong(KEY_BLACK_MILLIS, game.blackMillis ?: -1)
         settings.putLong(KEY_SAVED_AT, game.savedAtMillis)
@@ -60,7 +67,13 @@ object HotseatGameStore : HotseatGamePersistence {
         val initialSeconds = settings.getInt(KEY_INITIAL_SECONDS, -1)
         val incrementSeconds = settings.getInt(KEY_INCREMENT_SECONDS, -1)
         val timeControl = if (initialSeconds >= 0 && incrementSeconds >= 0) {
-            TimeControl(initialSeconds, incrementSeconds)
+            TimeControl(
+                initialSeconds = initialSeconds,
+                incrementSeconds = incrementSeconds,
+                mode = ClockMode.byId(settings.getStringOrNull(KEY_CLOCK_MODE)),
+                blackInitialSeconds = settings.getInt(KEY_BLACK_INITIAL_SECONDS, -1).takeIf { it >= 0 },
+                blackIncrementSeconds = settings.getInt(KEY_BLACK_INCREMENT_SECONDS, -1).takeIf { it >= 0 }
+            )
         } else {
             null
         }

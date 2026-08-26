@@ -143,7 +143,7 @@ class FriendsViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                GameSessionHolder.clear()
+                GameSessionHolder.detach()
                 _uiState.value = _uiState.value.copy(working = false, error = e.message ?: "challenge failed")
             }
         }
@@ -159,5 +159,6 @@ class FriendsViewModel(
 
     override fun onCleared() {
         httpClient.close()
+        socketClient.close()
     }
 }

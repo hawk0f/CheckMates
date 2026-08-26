@@ -447,7 +447,7 @@ fun App() {
                             GameScreen(
                                 mode = GameMode.Remote(session),
                                 onExit = {
-                                    GameSessionHolder.clear()
+                                    GameSessionHolder.detach()
                                     navController.popBackStack()
                                 },
                                 onOpenReview = { gameId ->

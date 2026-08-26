@@ -34,6 +34,8 @@ class WebSocketGameTransport(
     private var closedByUser = false
     private var credentials: Pair<String, String>? =
         if (gameId != null && playerToken != null) gameId to playerToken else null
+    private var pendingResend: GameMessage? = null
+    private var fatalError: String? = null
 
     override val incoming: Flow<GameMessage> = _incoming
     override val connectionState: StateFlow<TransportConnectionState> = _connectionState.asStateFlow()
@@ -48,7 +50,6 @@ class WebSocketGameTransport(
             while (!closedByUser) {
                 try {
                     client.webSocket(url) {
-                        attempt = 0
                         _connectionState.value = TransportConnectionState.Connected
                         val opening = if (everConnected && credentials != null) {
                             GameMessage.Reconnect(credentials!!.first, credentials!!.second)
@@ -57,9 +58,15 @@ class WebSocketGameTransport(
                         }
                         everConnected = true
                         opening?.let { send(Frame.Text(ProtocolJson.encode(it))) }
+                        pendingResend?.let { queued ->
+                            send(Frame.Text(ProtocolJson.encode(queued)))
+                            pendingResend = null
+                        }
                         val sender = launch {
                             for (message in sendQueue) {
+                                pendingResend = message
                                 send(Frame.Text(ProtocolJson.encode(message)))
+                                pendingResend = null
                             }
                         }
                         try {
@@ -67,8 +74,12 @@ class WebSocketGameTransport(
                                 if (frame is Frame.Text) {
                                     val message = runCatching { ProtocolJson.decode(frame.readText()) }.getOrNull()
                                     if (message != null) {
+                                        attempt = 0
                                         if (message is GameMessage.GameCreated && message.playerToken.isNotEmpty()) {
                                             credentials = message.gameId to message.playerToken
+                                        }
+                                        if (message is GameMessage.ProtocolError && message.code in FATAL_ERRORS) {
+                                            fatalError = message.code
                                         }
                                         _incoming.emit(message)
                                     }
@@ -82,6 +93,10 @@ class WebSocketGameTransport(
                 }
                 if (closedByUser) {
                     break
+                }
+                fatalError?.let { code ->
+                    _connectionState.value = TransportConnectionState.Closed(code)
+                    return@launch
                 }
                 if (credentials == null && everConnected) {
                     break
@@ -101,6 +116,10 @@ class WebSocketGameTransport(
 
     override suspend fun send(message: GameMessage) {
         sendQueue.send(message)
+    }
+
+    private companion object {
+        val FATAL_ERRORS = setOf("GAME_NOT_FOUND", "BAD_TOKEN", "NOT_JOINABLE")
     }
 
     override suspend fun close() {

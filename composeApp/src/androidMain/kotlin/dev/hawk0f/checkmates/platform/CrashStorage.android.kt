@@ -14,7 +14,13 @@ actual object CrashStorage {
     private val directory: File?
         get() = BleAppContext.applicationContext?.filesDir?.let { File(it, "crashes").apply { mkdirs() } }
 
+    private var handlerInstalled = false
+
     actual fun installHandler() {
+        if (handlerInstalled) {
+            return
+        }
+        handlerInstalled = true
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { store(error) }

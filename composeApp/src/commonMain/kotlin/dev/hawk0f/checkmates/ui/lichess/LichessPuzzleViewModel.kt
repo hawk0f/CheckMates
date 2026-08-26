@@ -18,6 +18,11 @@ import kotlinx.coroutines.launch
 import dev.hawk0f.checkmates.resources.lichess_puzzle_load_failed
 import dev.hawk0f.checkmates.resources.lichess_puzzle_move_mismatch
 import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.puzzle_angle_endgame
+import dev.hawk0f.checkmates.resources.puzzle_angle_kingside_attack
+import dev.hawk0f.checkmates.resources.puzzle_angle_mate_in_two
+import dev.hawk0f.checkmates.resources.puzzle_angle_mixed
+import dev.hawk0f.checkmates.resources.puzzle_angle_sacrifice
 import org.jetbrains.compose.resources.getString
 
 enum class PuzzleFeedback {
@@ -47,11 +52,11 @@ data class LichessPuzzleUiState(
 )
 
 val PUZZLE_ANGLES = listOf(
-    null to "Mixed",
-    "mateIn2" to "mateIn2",
-    "sacrifice" to "sacrifice",
-    "endgame" to "endgame",
-    "kingsideAttack" to "kingsideAttack"
+    null to Res.string.puzzle_angle_mixed,
+    "mateIn2" to Res.string.puzzle_angle_mate_in_two,
+    "sacrifice" to Res.string.puzzle_angle_sacrifice,
+    "endgame" to Res.string.puzzle_angle_endgame,
+    "kingsideAttack" to Res.string.puzzle_angle_kingside_attack
 )
 
 class LichessPuzzleViewModel : ViewModel() {

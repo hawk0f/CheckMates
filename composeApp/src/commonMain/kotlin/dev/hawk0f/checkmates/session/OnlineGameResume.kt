@@ -41,7 +41,7 @@ object OnlineGameResume {
             session.myColor.filterNotNull().first()
         }
         if (attached == null) {
-            GameSessionHolder.clear()
+            GameSessionHolder.detach()
             return false
         }
         return true

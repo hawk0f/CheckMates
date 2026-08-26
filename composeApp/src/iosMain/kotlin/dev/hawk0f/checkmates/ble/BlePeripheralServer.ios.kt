@@ -32,6 +32,8 @@ import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.dataUsingEncoding
 import platform.Foundation.subdataWithRange
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import platform.darwin.NSObject
 import kotlinx.cinterop.BetaInteropApi
 import platform.Foundation.create
@@ -156,8 +158,10 @@ actual class BlePeripheralServer {
     }
 
     actual suspend fun notifyGuest(bytes: ByteArray) {
-        notifyQueue.addLast(bytes)
-        drainNotifyQueue()
+        withContext(Dispatchers.Main) {
+            notifyQueue.addLast(bytes)
+            drainNotifyQueue()
+        }
     }
 
     private fun drainNotifyQueue() {
@@ -179,6 +183,8 @@ actual class BlePeripheralServer {
         manager?.stopAdvertising()
         manager?.removeAllServices()
         manager = null
+        notifyQueue.clear()
+        subscribed = false
         _centralConnected.value = false
     }
 }

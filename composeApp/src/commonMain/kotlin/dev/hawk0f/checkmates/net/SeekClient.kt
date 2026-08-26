@@ -21,6 +21,16 @@ class SeekClient(private val client: HttpClient) {
             append(timeControl.initialSeconds)
             append("&increment=")
             append(timeControl.incrementSeconds)
+            append("&mode=")
+            append(timeControl.mode.id)
+            timeControl.blackInitialSeconds?.let {
+                append("&blackInitial=")
+                append(it)
+            }
+            timeControl.blackIncrementSeconds?.let {
+                append("&blackIncrement=")
+                append(it)
+            }
             append("&name=")
             append(name.encodeURLParameter())
             if (authToken != null) {

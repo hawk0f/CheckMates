@@ -55,6 +55,16 @@
     <string name="common_your_name">Ваше имя</string>
     <string name="common_none">Без часов</string>
     <string name="lobby_new_game">Новая партия</string>
+    <string name="lobby_bad_code">Неверный код партии</string>
+    <string name="lobby_game_not_found">Партия не найдена или истекла</string>
+    <string name="lobby_game_already_started">Партия уже началась</string>
+    <string name="lobby_connection_failed">Не удалось подключиться</string>
+    <string name="lobby_matchmaking_failed">Не удалось подобрать соперника</string>
+    <string name="puzzle_angle_mixed">Все темы</string>
+    <string name="puzzle_angle_mate_in_two">Мат в 2 хода</string>
+    <string name="puzzle_angle_sacrifice">Жертва</string>
+    <string name="puzzle_angle_endgame">Эндшпиль</string>
+    <string name="puzzle_angle_kingside_attack">Атака на короля</string>
     <string name="lobby_could_not_start">Не удалось начать</string>
     <string name="lobby_opponent">Соперник</string>
     <string name="lobby_invite_a_friend">Пригласить друга</string>

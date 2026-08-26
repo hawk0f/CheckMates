@@ -15,6 +15,8 @@ import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
@@ -25,6 +27,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.http.HttpStatusCode
 
@@ -113,7 +116,7 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
         variant: String = "standard",
         ratingRange: String? = null
     ) {
-        client.submitForm(
+        val response = client.submitForm(
             url = "$LICHESS_BASE_URL/api/board/seek",
             formParameters = parameters {
                 append("rated", rated.toString())
@@ -127,6 +130,17 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
             bearerAuth(token)
             header(HttpHeaders.Accept, "application/x-ndjson")
         }
+        if (!response.status.isSuccess()) {
+            throw LichessException(errorTextOf(response))
+        }
+    }
+
+    private suspend fun errorTextOf(response: HttpResponse): String {
+        val body = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
+        val reason = runCatching {
+            (json.parseToJsonElement(body) as? JsonObject)?.get("error")?.jsonPrimitive?.content
+        }.getOrNull()
+        return reason ?: "${response.status.value} ${response.status.description}"
     }
 
     suspend fun seekCorrespondence(token: String, days: Int, rated: Boolean): String? {
@@ -431,6 +445,9 @@ class LichessApi(private val client: HttpClient = lichessHttpClient()) {
             token?.let { bearerAuth(it) }
             header(HttpHeaders.Accept, "application/x-ndjson")
         }.execute { response ->
+            if (!response.status.isSuccess()) {
+                throw LichessException(errorTextOf(response))
+            }
             val channel = response.bodyAsChannel()
             while (!channel.isClosedForRead) {
                 val line = channel.readLine() ?: break

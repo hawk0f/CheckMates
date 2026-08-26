@@ -30,31 +30,48 @@ class ReplayAnalysisViewModel(
     val uiState: StateFlow<ReplayAnalysisUiState> = _uiState.asStateFlow()
 
     private var job: Job? = null
+    private var generation = 0
 
     fun analyse(uciHistory: List<String>) {
         if (_uiState.value.running || uciHistory.isEmpty()) {
             return
         }
+        generation++
+        val current = generation
         _uiState.value = ReplayAnalysisUiState(running = true, totalPlies = uciHistory.size)
         job = viewModelScope.launch {
             try {
                 val summary = withContext(analysisContext) {
-                    analyzer.analyse(uciHistory) { done ->
-                        _uiState.value = _uiState.value.copy(analysedPlies = done)
+                    analyzer.analyse(
+                        uciHistory = uciHistory,
+                        shouldContinue = { current == generation }
+                    ) { done ->
+                        if (current == generation) {
+                            _uiState.value = _uiState.value.copy(analysedPlies = done)
+                        }
                     }
                 }
-                _uiState.value = _uiState.value.copy(running = false, summary = summary)
+                if (current == generation) {
+                    _uiState.value = _uiState.value.copy(running = false, summary = summary)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                _uiState.value = ReplayAnalysisUiState()
+                if (current == generation) {
+                    _uiState.value = ReplayAnalysisUiState()
+                }
             }
         }
     }
 
     fun cancel() {
+        generation++
         job?.cancel()
         job = null
         _uiState.value = ReplayAnalysisUiState()
+    }
+
+    override fun onCleared() {
+        cancel()
     }
 }

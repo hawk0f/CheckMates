@@ -9,9 +9,13 @@ import platform.Security.kSecRandomDefault
 
 @OptIn(ExperimentalForeignApi::class)
 actual fun secureRandomBytes(size: Int): ByteArray {
+    if (size <= 0) {
+        return ByteArray(0)
+    }
     val bytes = ByteArray(size)
-    bytes.usePinned { pinned ->
+    val status = bytes.usePinned { pinned ->
         SecRandomCopyBytes(kSecRandomDefault, size.convert(), pinned.addressOf(0))
     }
+    check(status == 0) { "SecRandomCopyBytes failed with status $status" }
     return bytes
 }

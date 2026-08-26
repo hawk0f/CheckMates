@@ -194,25 +194,41 @@ actual class BlePeripheralServer {
             notifyInFlight = true
             notifyQueue.removeFirst()
         }
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            server.notifyCharacteristicChanged(device, characteristic, false, bytes)
+        val accepted = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            server.notifyCharacteristicChanged(device, characteristic, false, bytes) ==
+                android.bluetooth.BluetoothStatusCodes.SUCCESS
         } else {
             @Suppress("DEPRECATION")
             characteristic.value = bytes
             @Suppress("DEPRECATION")
             server.notifyCharacteristicChanged(device, characteristic, false)
         }
+        if (!accepted) {
+            synchronized(notifyQueue) {
+                notifyQueue.addFirst(bytes)
+                notifyInFlight = false
+            }
+            retryHandler.postDelayed({ drainNotifyQueue() }, NOTIFY_RETRY_MILLIS)
+        }
     }
 
     actual fun stop() {
+        retryHandler.removeCallbacksAndMessages(null)
         advertiser?.stopAdvertising(advertiseCallback)
         gattServer?.close()
         gattServer = null
         subscribedDevice = null
+        synchronized(notifyQueue) {
+            notifyQueue.clear()
+            notifyInFlight = false
+        }
         _centralConnected.value = false
     }
 
+    private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     private companion object {
+        const val NOTIFY_RETRY_MILLIS = 50L
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     }
 }

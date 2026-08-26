@@ -236,6 +236,43 @@ class GameViewModelTest {
         assertNull(savedGames.stored)
     }
 
+    @Test
+    fun aNewGameKeepsTheCustomStartingPosition() {
+        val fen = "8/P6k/8/8/8/8/6p1/6K1 w - - 0 1"
+        val viewModel = GameViewModel(GameMode.Hotseat, FakeSavedGames(), startFen = fen)
+        viewModel.selectTimeControl(null)
+        viewModel.play("a7a8")
+        viewModel.onPromotionChosen(PieceKind.QUEEN)
+        viewModel.newGame()
+
+        val state = viewModel.uiState.value.gameState
+        assertEquals(fen, viewModel.startPositionFen)
+        assertTrue(state.uciHistory.isEmpty())
+        assertEquals(4, state.pieces.size)
+        assertEquals(
+            Piece(PieceColor.WHITE, PieceKind.PAWN),
+            state.pieces[Square.fromUci("a7")]
+        )
+    }
+
+    @Test
+    fun aResyncSurfacesADrawOfferTheClientMissed() {
+        val fixture = RemoteFixture(PieceColor.WHITE, kind = "online")
+        val viewModel = remote(fixture)
+        assertFalse(viewModel.uiState.value.drawOfferIncoming)
+
+        fixture.session.messages.tryEmit(
+            GameMessage.Resync(
+                fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                uciHistory = emptyList(),
+                drawOfferPending = true
+            )
+        )
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(viewModel.uiState.value.drawOfferIncoming)
+    }
+
     private class FakeTransport : GameTransport {
         override val incoming: Flow<GameMessage> = MutableSharedFlow()
         override val connectionState = MutableStateFlow<TransportConnectionState>(TransportConnectionState.Connected)

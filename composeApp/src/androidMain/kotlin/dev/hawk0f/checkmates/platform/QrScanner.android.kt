@@ -30,6 +30,8 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 @Composable
 actual fun QrScannerView(
@@ -69,9 +71,13 @@ actual fun QrScannerView(
         )
     }
     var delivered by remember { mutableStateOf(false) }
+    val disposed = remember { AtomicBoolean(false) }
+    val boundProvider = remember { AtomicReference<ProcessCameraProvider?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
+            disposed.set(true)
+            boundProvider.getAndSet(null)?.unbindAll()
             executor.shutdown()
             scanner.close()
         }
@@ -84,6 +90,10 @@ actual fun QrScannerView(
             val providerFuture = ProcessCameraProvider.getInstance(viewContext)
             providerFuture.addListener({
                 val provider = providerFuture.get()
+                if (disposed.get()) {
+                    provider.unbindAll()
+                    return@addListener
+                }
                 val preview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
                 }
@@ -91,6 +101,10 @@ actual fun QrScannerView(
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
                 analysis.setAnalyzer(executor) { imageProxy ->
+                    if (disposed.get()) {
+                        imageProxy.close()
+                        return@setAnalyzer
+                    }
                     processFrame(scanner, imageProxy) { value ->
                         if (!delivered) {
                             delivered = true
@@ -100,6 +114,10 @@ actual fun QrScannerView(
                 }
                 provider.unbindAll()
                 provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                boundProvider.set(provider)
+                if (disposed.get()) {
+                    boundProvider.getAndSet(null)?.unbindAll()
+                }
             }, ContextCompat.getMainExecutor(viewContext))
             previewView
         }

@@ -85,6 +85,13 @@ actual fun QrScannerView(
     DisposableEffect(Unit) {
         onDispose {
             session.stopRunning()
+            for (output in session.outputs) {
+                (output as? AVCaptureMetadataOutput)?.setMetadataObjectsDelegate(null, null)
+                session.removeOutput(output as platform.AVFoundation.AVCaptureOutput)
+            }
+            for (input in session.inputs) {
+                session.removeInput(input as platform.AVFoundation.AVCaptureInput)
+            }
         }
     }
 

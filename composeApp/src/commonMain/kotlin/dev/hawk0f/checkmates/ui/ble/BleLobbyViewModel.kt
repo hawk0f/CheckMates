@@ -87,7 +87,7 @@ class BleLobbyViewModel : ViewModel() {
     fun stopHosting() {
         peripheralServer?.stop()
         peripheralServer = null
-        GameSessionHolder.clear()
+        GameSessionHolder.detach()
         _uiState.value = _uiState.value.copy(step = BleLobbyStep.Idle)
     }
 
@@ -144,7 +144,7 @@ class BleLobbyViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                GameSessionHolder.clear()
+                GameSessionHolder.detach()
                 _uiState.value = _uiState.value.copy(step = BleLobbyStep.Failed(e.message ?: "connection failed"))
             }
         }
@@ -162,5 +162,7 @@ class BleLobbyViewModel : ViewModel() {
 
     override fun onCleared() {
         stopScan()
+        peripheralServer?.stop()
+        peripheralServer = null
     }
 }

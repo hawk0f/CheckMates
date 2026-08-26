@@ -10,6 +10,13 @@ import dev.hawk0f.checkmates.net.configuredHttpClient
 import dev.hawk0f.checkmates.net.configuredWebSocketClient
 import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.session.AuthManager
+import dev.hawk0f.checkmates.resources.Res
+import dev.hawk0f.checkmates.resources.lobby_bad_code
+import dev.hawk0f.checkmates.resources.lobby_connection_failed
+import dev.hawk0f.checkmates.resources.lobby_game_already_started
+import dev.hawk0f.checkmates.resources.lobby_game_not_found
+import dev.hawk0f.checkmates.resources.lobby_matchmaking_failed
+import org.jetbrains.compose.resources.getString
 import dev.hawk0f.checkmates.session.GameSessionHolder
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.protocol.SeekMessage
@@ -104,8 +111,8 @@ class OnlineLobbyViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                GameSessionHolder.clear()
-                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(e.message ?: "connection failed"))
+                GameSessionHolder.detach()
+                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(getString(Res.string.lobby_connection_failed)))
             }
         }
     }
@@ -117,7 +124,11 @@ class OnlineLobbyViewModel : ViewModel() {
         }
         val code = rawInput?.let { ShortCode.extractFromText(it) } ?: state.codeInput
         if (!ShortCode.isValid(code)) {
-            _uiState.value = state.copy(step = LobbyStep.Failed("Bad game code"))
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(
+                    step = LobbyStep.Failed(getString(Res.string.lobby_bad_code))
+                )
+            }
             return
         }
         _uiState.value = state.copy(step = LobbyStep.Working)
@@ -125,11 +136,11 @@ class OnlineLobbyViewModel : ViewModel() {
             try {
                 val info = api.gameInfo(code)
                 if (!info.exists || info.gameId == null) {
-                    _uiState.value = _uiState.value.copy(step = LobbyStep.Failed("Game not found or expired"))
+                    _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(getString(Res.string.lobby_game_not_found)))
                     return@launch
                 }
                 if (!info.joinable) {
-                    _uiState.value = _uiState.value.copy(step = LobbyStep.Failed("Game already started"))
+                    _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(getString(Res.string.lobby_game_already_started)))
                     return@launch
                 }
                 val transport = WebSocketGameTransport(
@@ -151,8 +162,8 @@ class OnlineLobbyViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                GameSessionHolder.clear()
-                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(e.message ?: "connection failed"))
+                GameSessionHolder.detach()
+                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(getString(Res.string.lobby_connection_failed)))
             }
         }
     }
@@ -184,8 +195,8 @@ class OnlineLobbyViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                GameSessionHolder.clear()
-                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(e.message ?: "matchmaking failed"))
+                GameSessionHolder.detach()
+                _uiState.value = _uiState.value.copy(step = LobbyStep.Failed(getString(Res.string.lobby_matchmaking_failed)))
             }
         }
     }
@@ -231,7 +242,9 @@ class OnlineLobbyViewModel : ViewModel() {
     }
 
     override fun onCleared() {
+        seekJob?.cancel()
         httpClient.close()
+        socketClient.close()
     }
 
     companion object {

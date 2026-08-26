@@ -55,6 +55,16 @@
     <string name="common_your_name">Your name</string>
     <string name="common_none">None</string>
     <string name="lobby_new_game">New game</string>
+    <string name="lobby_bad_code">Bad game code</string>
+    <string name="lobby_game_not_found">Game not found or expired</string>
+    <string name="lobby_game_already_started">Game already started</string>
+    <string name="lobby_connection_failed">Connection failed</string>
+    <string name="lobby_matchmaking_failed">Matchmaking failed</string>
+    <string name="puzzle_angle_mixed">Mixed</string>
+    <string name="puzzle_angle_mate_in_two">Mate in 2</string>
+    <string name="puzzle_angle_sacrifice">Sacrifice</string>
+    <string name="puzzle_angle_endgame">Endgame</string>
+    <string name="puzzle_angle_kingside_attack">Kingside attack</string>
     <string name="lobby_could_not_start">Could not start</string>
     <string name="lobby_opponent">Opponent</string>
     <string name="lobby_invite_a_friend">Invite a friend</string>

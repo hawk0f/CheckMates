@@ -114,7 +114,7 @@ fun LichessPuzzleScreen(
             ) {
                 for ((angle, label) in PUZZLE_ANGLES) {
                     SelectPill(
-                        text = label,
+                        text = stringResource(label),
                         selected = uiState.angle == angle,
                         onClick = { viewModel.loadNext(angle) }
                     )

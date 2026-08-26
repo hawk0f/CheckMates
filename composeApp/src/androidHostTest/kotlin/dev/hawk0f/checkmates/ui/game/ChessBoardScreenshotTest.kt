@@ -8,6 +8,10 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.ui.theme.AppTheme
+import dev.hawk0f.checkmates.ui.theme.DarkModePreference
+import dev.hawk0f.checkmates.ui.theme.ThemeManager
+import dev.hawk0f.checkmates.ui.theme.ThemePalette
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -21,6 +25,12 @@ import org.robolectric.annotation.GraphicsMode
     qualifiers = "w411dp-h891dp-normal-long-notround-any-560dpi-keyshidden-nonav"
 )
 class ChessBoardScreenshotTest {
+
+    @Before
+    fun pinTheme() {
+        ThemeManager.selectPalette(ThemePalette.SAGE)
+        ThemeManager.selectDarkMode(DarkModePreference.LIGHT)
+    }
 
     private fun stateAfter(vararg moves: String) = ChessGame().apply {
         for (uci in moves) {

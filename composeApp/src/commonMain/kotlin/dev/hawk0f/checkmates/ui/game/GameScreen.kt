@@ -39,11 +39,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -222,24 +224,34 @@ fun GameScreen(
 
     val bottomColor = uiState.myColor ?: PieceColor.WHITE
     var confirmingResign by remember { mutableStateOf(false) }
-
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    LaunchedEffect(gameState.result) {
         if (gameState.result != null) {
-            GameOverPanel(
-                uiState = uiState,
-                viewModel = viewModel,
-                bottomColor = bottomColor,
-                onExit = onExit
-            )
-        } else {
-            PlayingPanel(
-                uiState = uiState,
-                viewModel = viewModel,
-                bottomColor = bottomColor,
-                onExit = onExit,
-                onResignRequest = { confirmingResign = true },
-                onOpenReview = onOpenReview
-            )
+            confirmingResign = false
+        }
+    }
+
+    val materialBaseline = remember(viewModel.startPositionFen) {
+        materialBaselineOf(viewModel.startPositionFen)
+    }
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        CompositionLocalProvider(LocalMaterialBaseline provides materialBaseline) {
+            if (gameState.result != null) {
+                GameOverPanel(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    bottomColor = bottomColor,
+                    onExit = onExit
+                )
+            } else {
+                PlayingPanel(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    bottomColor = bottomColor,
+                    onExit = onExit,
+                    onResignRequest = { confirmingResign = true },
+                    onOpenReview = onOpenReview
+                )
+            }
         }
     }
 
@@ -290,9 +302,9 @@ fun GameScreen(
         TimeControlDialog(onPick = viewModel::selectTimeControl)
     }
 
-    uiState.pendingPromotion?.let {
+    uiState.pendingPromotion?.let { pending ->
         PromotionDialog(
-            color = gameState.sideToMove,
+            color = if (pending.isPremove) uiState.myColor ?: gameState.sideToMove else gameState.sideToMove,
             onChoose = viewModel::onPromotionChosen,
             onDismiss = viewModel::onPromotionDismissed
         )
@@ -323,7 +335,13 @@ private fun PlayingPanel(
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
     val expanded = sheetState.targetValue == SheetValue.Expanded
-    val offerIncoming = uiState.drawOfferIncoming || uiState.takebackOfferIncoming
+    val lichess = viewModel.lichessTransport
+    val noIncomingTakeback = remember { MutableStateFlow(false) }
+    val lichessTakebackIncoming by (lichess?.takebackIncoming ?: noIncomingTakeback)
+        .collectAsStateWithLifecycle()
+    val offerIncoming = uiState.drawOfferIncoming ||
+        uiState.takebackOfferIncoming ||
+        lichessTakebackIncoming
     LaunchedEffect(offerIncoming) {
         if (offerIncoming) {
             sheetState.expand()
@@ -452,12 +470,11 @@ private fun GameSheet(
     onOpenReview: ((String) -> Unit)?
 ) {
     val lichess = viewModel.lichessTransport
-    val takebackIncoming by (lichess?.takebackIncoming ?: MutableStateFlow(false))
-        .collectAsStateWithLifecycle()
-    val takebackOutgoing by (lichess?.takebackOutgoing ?: MutableStateFlow(false))
-        .collectAsStateWithLifecycle()
-    val opponentGone by (lichess?.opponentGoneSeconds ?: MutableStateFlow<Int?>(null))
-        .collectAsStateWithLifecycle()
+    val noFlag = remember { MutableStateFlow(false) }
+    val noSeconds = remember { MutableStateFlow<Int?>(null) }
+    val takebackIncoming by (lichess?.takebackIncoming ?: noFlag).collectAsStateWithLifecycle()
+    val takebackOutgoing by (lichess?.takebackOutgoing ?: noFlag).collectAsStateWithLifecycle()
+    val opponentGone by (lichess?.opponentGoneSeconds ?: noSeconds).collectAsStateWithLifecycle()
     val chatLines = uiState.chat
     var chatOpen by remember { mutableStateOf(false) }
     var boardSettingsOpen by remember { mutableStateOf(false) }
@@ -1697,7 +1714,7 @@ private val pieceValues = mapOf(
     PieceKind.QUEEN to 9
 )
 
-private val initialCounts = mapOf(
+private val standardCounts = mapOf(
     PieceKind.PAWN to 8,
     PieceKind.KNIGHT to 2,
     PieceKind.BISHOP to 2,
@@ -1705,13 +1722,44 @@ private val initialCounts = mapOf(
     PieceKind.QUEEN to 1
 )
 
-private fun capturedPieces(gameState: GameState, capturedFrom: PieceColor): List<PieceKind> {
+private val standardBaseline = mapOf(
+    PieceColor.WHITE to standardCounts,
+    PieceColor.BLACK to standardCounts
+)
+
+private val LocalMaterialBaseline = staticCompositionLocalOf { standardBaseline }
+
+private fun materialBaselineOf(startFen: String?): Map<PieceColor, Map<PieceKind, Int>> {
+    if (startFen == null) {
+        return standardBaseline
+    }
+    val start = ChessGame()
+    if (runCatching { start.loadFen(startFen) }.isFailure) {
+        return standardBaseline
+    }
+    val counted = start.state().pieces.values
+        .groupBy { it.color }
+        .mapValues { (_, pieces) -> pieces.groupingBy { it.kind }.eachCount() }
+    return mapOf(
+        PieceColor.WHITE to counted[PieceColor.WHITE].orEmpty(),
+        PieceColor.BLACK to counted[PieceColor.BLACK].orEmpty()
+    )
+}
+
+private fun capturedPieces(
+    gameState: GameState,
+    capturedFrom: PieceColor,
+    baseline: Map<PieceKind, Int>
+): List<PieceKind> {
     val remaining = gameState.pieces.values
         .filter { it.color == capturedFrom }
         .groupingBy { it.kind }
         .eachCount()
     return buildList {
-        for ((kind, initial) in initialCounts) {
+        for ((kind, initial) in baseline) {
+            if (kind == PieceKind.KING) {
+                continue
+            }
             repeat(initial - (remaining[kind] ?: 0)) {
                 add(kind)
             }
@@ -1726,7 +1774,8 @@ private fun CapturedRow(
     modifier: Modifier = Modifier,
     pieceSize: Dp = 17.dp
 ) {
-    val captured = capturedPieces(gameState, capturedFrom)
+    val baseline = LocalMaterialBaseline.current[capturedFrom].orEmpty()
+    val captured = capturedPieces(gameState, capturedFrom, baseline)
     if (captured.isEmpty()) {
         Spacer(modifier = modifier.height(pieceSize))
         return

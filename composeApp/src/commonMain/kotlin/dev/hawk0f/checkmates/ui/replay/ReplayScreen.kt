@@ -339,23 +339,25 @@ fun ReplayScreen(
 
 @Composable
 private fun EvaluationBar(whiteScore: Int, flipped: Boolean, modifier: Modifier = Modifier) {
-    val fraction = GameAnalyzer.evaluationBarFraction(whiteScore)
-    val whiteShare = if (flipped) 1f - fraction else fraction
+    val whiteShare = GameAnalyzer.evaluationBarFraction(whiteScore)
     val scheme = MaterialTheme.colorScheme
+    val topColor = if (flipped) scheme.surface else scheme.inverseSurface
+    val bottomColor = if (flipped) scheme.inverseSurface else scheme.surface
+    val topShare = if (flipped) whiteShare else 1f - whiteShare
     Column(
         modifier = modifier.width(10.dp).clip(RoundedCornerShape(5.dp)).background(scheme.inverseSurface)
     ) {
         Spacer(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight((1f - whiteShare).coerceIn(0.01f, 0.99f))
-                .background(scheme.inverseSurface)
+                .weight(topShare.coerceIn(0.01f, 0.99f))
+                .background(topColor)
         )
         Spacer(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(whiteShare.coerceIn(0.01f, 0.99f))
-                .background(scheme.surface)
+                .weight((1f - topShare).coerceIn(0.01f, 0.99f))
+                .background(bottomColor)
         )
     }
 }

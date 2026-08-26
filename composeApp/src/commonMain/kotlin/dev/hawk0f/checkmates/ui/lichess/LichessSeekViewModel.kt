@@ -221,7 +221,9 @@ class LichessSeekViewModel : ViewModel() {
                     .onFailure { fail(it.message ?: getString(Res.string.seek_failed)) }
                 return@launch
             }
-            while (awaitingGame) {
+            var attempts = 0
+            while (awaitingGame && attempts < MAX_SEEK_ATTEMPTS) {
+                attempts++
                 val result = runCatching {
                     api.seek(
                         token = token,
@@ -238,7 +240,10 @@ class LichessSeekViewModel : ViewModel() {
                     fail(result.exceptionOrNull()?.message ?: getString(Res.string.seek_failed))
                     break
                 }
-                delay(1000)
+                delay(SEEK_RETRY_MILLIS)
+            }
+            if (awaitingGame && attempts >= MAX_SEEK_ATTEMPTS) {
+                failWith(Res.string.seek_failed)
             }
         }
     }
@@ -357,5 +362,10 @@ class LichessSeekViewModel : ViewModel() {
     private fun fail(message: String) {
         awaitingGame = false
         _uiState.value = _uiState.value.copy(step = LichessStep.Failed(message))
+    }
+
+    private companion object {
+        const val MAX_SEEK_ATTEMPTS = 120
+        const val SEEK_RETRY_MILLIS = 2000L
     }
 }
