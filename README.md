@@ -69,6 +69,23 @@ On the Android emulator use `http://10.0.2.2:8080`, not `localhost`.
   [.editorconfig](.editorconfig) (IntelliJ code style, no forced trailing commas,
   `function-naming` off for `@Composable`s).
 
+### Component previews
+
+`ui/preview` holds a catalog of `PreviewSpec`s — one per UI element or board state — rendered both by
+`@Preview` functions (Android Studio, Fleet) and by Roborazzi screenshot tests, so a preview and its
+golden never drift apart. Goldens live in [composeApp/screenshots](composeApp/screenshots), one per
+spec per theme.
+
+```bash
+./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.verify=true
+./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.record=true
+```
+
+The first compares against the goldens, the second rewrites them after an intended visual change.
+Each screenshot class pins one palette and one dark-mode setting: switching the theme between
+captures inside a single Robolectric class leaves later captures a frame short, which drops the
+board's pieces from the image.
+
 CI runs the same set plus a release build and the iOS compile — see
 [ci.yml](.github/workflows/ci.yml).
 
