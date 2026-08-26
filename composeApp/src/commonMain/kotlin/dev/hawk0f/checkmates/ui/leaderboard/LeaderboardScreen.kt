@@ -42,7 +42,19 @@ fun LeaderboardScreen(
     viewModel: LeaderboardViewModel = viewModel { LeaderboardViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LeaderboardContent(
+        uiState = uiState,
+        onSelectSpeed = viewModel::selectSpeed,
+        onBack = onBack
+    )
+}
 
+@Composable
+internal fun LeaderboardContent(
+    uiState: LeaderboardUiState,
+    onSelectSpeed: (GameSpeed) -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -74,7 +86,7 @@ fun LeaderboardScreen(
                     SelectPill(
                         text = speed.id.replaceFirstChar { it.uppercase() },
                         selected = speed == uiState.speed,
-                        onClick = { viewModel.selectSpeed(speed) }
+                        onClick = { onSelectSpeed(speed) }
                     )
                 }
             }

@@ -76,12 +76,15 @@ rendered both by `@Preview` functions (Android Studio, Fleet) and by Roborazzi s
 preview and its golden never drift apart. Goldens live in
 [composeApp/screenshots](composeApp/screenshots), one per spec per theme.
 
-Screen specs cover the ones that render from local state alone: home, flow picker, computer setup,
-openings, settings, puzzles, board editor and replay. Two of them are previews without goldens — the
-board editor because any `TextField` crashes Robolectric under the current material3 alpha, replay
-because it prints a locale- and timezone-formatted date. Screens driven by the network (lobby,
-friends, leaderboard, Lichess) and `GameScreen`, which builds its view model internally, are not in
-the catalog yet.
+Every screen is in the catalog. Screens whose state comes from a network-backed view model are split
+into a thin `XScreen(...)` that owns the view model and a stateless `XContent(uiState, callbacks)`
+that the preview drives with fixtures — lobby, friends, leaderboard, nearby, profile and all eight
+Lichess screens. Screens with a local view model (`GameScreen`, opening drill, puzzles, board editor)
+take the view model as a parameter instead, so a preview passes one it built itself.
+
+A few specs are previews without goldens: anything containing a `TextField` (board editor, friends,
+nearby, lobby setup, profile, Lichess players), because `TextField` crashes Robolectric under the
+current material3 alpha, and replay, because it prints a locale- and timezone-formatted date.
 
 ```bash
 ./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.verify=true

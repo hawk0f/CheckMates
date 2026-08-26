@@ -66,6 +66,26 @@ fun LichessReviewScreen(
     viewModel: LichessReviewViewModel = viewModel { LichessReviewViewModel(gameId) }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LichessReviewContent(
+        uiState = uiState,
+        onGoTo = viewModel::goTo,
+        onStep = viewModel::step,
+        onDismissError = viewModel::dismissError,
+        onOpenExplorer = onOpenExplorer,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessReviewContent(
+    uiState: LichessReviewUiState,
+    onGoTo: (Int) -> Unit,
+    onStep: (Int) -> Unit,
+    onDismissError: () -> Unit,
+    onOpenExplorer: ((String) -> Unit)? = null,
+    onBack: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
 
@@ -205,7 +225,7 @@ fun LichessReviewScreen(
             if (total > 0) {
                 Slider(
                     value = uiState.moveIndex.toFloat(),
-                    onValueChange = { viewModel.goTo(it.toInt()) },
+                    onValueChange = { onGoTo(it.toInt()) },
                     valueRange = 0f..total.toFloat(),
                     colors = SliderDefaults.colors(
                         thumbColor = scheme.inverseSurface,
@@ -220,7 +240,7 @@ fun LichessReviewScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CircleButton(
-                        onClick = { viewModel.step(-1) },
+                        onClick = { onStep(-1) },
                         enabled = uiState.moveIndex > 0,
                         size = 48.dp,
                         contentDescription = stringResource(Res.string.a11y_previous_move)
@@ -239,7 +259,7 @@ fun LichessReviewScreen(
                         Spacer(modifier = Modifier.weight(1f))
                     }
                     CircleButton(
-                        onClick = { viewModel.step(1) },
+                        onClick = { onStep(1) },
                         enabled = uiState.moveIndex < total,
                         size = 48.dp,
                         contentDescription = stringResource(Res.string.a11y_next_move)
@@ -274,11 +294,11 @@ fun LichessReviewScreen(
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.review_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }

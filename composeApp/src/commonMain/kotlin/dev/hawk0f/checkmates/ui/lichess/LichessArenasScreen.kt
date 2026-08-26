@@ -61,6 +61,22 @@ fun LichessArenasScreen(
     viewModel: LichessArenasViewModel = viewModel { LichessArenasViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LichessArenasContent(
+        uiState = uiState,
+        onJoin = viewModel::join,
+        onDismissMessage = viewModel::dismissMessage,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessArenasContent(
+    uiState: LichessArenasUiState,
+    onJoin: (String) -> Unit,
+    onDismissMessage: () -> Unit,
+    onBack: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
 
@@ -134,7 +150,7 @@ fun LichessArenasScreen(
                                     Res.string.arenas_join_arena
                                 }
                             ),
-                            onClick = { viewModel.join(arena.id) },
+                            onClick = { onJoin(arena.id) },
                             tone = PillTone.INK,
                             compact = true,
                             modifier = Modifier.fillMaxWidth()
@@ -187,7 +203,7 @@ fun LichessArenasScreen(
                                                 Res.string.arenas_join
                                             }
                                         ),
-                                        onClick = { viewModel.join(arena.id) },
+                                        onClick = { onJoin(arena.id) },
                                         tone = PillTone.SOFT,
                                         compact = true
                                     )
@@ -211,11 +227,11 @@ fun LichessArenasScreen(
 
     uiState.message?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissMessage,
+            onDismissRequest = onDismissMessage,
             title = { Text(stringResource(Res.string.arenas_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissMessage, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissMessage, compact = true)
             }
         )
     }

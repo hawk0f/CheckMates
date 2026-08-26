@@ -60,6 +60,31 @@ fun FriendsScreen(
         }
     }
 
+    FriendsContent(
+        uiState = uiState,
+        signedIn = signedIn,
+        onNameChange = viewModel::onNameChange,
+        onAddFriend = viewModel::addFriend,
+        onChallenge = viewModel::challenge,
+        onChallengeRecent = viewModel::challengeRecent,
+        onRemoveFriend = viewModel::removeFriend,
+        onDismissError = viewModel::dismissError,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun FriendsContent(
+    uiState: FriendsUiState,
+    signedIn: Boolean,
+    onNameChange: (String) -> Unit,
+    onAddFriend: () -> Unit,
+    onChallenge: (FriendSummary) -> Unit,
+    onChallengeRecent: (FriendSummary) -> Unit,
+    onRemoveFriend: (FriendSummary) -> Unit,
+    onDismissError: () -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -97,13 +122,13 @@ fun FriendsScreen(
             ) {
                 OutlinedTextField(
                     value = uiState.nameInput,
-                    onValueChange = viewModel::onNameChange,
+                    onValueChange = onNameChange,
                     label = { Text(stringResource(Res.string.friends_add_label)) },
                     modifier = Modifier.weight(1f)
                 )
                 PillButton(
                     text = stringResource(Res.string.friends_add),
-                    onClick = viewModel::addFriend,
+                    onClick = onAddFriend,
                     enabled = uiState.nameInput.isNotBlank() && !uiState.working,
                     tone = PillTone.ACCENT,
                     compact = true
@@ -136,8 +161,8 @@ fun FriendsScreen(
                         FriendRow(
                             friend = friend,
                             working = uiState.working,
-                            onChallenge = { viewModel.challenge(friend) },
-                            onRemove = { viewModel.removeFriend(friend) }
+                            onChallenge = { onChallenge(friend) },
+                            onRemove = { onRemoveFriend(friend) }
                         )
                     }
                 }
@@ -149,7 +174,7 @@ fun FriendsScreen(
                             FriendRow(
                                 friend = opponent,
                                 working = uiState.working,
-                                onChallenge = { viewModel.challengeRecent(opponent) },
+                                onChallenge = { onChallengeRecent(opponent) },
                                 onRemove = null
                             )
                         }
@@ -161,13 +186,13 @@ fun FriendsScreen(
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.friends_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
                 PillButton(
                     text = stringResource(Res.string.common_ok),
-                    onClick = viewModel::dismissError,
+                    onClick = onDismissError,
                     compact = true
                 )
             }

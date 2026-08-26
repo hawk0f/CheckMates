@@ -64,6 +64,23 @@ fun LichessWatchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LichessWatchContent(
+        uiState = uiState,
+        onWatch = viewModel::watch,
+        onDismissError = viewModel::dismissError,
+        onReview = onReview,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessWatchContent(
+    uiState: LichessWatchUiState,
+    onWatch: (String) -> Unit,
+    onDismissError: () -> Unit,
+    onReview: (String) -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(WatchSurface)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -128,7 +145,7 @@ fun LichessWatchScreen(
                     ChannelChip(
                         label = channel.replaceFirstChar { it.uppercase() },
                         selected = uiState.channel == channel,
-                        onClick = { viewModel.watch(channel) }
+                        onClick = { onWatch(channel) }
                     )
                 }
             }
@@ -203,11 +220,11 @@ fun LichessWatchScreen(
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.watch_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }

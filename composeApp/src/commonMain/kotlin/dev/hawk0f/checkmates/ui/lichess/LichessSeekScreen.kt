@@ -92,9 +92,6 @@ fun LichessSeekScreen(
     viewModel: LichessSeekViewModel = viewModel { LichessSeekViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val scheme = MaterialTheme.colorScheme
-    val accents = LocalAppAccents.current
-    val shareText = rememberShareText()
 
     LaunchedEffect(uiState.step) {
         if (uiState.step is LichessStep.GameReady) {
@@ -102,6 +99,46 @@ fun LichessSeekScreen(
             onGameReady()
         }
     }
+
+    LichessSeekContent(
+        uiState = uiState,
+        onModeChange = viewModel::onModeChange,
+        onPoolClockChange = viewModel::onPoolClockChange,
+        onDirectClockChange = viewModel::onDirectClockChange,
+        onRatedChange = viewModel::onRatedChange,
+        onRatingSpreadChange = viewModel::onRatingSpreadChange,
+        onFriendNameChange = viewModel::onFriendNameChange,
+        onAiLevelChange = viewModel::onAiLevelChange,
+        onCreateOpenChallenge = viewModel::createOpenChallenge,
+        onCancelChallenge = viewModel::cancelChallenge,
+        onStart = viewModel::start,
+        onCancelWaiting = viewModel::cancelWaiting,
+        onDismissError = viewModel::dismissError,
+        onDismissOpenChallenge = viewModel::dismissOpenChallenge,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessSeekContent(
+    uiState: LichessSeekUiState,
+    onModeChange: (SeekMode) -> Unit,
+    onPoolClockChange: (LichessClockOption) -> Unit,
+    onDirectClockChange: (LichessClockOption) -> Unit,
+    onRatedChange: (Boolean) -> Unit,
+    onRatingSpreadChange: (Int) -> Unit,
+    onFriendNameChange: (String) -> Unit,
+    onAiLevelChange: (Int) -> Unit,
+    onCreateOpenChallenge: () -> Unit,
+    onCancelChallenge: (String) -> Unit,
+    onStart: () -> Unit,
+    onCancelWaiting: () -> Unit,
+    onDismissError: () -> Unit,
+    onDismissOpenChallenge: () -> Unit,
+    onBack: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    val shareText = rememberShareText()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -120,20 +157,29 @@ fun LichessSeekScreen(
             is LichessStep.Seeking -> WaitingPanel(
                 title = stringResource(Res.string.seek_looking_for, step.label),
                 note = stringResource(Res.string.seek_stream_note),
-                onCancel = viewModel::cancelWaiting,
+                onCancel = onCancelWaiting,
                 modifier = Modifier.weight(1f)
             )
 
             is LichessStep.Waiting -> WaitingPanel(
                 title = step.label,
                 note = stringResource(Res.string.seek_game_opens_note),
-                onCancel = viewModel::cancelWaiting,
+                onCancel = onCancelWaiting,
                 modifier = Modifier.weight(1f)
             )
 
             else -> SetupContent(
                 uiState = uiState,
-                viewModel = viewModel,
+                onModeChange = onModeChange,
+                onPoolClockChange = onPoolClockChange,
+                onDirectClockChange = onDirectClockChange,
+                onRatedChange = onRatedChange,
+                onRatingSpreadChange = onRatingSpreadChange,
+                onFriendNameChange = onFriendNameChange,
+                onAiLevelChange = onAiLevelChange,
+                onCreateOpenChallenge = onCreateOpenChallenge,
+                onCancelChallenge = onCancelChallenge,
+                onStart = onStart,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -141,11 +187,11 @@ fun LichessSeekScreen(
 
     (uiState.step as? LichessStep.Failed)?.let { failed ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.lichess_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(failed.message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }
@@ -153,7 +199,7 @@ fun LichessSeekScreen(
     uiState.openChallengeUrl?.let { url ->
         val shareMessage = stringResource(Res.string.seek_share_message, url)
         AlertDialog(
-            onDismissRequest = viewModel::dismissOpenChallenge,
+            onDismissRequest = onDismissOpenChallenge,
             title = { Text(stringResource(Res.string.seek_open_challenge_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -166,7 +212,7 @@ fun LichessSeekScreen(
                     text = stringResource(Res.string.seek_share),
                     onClick = {
                         shareText(shareMessage)
-                        viewModel.dismissOpenChallenge()
+                        onDismissOpenChallenge()
                     },
                     compact = true
                 )
@@ -174,7 +220,7 @@ fun LichessSeekScreen(
             dismissButton = {
                 PillButton(
                     text = stringResource(Res.string.seek_close),
-                    onClick = viewModel::dismissOpenChallenge,
+                    onClick = onDismissOpenChallenge,
                     tone = PillTone.SOFT,
                     compact = true
                 )
@@ -186,7 +232,16 @@ fun LichessSeekScreen(
 @Composable
 private fun SetupContent(
     uiState: LichessSeekUiState,
-    viewModel: LichessSeekViewModel,
+    onModeChange: (SeekMode) -> Unit,
+    onPoolClockChange: (LichessClockOption) -> Unit,
+    onDirectClockChange: (LichessClockOption) -> Unit,
+    onRatedChange: (Boolean) -> Unit,
+    onRatingSpreadChange: (Int) -> Unit,
+    onFriendNameChange: (String) -> Unit,
+    onAiLevelChange: (Int) -> Unit,
+    onCreateOpenChallenge: () -> Unit,
+    onCancelChallenge: (String) -> Unit,
+    onStart: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -207,7 +262,7 @@ private fun SetupContent(
                     stringResource(Res.string.seek_tab_stockfish)
                 ),
                 selectedIndex = uiState.mode.ordinal,
-                onSelect = { viewModel.onModeChange(SeekMode.entries[it]) },
+                onSelect = { onModeChange(SeekMode.entries[it]) },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -248,9 +303,9 @@ private fun SetupContent(
                             selected = option == if (poolMode) uiState.poolClock else uiState.directClock,
                             onClick = {
                                 if (poolMode) {
-                                    viewModel.onPoolClockChange(option)
+                                    onPoolClockChange(option)
                                 } else {
-                                    viewModel.onDirectClockChange(option)
+                                    onDirectClockChange(option)
                                 }
                             }
                         )
@@ -271,12 +326,12 @@ private fun SetupContent(
                     SelectPill(
                         text = stringResource(Res.string.seek_value_no),
                         selected = !uiState.rated,
-                        onClick = { viewModel.onRatedChange(false) }
+                        onClick = { onRatedChange(false) }
                     )
                     SelectPill(
                         text = stringResource(Res.string.seek_value_yes),
                         selected = uiState.rated,
-                        onClick = { viewModel.onRatedChange(true) }
+                        onClick = { onRatedChange(true) }
                     )
                 }
                 if (uiState.mode == SeekMode.AI) {
@@ -318,7 +373,7 @@ private fun SetupContent(
                                     stringResource(Res.string.seek_rating_spread, spread)
                                 },
                                 selected = uiState.ratingSpread == spread,
-                                onClick = { viewModel.onRatingSpreadChange(spread) }
+                                onClick = { onRatingSpreadChange(spread) }
                             )
                         }
                     }
@@ -330,13 +385,13 @@ private fun SetupContent(
                     SectionLabel(stringResource(Res.string.seek_label_username), color = accents.bandStrong)
                     SoftTextField(
                         value = uiState.friendName,
-                        onValueChange = viewModel::onFriendNameChange,
+                        onValueChange = onFriendNameChange,
                         placeholder = stringResource(Res.string.seek_username_placeholder),
                         modifier = Modifier.fillMaxWidth()
                     )
                     PillButton(
                         text = stringResource(Res.string.seek_open_challenge_instead),
-                        onClick = viewModel::createOpenChallenge,
+                        onClick = onCreateOpenChallenge,
                         tone = PillTone.SOFT,
                         compact = true,
                         modifier = Modifier.fillMaxWidth()
@@ -380,7 +435,7 @@ private fun SetupContent(
                             SelectPill(
                                 text = level.toString(),
                                 selected = uiState.aiLevel == level,
-                                onClick = { viewModel.onAiLevelChange(level) }
+                                onClick = { onAiLevelChange(level) }
                             )
                         }
                     }
@@ -413,7 +468,7 @@ private fun SetupContent(
                             trailing = {
                                 PillButton(
                                     text = stringResource(Res.string.common_cancel),
-                                    onClick = { viewModel.cancelChallenge(challenge.id) },
+                                    onClick = { onCancelChallenge(challenge.id) },
                                     tone = PillTone.SOFT,
                                     compact = true
                                 )
@@ -434,7 +489,7 @@ private fun SetupContent(
                     SeekMode.FRIEND -> stringResource(Res.string.seek_send_challenge)
                     SeekMode.AI -> stringResource(Res.string.seek_play_stockfish)
                 },
-                onClick = viewModel::start,
+                onClick = onStart,
                 enabled = uiState.mode != SeekMode.FRIEND || uiState.friendName.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             )

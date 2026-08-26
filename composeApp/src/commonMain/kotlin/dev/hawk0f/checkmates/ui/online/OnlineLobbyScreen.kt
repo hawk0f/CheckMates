@@ -127,6 +127,41 @@ fun OnlineLobbyScreen(
         }
     }
 
+    OnlineLobbyContent(
+        uiState = uiState,
+        joining = joining,
+        onJoiningChange = { joining = it },
+        onNameChange = viewModel::onNameChange,
+        onCodeChange = viewModel::onCodeChange,
+        onTimeControlChange = viewModel::onTimeControlChange,
+        onCreateGame = viewModel::createGame,
+        onJoinGame = { viewModel.joinGame() },
+        onQuickPair = viewModel::quickPair,
+        onCancelWaiting = viewModel::cancelWaiting,
+        onCancelSearch = viewModel::cancelSearch,
+        onDismissError = viewModel::dismissError,
+        onScan = { scanning = true },
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun OnlineLobbyContent(
+    uiState: OnlineLobbyUiState,
+    joining: Boolean,
+    onJoiningChange: (Boolean) -> Unit,
+    onNameChange: (String) -> Unit,
+    onCodeChange: (String) -> Unit,
+    onTimeControlChange: (TimeControl?) -> Unit,
+    onCreateGame: () -> Unit,
+    onJoinGame: () -> Unit,
+    onQuickPair: () -> Unit,
+    onCancelWaiting: () -> Unit,
+    onCancelSearch: () -> Unit,
+    onDismissError: () -> Unit,
+    onScan: () -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -143,13 +178,13 @@ fun OnlineLobbyScreen(
         when {
             step is LobbyStep.WaitingForOpponent -> WaitingContent(
                 step = step,
-                onCancel = viewModel::cancelWaiting,
+                onCancel = onCancelWaiting,
                 modifier = Modifier.weight(1f)
             )
 
             step is LobbyStep.Searching -> SearchingContent(
                 step = step,
-                onCancel = viewModel::cancelSearch,
+                onCancel = onCancelSearch,
                 modifier = Modifier.weight(1f)
             )
 
@@ -162,10 +197,15 @@ fun OnlineLobbyScreen(
 
             else -> SetupContent(
                 uiState = uiState,
-                viewModel = viewModel,
                 joining = joining,
-                onJoiningChange = { joining = it },
-                onScan = { scanning = true },
+                onJoiningChange = onJoiningChange,
+                onNameChange = onNameChange,
+                onCodeChange = onCodeChange,
+                onTimeControlChange = onTimeControlChange,
+                onCreateGame = onCreateGame,
+                onJoinGame = onJoinGame,
+                onQuickPair = onQuickPair,
+                onScan = onScan,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -173,11 +213,11 @@ fun OnlineLobbyScreen(
 
     (uiState.step as? LobbyStep.Failed)?.let { failed ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.lobby_could_not_start), style = MaterialTheme.typography.titleLarge) },
             text = { Text(failed.message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }
@@ -186,9 +226,14 @@ fun OnlineLobbyScreen(
 @Composable
 private fun SetupContent(
     uiState: OnlineLobbyUiState,
-    viewModel: OnlineLobbyViewModel,
     joining: Boolean,
     onJoiningChange: (Boolean) -> Unit,
+    onNameChange: (String) -> Unit,
+    onCodeChange: (String) -> Unit,
+    onTimeControlChange: (TimeControl?) -> Unit,
+    onCreateGame: () -> Unit,
+    onJoinGame: () -> Unit,
+    onQuickPair: () -> Unit,
     onScan: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -223,7 +268,7 @@ private fun SetupContent(
                 SectionLabel(stringResource(Res.string.common_you))
                 SoftTextField(
                     value = uiState.playerName,
-                    onValueChange = viewModel::onNameChange,
+                    onValueChange = onNameChange,
                     placeholder = stringResource(Res.string.common_your_name),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -234,7 +279,7 @@ private fun SetupContent(
                     SectionLabel(stringResource(Res.string.lobby_game_code))
                     SoftTextField(
                         value = uiState.codeInput,
-                        onValueChange = viewModel::onCodeChange,
+                        onValueChange = onCodeChange,
                         placeholder = "ABC234",
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -257,7 +302,7 @@ private fun SetupContent(
                             SelectPill(
                                 text = choice?.label ?: stringResource(Res.string.common_none),
                                 selected = uiState.timeControl == choice,
-                                onClick = { viewModel.onTimeControlChange(choice) }
+                                onClick = { onTimeControlChange(choice) }
                             )
                         }
                     }
@@ -271,14 +316,14 @@ private fun SetupContent(
         ) {
             PillButton(
                 text = stringResource(if (joining) Res.string.lobby_join_game else Res.string.lobby_create_game),
-                onClick = { if (joining) viewModel.joinGame() else viewModel.createGame() },
+                onClick = { if (joining) onJoinGame() else onCreateGame() },
                 enabled = !joining || uiState.codeInput.length == 6,
                 modifier = Modifier.fillMaxWidth()
             )
             if (!joining) {
                 PillButton(
                     text = stringResource(Res.string.lobby_quick_pair),
-                    onClick = viewModel::quickPair,
+                    onClick = onQuickPair,
                     tone = PillTone.ACCENT,
                     modifier = Modifier.fillMaxWidth()
                 )

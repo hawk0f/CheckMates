@@ -96,23 +96,57 @@ fun ProfileScreen(
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currentProfile = profile
 
+    ProfileContent(
+        profile = profile,
+        uiState = uiState,
+        onLogin = viewModel::login,
+        onRegister = viewModel::register,
+        onLogout = viewModel::logout,
+        onUpdateDisplayName = viewModel::updateDisplayName,
+        onUpdateAvatar = viewModel::updateAvatar,
+        onDismissError = viewModel::dismissError,
+        onOpenReplay = onOpenReplay,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun ProfileContent(
+    profile: ProfileResponse?,
+    uiState: ProfileUiState,
+    onLogin: (String, String) -> Unit,
+    onRegister: (String, String, String) -> Unit,
+    onLogout: () -> Unit,
+    onUpdateDisplayName: (String) -> Unit,
+    onUpdateAvatar: (String, String) -> Unit,
+    onDismissError: () -> Unit,
+    onOpenReplay: () -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize()) {
-        if (currentProfile == null) {
-            AuthContent(uiState, viewModel, onBack)
+        if (profile == null) {
+            AuthContent(uiState, onLogin, onRegister, onBack)
         } else {
-            LoggedInContent(currentProfile, uiState, viewModel, onOpenReplay, onBack)
+            LoggedInContent(
+                profile = profile,
+                uiState = uiState,
+                onLogout = onLogout,
+                onUpdateDisplayName = onUpdateDisplayName,
+                onUpdateAvatar = onUpdateAvatar,
+                onOpenReplay = onOpenReplay,
+                onBack = onBack
+            )
         }
     }
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.profile_error_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }
@@ -138,7 +172,8 @@ private fun ColumnScopeAuthHeader(title: String, onBack: () -> Unit) {
 @Composable
 private fun ColumnScope.AuthContent(
     uiState: ProfileUiState,
-    viewModel: ProfileViewModel,
+    onLogin: (String, String) -> Unit,
+    onRegister: (String, String, String) -> Unit,
     onBack: () -> Unit
 ) {
     var registering by remember { mutableStateOf(false) }
@@ -206,9 +241,9 @@ private fun ColumnScope.AuthContent(
                 ),
                 onClick = {
                     if (registering) {
-                        viewModel.register(login, password, displayName)
+                        onRegister(login, password, displayName)
                     } else {
-                        viewModel.login(login, password)
+                        onLogin(login, password)
                     }
                 },
                 enabled = login.length >= 3 && password.length >= 6,
@@ -222,7 +257,9 @@ private fun ColumnScope.AuthContent(
 private fun ColumnScope.LoggedInContent(
     profile: ProfileResponse,
     uiState: ProfileUiState,
-    viewModel: ProfileViewModel,
+    onLogout: () -> Unit,
+    onUpdateDisplayName: (String) -> Unit,
+    onUpdateAvatar: (String, String) -> Unit,
     onOpenReplay: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -301,7 +338,7 @@ private fun ColumnScope.LoggedInContent(
         )
         PillButton(
             text = stringResource(Res.string.profile_log_out),
-            onClick = viewModel::logout,
+            onClick = onLogout,
             tone = PillTone.SOFT,
             compact = true
         )
@@ -354,7 +391,7 @@ private fun ColumnScope.LoggedInContent(
                     text = stringResource(Res.string.profile_save),
                     onClick = {
                         editingName = false
-                        viewModel.updateDisplayName(name)
+                        onUpdateDisplayName(name)
                     },
                     compact = true
                 )
@@ -374,7 +411,7 @@ private fun ColumnScope.LoggedInContent(
         AvatarPickerDialog(
             onPick = { kind, value ->
                 pickingAvatar = false
-                viewModel.updateAvatar(kind, value)
+                onUpdateAvatar(kind, value)
             },
             onDismiss = { pickingAvatar = false }
         )

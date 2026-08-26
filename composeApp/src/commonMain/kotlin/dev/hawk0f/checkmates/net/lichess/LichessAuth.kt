@@ -35,14 +35,14 @@ object LichessAuth {
     private const val KEY_VERIFIER = "lichess.verifier"
     private const val KEY_STATE = "lichess.state"
 
-    private val settings = Settings()
+    private val settings: Settings? by lazy { runCatching { Settings() }.getOrNull() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val api = LichessApi()
 
-    private val _username = MutableStateFlow(settings.getStringOrNull(KEY_USERNAME))
+    private val _username = MutableStateFlow(settings?.getStringOrNull(KEY_USERNAME))
     val username: StateFlow<String?> = _username.asStateFlow()
 
-    var token: String? = settings.getStringOrNull(KEY_TOKEN)
+    var token: String? = settings?.getStringOrNull(KEY_TOKEN)
         private set
 
     val isLoggedIn: Boolean get() = token != null
@@ -50,8 +50,8 @@ object LichessAuth {
     fun buildAuthorizeUrl(): String {
         val verifier = base64UrlNoPadding(secureRandomBytes(48))
         val state = base64UrlNoPadding(secureRandomBytes(16))
-        settings.putString(KEY_VERIFIER, verifier)
-        settings.putString(KEY_STATE, state)
+        settings?.putString(KEY_VERIFIER, verifier)
+        settings?.putString(KEY_STATE, state)
         val challenge = base64UrlNoPadding(sha256(verifier.encodeToByteArray()))
         return "$LICHESS_BASE_URL/oauth" +
             "?response_type=code" +
@@ -64,9 +64,9 @@ object LichessAuth {
     }
 
     suspend fun completeLogin(code: String, state: String?): Result<String> {
-        val verifier = settings.getStringOrNull(KEY_VERIFIER)
+        val verifier = settings?.getStringOrNull(KEY_VERIFIER)
             ?: return Result.failure(LichessException("login was not started"))
-        val expectedState = settings.getStringOrNull(KEY_STATE)
+        val expectedState = settings?.getStringOrNull(KEY_STATE)
         if (expectedState != null && state != expectedState) {
             return Result.failure(LichessException("state mismatch"))
         }
@@ -74,11 +74,11 @@ object LichessAuth {
             val newToken = api.exchangeToken(code, verifier, REDIRECT_URI, CLIENT_ID)
             val account = api.account(newToken)
             token = newToken
-            settings.putString(KEY_TOKEN, newToken)
-            settings.putString(KEY_USERNAME, account.username)
+            settings?.putString(KEY_TOKEN, newToken)
+            settings?.putString(KEY_USERNAME, account.username)
             _username.value = account.username
-            settings.remove(KEY_VERIFIER)
-            settings.remove(KEY_STATE)
+            settings?.remove(KEY_VERIFIER)
+            settings?.remove(KEY_STATE)
             account.username
         }
     }
@@ -86,7 +86,7 @@ object LichessAuth {
     suspend fun refreshUsername() {
         val activeToken = token ?: return
         runCatching { api.account(activeToken) }.onSuccess { account ->
-            settings.putString(KEY_USERNAME, account.username)
+            settings?.putString(KEY_USERNAME, account.username)
             _username.value = account.username
         }
     }
@@ -95,8 +95,8 @@ object LichessAuth {
         val oldToken = token
         token = null
         _username.value = null
-        settings.remove(KEY_TOKEN)
-        settings.remove(KEY_USERNAME)
+        settings?.remove(KEY_TOKEN)
+        settings?.remove(KEY_USERNAME)
         if (oldToken != null) {
             scope.launch {
                 runCatching { api.revokeToken(oldToken) }

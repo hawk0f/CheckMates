@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.theme.CircleButton
@@ -65,6 +66,26 @@ fun LichessPuzzleScreen(
     viewModel: LichessPuzzleViewModel = viewModel { LichessPuzzleViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LichessPuzzleContent(
+        uiState = uiState,
+        onLoadNext = viewModel::loadNext,
+        onLoadDaily = viewModel::loadDaily,
+        onSquareTap = viewModel::onSquareTap,
+        onDismissError = viewModel::dismissError,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessPuzzleContent(
+    uiState: LichessPuzzleUiState,
+    onLoadNext: (String?) -> Unit,
+    onLoadDaily: () -> Unit,
+    onSquareTap: (Square) -> Unit,
+    onDismissError: () -> Unit,
+    onBack: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
 
@@ -116,7 +137,7 @@ fun LichessPuzzleScreen(
                     SelectPill(
                         text = stringResource(label),
                         selected = uiState.angle == angle,
-                        onClick = { viewModel.loadNext(angle) }
+                        onClick = { onLoadNext(angle) }
                     )
                 }
             }
@@ -147,7 +168,7 @@ fun LichessPuzzleScreen(
                         selected = selected,
                         legalTargets = legalTargets,
                         flipped = flipped,
-                        onSquareTap = viewModel::onSquareTap,
+                        onSquareTap = onSquareTap,
                         modifier = boardModifier
                     )
                 }
@@ -162,12 +183,12 @@ fun LichessPuzzleScreen(
         ) {
             PillButton(
                 text = stringResource(Res.string.puzzle_next),
-                onClick = { viewModel.loadNext() },
+                onClick = { onLoadNext(null) },
                 modifier = Modifier.fillMaxWidth()
             )
             PillButton(
                 text = stringResource(Res.string.puzzle_daily),
-                onClick = viewModel::loadDaily,
+                onClick = onLoadDaily,
                 tone = PillTone.SOFT,
                 compact = true,
                 modifier = Modifier.fillMaxWidth()
@@ -177,11 +198,11 @@ fun LichessPuzzleScreen(
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.puzzle_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }

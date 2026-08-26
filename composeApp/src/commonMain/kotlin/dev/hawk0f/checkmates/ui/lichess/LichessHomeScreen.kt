@@ -105,8 +105,6 @@ fun LichessHomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingAuth by DeepLinkHandler.pendingLichessAuth.collectAsStateWithLifecycle()
     val openUrl = rememberOpenUrl()
-    val accents = LocalAppAccents.current
-    val scheme = MaterialTheme.colorScheme
 
     LaunchedEffect(pendingAuth) {
         val callback = pendingAuth ?: return@LaunchedEffect
@@ -120,6 +118,46 @@ fun LichessHomeScreen(
             onGameReady()
         }
     }
+
+    LichessHomeContent(
+        uiState = uiState,
+        onSignIn = { openUrl(viewModel.startLogin()) },
+        onOpenGame = viewModel::openGame,
+        onAcceptChallenge = viewModel::acceptChallenge,
+        onDeclineChallenge = viewModel::declineChallenge,
+        onLogout = viewModel::logout,
+        onDismissError = viewModel::dismissError,
+        onOpenSeek = onOpenSeek,
+        onOpenPuzzle = onOpenPuzzle,
+        onOpenWatch = onOpenWatch,
+        onOpenArenas = onOpenArenas,
+        onOpenExplorer = onOpenExplorer,
+        onOpenPlayers = onOpenPlayers,
+        onOpenSettings = onOpenSettings,
+        onSwitchFlow = onSwitchFlow
+    )
+}
+
+@Composable
+internal fun LichessHomeContent(
+    uiState: LichessHomeUiState,
+    onSignIn: () -> Unit,
+    onOpenGame: (String) -> Unit,
+    onAcceptChallenge: (String) -> Unit,
+    onDeclineChallenge: (String) -> Unit,
+    onLogout: () -> Unit,
+    onDismissError: () -> Unit,
+    onOpenSeek: () -> Unit,
+    onOpenPuzzle: () -> Unit,
+    onOpenWatch: () -> Unit,
+    onOpenArenas: () -> Unit,
+    onOpenExplorer: () -> Unit,
+    onOpenPlayers: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onSwitchFlow: () -> Unit
+) {
+    val accents = LocalAppAccents.current
+    val scheme = MaterialTheme.colorScheme
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (uiState.username == null) {
@@ -145,7 +183,7 @@ fun LichessHomeScreen(
                 }
             }
             LichessConnectContent(
-                onSignIn = { openUrl(viewModel.startLogin()) },
+                onSignIn = onSignIn,
                 onOpenPuzzle = onOpenPuzzle,
                 onOpenWatch = onOpenWatch,
                 modifier = Modifier.weight(1f).padding(top = 12.dp)
@@ -164,7 +202,7 @@ fun LichessHomeScreen(
                     onSwitchFlow = onSwitchFlow
                 )
                 if (live != null) {
-                    LiveGameBlock(game = live, onResume = { viewModel.openGame(live.gameId) })
+                    LiveGameBlock(game = live, onResume = { onOpenGame(live.gameId) })
                 }
             }
 
@@ -206,8 +244,8 @@ fun LichessHomeScreen(
                 for (challenge in uiState.incoming) {
                     ChallengeCard(
                         challenge = challenge,
-                        onAccept = { viewModel.acceptChallenge(challenge.id) },
-                        onDecline = { viewModel.declineChallenge(challenge.id) }
+                        onAccept = { onAcceptChallenge(challenge.id) },
+                        onDecline = { onDeclineChallenge(challenge.id) }
                     )
                 }
 
@@ -238,7 +276,7 @@ fun LichessHomeScreen(
                                         color = if (game.isMyTurn) scheme.primary else scheme.outline
                                     )
                                 },
-                                onClick = { viewModel.openGame(game.gameId) }
+                                onClick = { onOpenGame(game.gameId) }
                             )
                         }
                     }
@@ -273,7 +311,7 @@ fun LichessHomeScreen(
 
                 PillButton(
                     text = stringResource(Res.string.lichess_log_out),
-                    onClick = viewModel::logout,
+                    onClick = onLogout,
                     tone = PillTone.SOFT,
                     compact = true,
                     modifier = Modifier.fillMaxWidth()
@@ -290,11 +328,11 @@ fun LichessHomeScreen(
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.lichess_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }

@@ -69,6 +69,28 @@ fun LichessExplorerScreen(
     viewModel: LichessExplorerViewModel = viewModel { LichessExplorerViewModel(startFen) }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LichessExplorerContent(
+        uiState = uiState,
+        onSourceChange = viewModel::onSourceChange,
+        onPlayMove = viewModel::playMove,
+        onUndo = viewModel::undo,
+        onReset = viewModel::reset,
+        onDismissError = viewModel::dismissError,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessExplorerContent(
+    uiState: LichessExplorerUiState,
+    onSourceChange: (ExplorerSource) -> Unit,
+    onPlayMove: (String) -> Unit,
+    onUndo: () -> Unit,
+    onReset: () -> Unit,
+    onDismissError: () -> Unit,
+    onBack: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val position = uiState.position
@@ -111,7 +133,7 @@ fun LichessExplorerScreen(
                     uiState.username ?: stringResource(Res.string.explorer_tab_you)
                 ),
                 selectedIndex = uiState.source.ordinal,
-                onSelect = { viewModel.onSourceChange(ExplorerSource.entries[it]) },
+                onSelect = { onSourceChange(ExplorerSource.entries[it]) },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -141,14 +163,14 @@ fun LichessExplorerScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     CircleButton(
-                        onClick = viewModel::undo,
+                        onClick = onUndo,
                         enabled = uiState.moves.isNotEmpty(),
                         size = 38.dp,
                         contentDescription = stringResource(Res.string.a11y_undo_move)
                     ) {
                         ChevronIcon(direction = ChevronDirection.LEFT, color = accents.onBand, size = 14.dp)
                     }
-                    PillButton(stringResource(Res.string.explorer_reset), viewModel::reset, tone = PillTone.SOFT, compact = true)
+                    PillButton(stringResource(Res.string.explorer_reset), onReset, tone = PillTone.SOFT, compact = true)
                 }
             }
 
@@ -157,7 +179,7 @@ fun LichessExplorerScreen(
                     MoveRow(
                         move = move,
                         share = if (position.total > 0) move.total.toFloat() / position.total else 0f,
-                        onPlay = { viewModel.playMove(move.uci) }
+                        onPlay = { onPlayMove(move.uci) }
                     )
                 }
                 Row(
@@ -204,7 +226,7 @@ fun LichessExplorerScreen(
                             Res.string.explorer_play_and_continue,
                             top.san ?: top.uci
                         ),
-                        onClick = { viewModel.playMove(top.uci) },
+                        onClick = { onPlayMove(top.uci) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -214,11 +236,11 @@ fun LichessExplorerScreen(
 
     uiState.error?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.explorer_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }

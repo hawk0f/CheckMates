@@ -59,6 +59,29 @@ fun LichessPlayersScreen(
     viewModel: LichessPlayersViewModel = viewModel { LichessPlayersViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LichessPlayersContent(
+        uiState = uiState,
+        onQueryChange = viewModel::onQueryChange,
+        onChallenge = { name ->
+            viewModel.challenge(name)
+            viewModel.clearQuery()
+        },
+        onCreateOpenChallenge = viewModel::createOpenChallenge,
+        onDismissMessage = viewModel::dismissMessage,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun LichessPlayersContent(
+    uiState: LichessPlayersUiState,
+    onQueryChange: (String) -> Unit,
+    onChallenge: (String) -> Unit,
+    onCreateOpenChallenge: () -> Unit,
+    onDismissMessage: () -> Unit,
+    onBack: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val openUrl = rememberOpenUrl()
@@ -92,7 +115,7 @@ fun LichessPlayersScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SoftTextField(
                         value = uiState.query,
-                        onValueChange = viewModel::onQueryChange,
+                        onValueChange = onQueryChange,
                         placeholder = stringResource(Res.string.players_username_placeholder),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -103,10 +126,7 @@ fun LichessPlayersScreen(
                             trailing = {
                                 PillButton(
                                     text = stringResource(Res.string.players_challenge),
-                                    onClick = {
-                                        viewModel.challenge(name)
-                                        viewModel.clearQuery()
-                                    },
+                                    onClick = { onChallenge(name) },
                                     tone = PillTone.INK,
                                     compact = true
                                 )
@@ -144,7 +164,7 @@ fun LichessPlayersScreen(
                                     } else {
                                         PillButton(
                                             text = stringResource(Res.string.players_challenge),
-                                            onClick = { viewModel.challenge(user.label) },
+                                            onClick = { onChallenge(user.label) },
                                             tone = PillTone.ACCENT,
                                             compact = true
                                         )
@@ -204,7 +224,7 @@ fun LichessPlayersScreen(
                     }
                     PillButton(
                         text = stringResource(Res.string.players_create_link),
-                        onClick = viewModel::createOpenChallenge,
+                        onClick = onCreateOpenChallenge,
                         tone = PillTone.SOFT,
                         compact = true,
                         modifier = Modifier.fillMaxWidth()
@@ -216,11 +236,11 @@ fun LichessPlayersScreen(
 
     uiState.message?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissMessage,
+            onDismissRequest = onDismissMessage,
             title = { Text(stringResource(Res.string.players_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissMessage, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissMessage, compact = true)
             }
         )
     }

@@ -191,20 +191,23 @@ private const val SHEET_FLING_VELOCITY = 220f
 private val RevealSlide = 18.dp
 
 @Composable
-fun GameScreen(
-    mode: GameMode,
-    onExit: () -> Unit,
-    onOpenReview: ((String) -> Unit)? = null,
-    startFen: String? = null
-) {
+private fun rememberGameViewModel(mode: GameMode, startFen: String?): GameViewModel {
     val viewModelKey = when (mode) {
         is GameMode.Remote -> "remote"
         is GameMode.Computer -> "computer-${mode.level.id}-${mode.myColor}-${startFen.orEmpty()}"
         GameMode.Hotseat -> "hotseat-${startFen.orEmpty()}"
     }
-    val viewModel: GameViewModel = viewModel(key = viewModelKey) {
-        GameViewModel(mode = mode, startFen = startFen)
-    }
+    return viewModel(key = viewModelKey) { GameViewModel(mode = mode, startFen = startFen) }
+}
+
+@Composable
+fun GameScreen(
+    mode: GameMode,
+    onExit: () -> Unit,
+    onOpenReview: ((String) -> Unit)? = null,
+    startFen: String? = null,
+    viewModel: GameViewModel = rememberGameViewModel(mode, startFen)
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gameState = uiState.gameState
     val accents = LocalAppAccents.current

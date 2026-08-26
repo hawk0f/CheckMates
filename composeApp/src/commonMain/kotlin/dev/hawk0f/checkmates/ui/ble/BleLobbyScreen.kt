@@ -57,7 +57,6 @@ fun BleLobbyScreen(
     viewModel: BleLobbyViewModel = viewModel { BleLobbyViewModel() }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val scheme = MaterialTheme.colorScheme
 
     val requestHostPermissions = rememberBlePermissionRequester { granted ->
         if (granted) {
@@ -77,6 +76,35 @@ fun BleLobbyScreen(
         }
     }
 
+    BleLobbyContent(
+        uiState = uiState,
+        onNameChange = viewModel::onNameChange,
+        onHost = requestHostPermissions,
+        onScan = requestScanPermissions,
+        onStopHosting = viewModel::stopHosting,
+        onConnect = viewModel::connectTo,
+        onDismissError = viewModel::dismissError,
+        onClose = {
+            viewModel.stopScan()
+            viewModel.stopHosting()
+            onBack()
+        }
+    )
+}
+
+@Composable
+internal fun BleLobbyContent(
+    uiState: BleLobbyUiState,
+    onNameChange: (String) -> Unit,
+    onHost: () -> Unit,
+    onScan: () -> Unit,
+    onStopHosting: () -> Unit,
+    onConnect: (DiscoveredHost) -> Unit,
+    onDismissError: () -> Unit,
+    onClose: () -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -85,11 +113,7 @@ fun BleLobbyScreen(
         ) {
             Text(stringResource(Res.string.ble_play_nearby), style = MaterialTheme.typography.displaySmall)
             CircleButton(
-                onClick = {
-                    viewModel.stopScan()
-                    viewModel.stopHosting()
-                    onBack()
-                },
+                onClick = onClose,
                 contentDescription = stringResource(Res.string.a11y_close)
             ) {
                 CloseIcon(color = scheme.onSurfaceVariant)
@@ -104,7 +128,7 @@ fun BleLobbyScreen(
                 SectionLabel(stringResource(Res.string.common_you))
                 SoftTextField(
                     value = uiState.playerName,
-                    onValueChange = viewModel::onNameChange,
+                    onValueChange = onNameChange,
                     placeholder = stringResource(Res.string.common_your_name),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -131,7 +155,7 @@ fun BleLobbyScreen(
                     )
                     PillButton(
                         text = stringResource(Res.string.ble_stop),
-                        onClick = viewModel::stopHosting,
+                        onClick = onStopHosting,
                         tone = PillTone.SOFT,
                         compact = true
                     )
@@ -153,14 +177,14 @@ fun BleLobbyScreen(
                             title = stringResource(Res.string.ble_host_a_game),
                             subtitle = stringResource(Res.string.ble_host_subtitle),
                             selected = false,
-                            onClick = requestHostPermissions,
+                            onClick = onHost,
                             modifier = Modifier.fillMaxWidth()
                         )
                         ChoiceCard(
                             title = stringResource(Res.string.ble_find_a_host),
                             subtitle = stringResource(Res.string.ble_find_subtitle),
                             selected = false,
-                            onClick = requestScanPermissions,
+                            onClick = onScan,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -191,7 +215,7 @@ fun BleLobbyScreen(
                                     title = host.label,
                                     subtitle = stringResource(Res.string.ble_tap_to_connect),
                                     selected = false,
-                                    onClick = { viewModel.connectTo(host) },
+                                    onClick = { onConnect(host) },
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -204,11 +228,11 @@ fun BleLobbyScreen(
 
     (uiState.step as? BleLobbyStep.Failed)?.let { failed ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissError,
+            onDismissRequest = onDismissError,
             title = { Text(stringResource(Res.string.ble_error_title), style = MaterialTheme.typography.titleLarge) },
             text = { Text(failed.message) },
             confirmButton = {
-                PillButton(text = stringResource(Res.string.common_ok), onClick = viewModel::dismissError, compact = true)
+                PillButton(text = stringResource(Res.string.common_ok), onClick = onDismissError, compact = true)
             }
         )
     }
