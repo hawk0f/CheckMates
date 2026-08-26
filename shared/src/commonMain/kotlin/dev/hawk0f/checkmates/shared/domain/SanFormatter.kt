@@ -4,11 +4,11 @@ import com.github.bhlangonijr.chesslib.move.MoveList
 
 object SanFormatter {
 
-    fun sanMoves(uciHistory: List<String>): List<String> {
+    fun sanMoves(uciHistory: List<String>, startFen: String? = null): List<String> {
         if (uciHistory.isEmpty()) {
             return emptyList()
         }
-        val moveList = MoveList()
+        val moveList = if (startFen == null) MoveList() else MoveList(startFen)
         return runCatching {
             moveList.loadFromText(uciHistory.joinToString(" "))
             moveList.toSanWithMoveNumbers()

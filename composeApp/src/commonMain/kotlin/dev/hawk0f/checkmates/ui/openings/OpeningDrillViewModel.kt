@@ -8,9 +8,11 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.GameState
 import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.shared.opening.OpeningBook
 import dev.hawk0f.checkmates.shared.opening.OpeningLine
+import dev.hawk0f.checkmates.ui.game.promotionLetter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +34,8 @@ data class OpeningDrillUiState(
     val status: DrillStatus = DrillStatus.PLAYING,
     val expectedMove: String? = null,
     val mistakes: Int = 0,
-    val bestStreak: Int = 0
+    val bestStreak: Int = 0,
+    val pendingPromotion: Pair<Square, Square>? = null
 )
 
 class OpeningDrillViewModel(
@@ -67,14 +70,15 @@ class OpeningDrillViewModel(
             legalTargets = emptySet(),
             status = DrillStatus.PLAYING,
             expectedMove = null,
-            mistakes = 0
+            mistakes = 0,
+            pendingPromotion = null
         )
         playOpponentMoveIfNeeded()
     }
 
     fun onSquareTap(square: Square) {
         val state = _uiState.value
-        if (state.status == DrillStatus.COMPLETED) {
+        if (state.status == DrillStatus.COMPLETED || state.pendingPromotion != null) {
             return
         }
         val selected = state.selected
@@ -105,8 +109,22 @@ class OpeningDrillViewModel(
             }
             return
         }
-        val promotion = if (game.isPromotionMove(selected, square)) "q" else ""
-        submit(selected.toUci() + square.toUci() + promotion)
+        if (game.isPromotionMove(selected, square)) {
+            _uiState.value = state.copy(pendingPromotion = selected to square)
+            return
+        }
+        submit(selected.toUci() + square.toUci())
+    }
+
+    fun onPromotionChosen(kind: PieceKind) {
+        val (from, to) = _uiState.value.pendingPromotion ?: return
+        val letter = promotionLetter(kind) ?: return
+        _uiState.value = _uiState.value.copy(pendingPromotion = null)
+        submit(from.toUci() + to.toUci() + letter)
+    }
+
+    fun onPromotionDismissed() {
+        _uiState.value = _uiState.value.copy(pendingPromotion = null, selected = null, legalTargets = emptySet())
     }
 
     private fun submit(uci: String) {

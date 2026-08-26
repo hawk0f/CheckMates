@@ -50,13 +50,19 @@ sealed interface GameMode {
     data class Remote(val session: ActiveGameSession) : GameMode
 }
 
+data class PendingPromotion(
+    val from: Square,
+    val to: Square,
+    val isPremove: Boolean = false
+)
+
 data class RatingChangeUi(val speed: GameSpeed, val before: Int, val after: Int)
 
 data class GameUiState(
     val gameState: GameState,
     val selected: Square?,
     val legalTargets: Set<Square>,
-    val pendingPromotion: Pair<Square, Square>?,
+    val pendingPromotion: PendingPromotion?,
     val myColor: PieceColor?,
     val opponentName: String?,
     val opponentConnected: Boolean,
@@ -549,7 +555,7 @@ class GameViewModel(
             selected != null && square in current.legalTargets -> {
                 val target = game.castlingRookSquares(selected)[square] ?: square
                 if (game.isPromotionMove(selected, target)) {
-                    _uiState.value = current.copy(pendingPromotion = selected to target)
+                    _uiState.value = current.copy(pendingPromotion = PendingPromotion(selected, target))
                 } else {
                     submitMove("${selected.toUci()}${target.toUci()}")
                 }
@@ -580,13 +586,13 @@ class GameViewModel(
 
             selected != null && square in current.legalTargets -> {
                 val target = planned.castlingRookSquares(selected)[square] ?: square
-                val promotion = if (planned.isPromotionMove(selected, target)) "q" else ""
-                val uci = "${selected.toUci()}${target.toUci()}$promotion"
-                if (PremovePlanner.canAppend(planningFen, current.premoves, uci)) {
-                    setPremoves(current.premoves + uci)
-                } else {
-                    _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+                if (planned.isPromotionMove(selected, target)) {
+                    _uiState.value = current.copy(
+                        pendingPromotion = PendingPromotion(selected, target, isPremove = true)
+                    )
+                    return
                 }
+                appendPremove(planningFen, current, "${selected.toUci()}${target.toUci()}")
             }
 
             planned.pieceAt(square)?.color == myColor -> {
@@ -680,19 +686,38 @@ class GameViewModel(
     }
 
     fun onPromotionChosen(kind: PieceKind) {
-        val (from, to) = _uiState.value.pendingPromotion ?: return
-        val letter = when (kind) {
-            PieceKind.QUEEN -> "q"
-            PieceKind.ROOK -> "r"
-            PieceKind.BISHOP -> "b"
-            PieceKind.KNIGHT -> "n"
-            else -> return
+        val current = _uiState.value
+        val pending = current.pendingPromotion ?: return
+        val letter = promotionLetter(kind) ?: return
+        val uci = "${pending.from.toUci()}${pending.to.toUci()}$letter"
+        if (!pending.isPremove) {
+            submitMove(uci)
+            return
         }
-        submitMove("${from.toUci()}${to.toUci()}$letter")
+        val cleared = current.copy(pendingPromotion = null)
+        val planningFen = planningFen()
+        if (planningFen == null) {
+            _uiState.value = cleared.copy(selected = null, legalTargets = emptySet())
+            return
+        }
+        _uiState.value = cleared
+        appendPremove(planningFen, cleared, uci)
     }
 
     fun onPromotionDismissed() {
-        _uiState.value = _uiState.value.copy(pendingPromotion = null, selected = null, legalTargets = emptySet())
+        _uiState.value = _uiState.value.copy(
+            pendingPromotion = null,
+            selected = null,
+            legalTargets = emptySet()
+        )
+    }
+
+    private fun appendPremove(planningFen: String, current: GameUiState, uci: String) {
+        if (PremovePlanner.canAppend(planningFen, current.premoves, uci)) {
+            setPremoves(current.premoves + uci)
+        } else {
+            _uiState.value = current.copy(selected = null, legalTargets = emptySet())
+        }
     }
 
     fun resign() {

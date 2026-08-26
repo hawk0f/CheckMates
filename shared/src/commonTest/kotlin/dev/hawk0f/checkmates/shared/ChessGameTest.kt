@@ -93,6 +93,15 @@ class ChessGameTest {
     }
 
     @Test
+    fun sanFormatterFollowsACustomStartPosition() {
+        val startFen = "8/P6k/8/8/8/8/6p1/6K1 w - - 0 1"
+        assertEquals(
+            listOf("a8=N"),
+            SanFormatter.sanMoves(listOf("a7a8n"), startFen)
+        )
+    }
+
+    @Test
     fun enPassantCapturesPawn() {
         val game = ChessGame()
         game.play("e2e4", "a7a6", "e4e5", "d7d5", "e5d6")

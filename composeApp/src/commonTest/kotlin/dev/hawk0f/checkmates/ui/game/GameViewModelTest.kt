@@ -156,7 +156,7 @@ class GameViewModelTest {
         viewModel.play("e2e4", "d7d5", "e4d5", "c7c6", "d5c6", "g8f6", "c6b7", "e7e6")
         viewModel.tap("b7", "a8")
         assertEquals(
-            Square.fromUci("b7") to Square.fromUci("a8"),
+            PendingPromotion(Square.fromUci("b7"), Square.fromUci("a8")),
             viewModel.uiState.value.pendingPromotion
         )
         assertEquals(8, viewModel.uiState.value.gameState.uciHistory.size)

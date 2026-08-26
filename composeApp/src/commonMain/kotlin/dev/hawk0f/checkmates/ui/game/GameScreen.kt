@@ -121,7 +121,6 @@ import dev.hawk0f.checkmates.resources.game_opponent_fallback
 import dev.hawk0f.checkmates.resources.game_opponent_gone
 import dev.hawk0f.checkmates.resources.game_opponent_gone_countdown
 import dev.hawk0f.checkmates.resources.game_opponent_reconnecting
-import dev.hawk0f.checkmates.resources.game_promote_to
 import dev.hawk0f.checkmates.resources.game_reconnecting
 import dev.hawk0f.checkmates.resources.game_rematch
 import dev.hawk0f.checkmates.resources.game_rematch_offered
@@ -547,7 +546,7 @@ private fun GameSheet(
                 Box(modifier = Modifier.weight(1f)) {
                     SheetReveal(visible = !expanded) {
                         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            val pairs = movePairs(uiState.gameState.uciHistory)
+                            val pairs = movePairs(uiState.gameState.uciHistory, viewModel.startPositionFen)
                             for ((index, pair) in pairs.withIndex()) {
                                 Text(
                                     text = pair,
@@ -793,6 +792,7 @@ private fun GameSheet(
                 AdvantageBar(gameState = uiState.gameState, bottomColor = bottomColor)
                 MovesGrid(
                     history = uiState.gameState.uciHistory,
+                    startFen = viewModel.startPositionFen,
                     previewPly = previewPly,
                     onSelectPly = onSelectPly,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 280.dp)
@@ -1135,12 +1135,13 @@ private fun AdvantageBar(gameState: GameState, bottomColor: PieceColor) {
 @Composable
 private fun MovesGrid(
     history: List<String>,
+    startFen: String?,
     previewPly: Int?,
     onSelectPly: (Int?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = MaterialTheme.colorScheme
-    val rows = sanMoveRows(history)
+    val rows = sanMoveRows(history, startFen)
     val currentPly = previewPly ?: history.size
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -1246,8 +1247,8 @@ private fun MoveCell(
 
 private data class MoveRow(val number: Int, val white: String, val black: String?)
 
-private fun sanMoveRows(history: List<String>): List<MoveRow> {
-    val san = SanFormatter.sanMoves(history)
+private fun sanMoveRows(history: List<String>, startFen: String?): List<MoveRow> {
+    val san = SanFormatter.sanMoves(history, startFen)
     return san.chunked(2).mapIndexed { index, pair ->
         MoveRow(number = index + 1, white = pair.first(), black = pair.getOrNull(1))
     }
@@ -1363,8 +1364,8 @@ private fun GameOverPanel(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    val pairs = remember(uiState.gameState.uciHistory) {
-                        allMovePairs(uiState.gameState.uciHistory)
+                    val pairs = remember(uiState.gameState.uciHistory, viewModel.startPositionFen) {
+                        allMovePairs(uiState.gameState.uciHistory, viewModel.startPositionFen)
                     }
                     if (pairs.isEmpty()) {
                         Text(
@@ -1575,8 +1576,8 @@ private fun connectionNote(uiState: GameUiState): String? = when {
     else -> null
 }
 
-private fun allMovePairs(history: List<String>): List<String> {
-    val moves = readableMoves(history)
+private fun allMovePairs(history: List<String>, startFen: String?): List<String> {
+    val moves = readableMoves(history, startFen)
     val pairs = mutableListOf<String>()
     var index = 0
     while (index < moves.size) {
@@ -1590,11 +1591,11 @@ private fun allMovePairs(history: List<String>): List<String> {
 }
 
 @Composable
-private fun movePairs(history: List<String>): List<String> {
+private fun movePairs(history: List<String>, startFen: String?): List<String> {
     if (history.isEmpty()) {
         return listOf(stringResource(Res.string.game_no_moves_yet))
     }
-    val moves = remember(history) { readableMoves(history) }
+    val moves = remember(history, startFen) { readableMoves(history, startFen) }
     val pairs = mutableListOf<String>()
     var index = 0
     while (index < moves.size) {
@@ -1607,8 +1608,8 @@ private fun movePairs(history: List<String>): List<String> {
     return pairs.takeLast(2)
 }
 
-private fun readableMoves(history: List<String>): List<String> =
-    SanFormatter.sanMoves(history).takeIf { it.size == history.size } ?: history
+private fun readableMoves(history: List<String>, startFen: String?): List<String> =
+    SanFormatter.sanMoves(history, startFen).takeIf { it.size == history.size } ?: history
 
 private fun seriesValue(uiState: GameUiState): String =
     "${uiState.seriesMyWins} · ${uiState.seriesOpponentWins} · ${uiState.seriesDraws}"
@@ -1675,48 +1676,7 @@ private fun clockModeLabel(mode: ClockMode): String = stringResource(
     }
 )
 
-@Composable
-private fun PromotionDialog(
-    color: PieceColor,
-    onChoose: (PieceKind) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.game_promote_to), style = MaterialTheme.typography.titleLarge) },
-        text = {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (kind in listOf(
-                    PieceKind.QUEEN,
-                    PieceKind.ROOK,
-                    PieceKind.BISHOP,
-                    PieceKind.KNIGHT
-                )) {
-                    SoftCard(
-                        container = MaterialTheme.colorScheme.surfaceContainer,
-                        corner = 20.dp,
-                        onClick = { onChoose(kind) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(pieceDrawable(pieceCode(color, kind))),
-                                contentDescription = null,
-                                modifier = Modifier.size(34.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {}
-    )
-}
-
-private fun pieceCode(color: PieceColor, kind: PieceKind): String {
+internal fun pieceCode(color: PieceColor, kind: PieceKind): String {
     val prefix = if (color == PieceColor.WHITE) "w" else "b"
     val suffix = when (kind) {
         PieceKind.KING -> "k"

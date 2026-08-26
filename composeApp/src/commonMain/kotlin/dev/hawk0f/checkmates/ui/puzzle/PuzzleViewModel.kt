@@ -7,12 +7,14 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.GameState
 import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.domain.PieceColor
+import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.shared.puzzle.BundledPuzzles
 import dev.hawk0f.checkmates.shared.puzzle.Puzzle
 import dev.hawk0f.checkmates.shared.puzzle.PuzzleElo
 import dev.hawk0f.checkmates.shared.puzzle.PuzzleProgress
 import dev.hawk0f.checkmates.shared.puzzle.SpacedRepetition
+import dev.hawk0f.checkmates.ui.game.promotionLetter
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +37,8 @@ data class PuzzleUiState(
     val ratingDelta: Int = 0,
     val streak: Int = 0,
     val solvedToday: Int = 0,
-    val hintSquare: Square? = null
+    val hintSquare: Square? = null,
+    val pendingPromotion: Pair<Square, Square>? = null
 )
 
 class PuzzleViewModel(
@@ -86,13 +89,14 @@ class PuzzleViewModel(
             legalTargets = emptySet(),
             outcome = PuzzleOutcome.UNSOLVED,
             ratingDelta = 0,
-            hintSquare = null
+            hintSquare = null,
+            pendingPromotion = null
         )
     }
 
     fun onSquareTap(square: Square) {
         val state = _uiState.value
-        if (state.outcome != PuzzleOutcome.UNSOLVED || state.gameState == null) {
+        if (state.outcome != PuzzleOutcome.UNSOLVED || state.gameState == null || state.pendingPromotion != null) {
             return
         }
         val selected = state.selected
@@ -115,8 +119,22 @@ class PuzzleViewModel(
             }
             return
         }
-        val promotion = if (game.isPromotionMove(selected, square)) 'q' else null
-        submit(selected, square, promotion)
+        if (game.isPromotionMove(selected, square)) {
+            _uiState.value = state.copy(pendingPromotion = selected to square)
+            return
+        }
+        submit(selected, square, null)
+    }
+
+    fun onPromotionChosen(kind: PieceKind) {
+        val (from, to) = _uiState.value.pendingPromotion ?: return
+        val letter = promotionLetter(kind) ?: return
+        _uiState.value = _uiState.value.copy(pendingPromotion = null)
+        submit(from, to, letter.first())
+    }
+
+    fun onPromotionDismissed() {
+        _uiState.value = _uiState.value.copy(pendingPromotion = null, selected = null, legalTargets = emptySet())
     }
 
     fun showHint() {

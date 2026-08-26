@@ -24,6 +24,7 @@ import dev.hawk0f.checkmates.resources.openings_your_move
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
+import dev.hawk0f.checkmates.ui.game.PromotionDialog
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
 import dev.hawk0f.checkmates.ui.theme.ChevronIcon
 import dev.hawk0f.checkmates.ui.theme.CircleButton
@@ -40,6 +41,14 @@ fun OpeningDrillScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accents = LocalAppAccents.current
+
+    if (uiState.pendingPromotion != null) {
+        PromotionDialog(
+            color = uiState.gameState.sideToMove,
+            onChoose = viewModel::onPromotionChosen,
+            onDismiss = viewModel::onPromotionDismissed
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(

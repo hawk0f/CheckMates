@@ -1,6 +1,7 @@
 package dev.hawk0f.checkmates.ui.puzzle
 
 import dev.hawk0f.checkmates.session.PuzzlePersistence
+import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
 import dev.hawk0f.checkmates.shared.puzzle.Puzzle
 import dev.hawk0f.checkmates.shared.puzzle.PuzzleElo
@@ -79,6 +80,32 @@ class PuzzleViewModelTest {
 
         assertEquals(PuzzleOutcome.FAILED, viewModel.uiState.value.outcome)
         assertEquals(0, store.streak)
+    }
+
+    @Test
+    fun promotionWaitsForTheChosenPiece() {
+        val underpromotion = Puzzle(
+            id = "underpromotion",
+            fen = "8/P6k/8/8/8/8/6p1/6K1 w - - 0 1",
+            solution = listOf("a7a8n"),
+            rating = 1200,
+            theme = PuzzleTheme.PROMOTION
+        )
+        val viewModel = PuzzleViewModel(
+            store = FakePuzzleStore(),
+            puzzles = listOf(underpromotion),
+            now = { 1_700_000_000_000 }
+        )
+
+        viewModel.play("a7a8")
+        val pending = viewModel.uiState.value
+        assertEquals(Square.fromUci("a7") to Square.fromUci("a8"), pending.pendingPromotion)
+        assertEquals(PuzzleOutcome.UNSOLVED, pending.outcome)
+
+        viewModel.onPromotionChosen(PieceKind.KNIGHT)
+        val solved = viewModel.uiState.value
+        assertEquals(null, solved.pendingPromotion)
+        assertEquals(PuzzleOutcome.SOLVED, solved.outcome)
     }
 
     @Test
