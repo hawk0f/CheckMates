@@ -82,9 +82,15 @@ that the preview drives with fixtures — lobby, friends, leaderboard, nearby, p
 Lichess screens. Screens with a local view model (`GameScreen`, opening drill, puzzles, board editor)
 take the view model as a parameter instead, so a preview passes one it built itself.
 
-A few specs are previews without goldens: anything containing a `TextField` (board editor, friends,
-nearby, lobby setup, profile, Lichess players), because `TextField` crashes Robolectric under the
-current material3 alpha, and replay, because it prints a locale- and timezone-formatted date.
+Replay is the one spec previewed without a golden — it prints a locale- and timezone-formatted date,
+so its image differs per machine.
+
+The catalog also runs on a device: the debug build ships a `PreviewGalleryActivity` that lists every
+spec, renders it full screen and switches light/dark on the spot.
+
+```bash
+adb shell am start -n dev.hawk0f.checkmates/.PreviewGalleryActivity
+```
 
 ```bash
 ./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.verify=true

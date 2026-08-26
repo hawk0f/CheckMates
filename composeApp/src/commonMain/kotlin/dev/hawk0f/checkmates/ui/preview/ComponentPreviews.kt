@@ -134,7 +134,7 @@ internal val softCardSpec = PreviewSpec("soft-card") {
     }
 }
 
-internal val textFieldsSpec = PreviewSpec("text-fields", capturable = false) {
+internal val textFieldsSpec = PreviewSpec("text-fields") {
     SoftTextField(
         value = "",
         onValueChange = {},

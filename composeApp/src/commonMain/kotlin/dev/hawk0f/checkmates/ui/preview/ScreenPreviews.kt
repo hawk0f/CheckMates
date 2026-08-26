@@ -119,7 +119,7 @@ internal val settingsScreenSpec = PreviewSpec("screen-settings", fillsScreen = t
     SettingsScreen(onBack = {})
 }
 
-internal val boardEditorScreenSpec = PreviewSpec("screen-board-editor", capturable = false, fillsScreen = true) {
+internal val boardEditorScreenSpec = PreviewSpec("screen-board-editor", fillsScreen = true) {
     BoardEditorScreen(
         onPlayHotseat = {},
         onPlayComputer = {},
@@ -197,7 +197,7 @@ internal val leaderboardScreenSpec = PreviewSpec("screen-leaderboard", fillsScre
     )
 }
 
-internal val friendsScreenSpec = PreviewSpec("screen-friends", capturable = false, fillsScreen = true) {
+internal val friendsScreenSpec = PreviewSpec("screen-friends", fillsScreen = true) {
     FriendsContent(
         uiState = FriendsUiState(
             friends = previewFriends.take(2),
@@ -216,7 +216,7 @@ internal val friendsScreenSpec = PreviewSpec("screen-friends", capturable = fals
     )
 }
 
-internal val bleLobbyScreenSpec = PreviewSpec("screen-ble-lobby", capturable = false, fillsScreen = true) {
+internal val bleLobbyScreenSpec = PreviewSpec("screen-ble-lobby", fillsScreen = true) {
     BleLobbyContent(
         uiState = BleLobbyUiState(playerName = "hawk0f", step = BleLobbyStep.Hosting),
         onNameChange = {},
@@ -229,7 +229,7 @@ internal val bleLobbyScreenSpec = PreviewSpec("screen-ble-lobby", capturable = f
     )
 }
 
-internal val onlineLobbySetupScreenSpec = PreviewSpec("screen-online-lobby", capturable = false, fillsScreen = true) {
+internal val onlineLobbySetupScreenSpec = PreviewSpec("screen-online-lobby", fillsScreen = true) {
     OnlineLobbyContent(
         uiState = OnlineLobbyUiState(playerName = "hawk0f"),
         joining = false,
@@ -273,7 +273,7 @@ internal val onlineLobbyWaitingScreenSpec = PreviewSpec("screen-online-lobby-wai
     )
 }
 
-internal val profileAuthScreenSpec = PreviewSpec("screen-profile-auth", capturable = false, fillsScreen = true) {
+internal val profileAuthScreenSpec = PreviewSpec("screen-profile-auth", fillsScreen = true) {
     ProfileContent(
         profile = null,
         uiState = ProfileUiState(),
@@ -288,7 +288,7 @@ internal val profileAuthScreenSpec = PreviewSpec("screen-profile-auth", capturab
     )
 }
 
-internal val profileAccountScreenSpec = PreviewSpec("screen-profile-account", capturable = false, fillsScreen = true) {
+internal val profileAccountScreenSpec = PreviewSpec("screen-profile-account", fillsScreen = true) {
     ProfileContent(
         profile = previewProfile,
         uiState = ProfileUiState(history = listOf(previewHistoryItem), historyLoaded = true),
@@ -393,7 +393,7 @@ internal val lichessSeekScreenSpec = PreviewSpec("screen-lichess-seek", fillsScr
     )
 }
 
-internal val lichessPlayersScreenSpec = PreviewSpec("screen-lichess-players", capturable = false, fillsScreen = true) {
+internal val lichessPlayersScreenSpec = PreviewSpec("screen-lichess-players", fillsScreen = true) {
     LichessPlayersContent(
         uiState = LichessPlayersUiState(
             loading = false,
