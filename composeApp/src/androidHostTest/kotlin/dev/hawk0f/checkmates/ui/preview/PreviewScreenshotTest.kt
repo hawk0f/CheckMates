@@ -57,3 +57,13 @@ internal class BoardPreviewDarkScreenshotTest : PreviewScreenshotTest(
     boardPreviewSpecs,
     DarkModePreference.DARK
 )
+
+internal class ScreenPreviewLightScreenshotTest : PreviewScreenshotTest(
+    screenPreviewSpecs,
+    DarkModePreference.LIGHT
+)
+
+internal class ScreenPreviewDarkScreenshotTest : PreviewScreenshotTest(
+    screenPreviewSpecs,
+    DarkModePreference.DARK
+)

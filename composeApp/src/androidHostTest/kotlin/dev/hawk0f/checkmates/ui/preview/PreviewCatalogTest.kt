@@ -16,7 +16,8 @@ class PreviewCatalogTest {
     fun everySpecHasAPreviewFunction() {
         val functions = listOf(
             "dev.hawk0f.checkmates.ui.preview.ComponentPreviewsKt",
-            "dev.hawk0f.checkmates.ui.preview.BoardPreviewsKt"
+            "dev.hawk0f.checkmates.ui.preview.BoardPreviewsKt",
+            "dev.hawk0f.checkmates.ui.preview.ScreenPreviewsKt"
         ).flatMap { name ->
             Class.forName(name).declaredMethods.map { it.name.substringBefore('$') }
         }.filter { it.endsWith("Preview") }.toSet()

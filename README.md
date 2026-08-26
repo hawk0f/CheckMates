@@ -71,10 +71,17 @@ On the Android emulator use `http://10.0.2.2:8080`, not `localhost`.
 
 ### Component previews
 
-`ui/preview` holds a catalog of `PreviewSpec`s — one per UI element or board state — rendered both by
-`@Preview` functions (Android Studio, Fleet) and by Roborazzi screenshot tests, so a preview and its
-golden never drift apart. Goldens live in [composeApp/screenshots](composeApp/screenshots), one per
-spec per theme.
+`ui/preview` holds a catalog of `PreviewSpec`s — one per UI element, board state, dialog or screen —
+rendered both by `@Preview` functions (Android Studio, Fleet) and by Roborazzi screenshot tests, so a
+preview and its golden never drift apart. Goldens live in
+[composeApp/screenshots](composeApp/screenshots), one per spec per theme.
+
+Screen specs cover the ones that render from local state alone: home, flow picker, computer setup,
+openings, settings, puzzles, board editor and replay. Two of them are previews without goldens — the
+board editor because any `TextField` crashes Robolectric under the current material3 alpha, replay
+because it prints a locale- and timezone-formatted date. Screens driven by the network (lobby,
+friends, leaderboard, Lichess) and `GameScreen`, which builds its view model internally, are not in
+the catalog yet.
 
 ```bash
 ./gradlew :composeApp:testAndroidHostTest -Proborazzi.test.verify=true

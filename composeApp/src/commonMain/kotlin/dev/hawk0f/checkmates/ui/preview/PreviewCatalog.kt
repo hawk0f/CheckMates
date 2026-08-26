@@ -2,6 +2,7 @@ package dev.hawk0f.checkmates.ui.preview
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -18,10 +19,12 @@ internal class PreviewSpec(
     val id: String,
     val width: Dp = 360.dp,
     val capturable: Boolean = true,
+    val fillsScreen: Boolean = false,
     val content: @Composable () -> Unit
 )
 
-internal val previewSpecs: List<PreviewSpec> = componentPreviewSpecs + dialogPreviewSpecs + boardPreviewSpecs
+internal val previewSpecs: List<PreviewSpec> =
+    componentPreviewSpecs + dialogPreviewSpecs + boardPreviewSpecs + screenPreviewSpecs
 
 internal fun previewState(vararg moves: String): GameState = ChessGame().apply {
     for (uci in moves) {
@@ -31,6 +34,14 @@ internal fun previewState(vararg moves: String): GameState = ChessGame().apply {
 
 @Composable
 internal fun PreviewFrame(spec: PreviewSpec) {
+    if (spec.fillsScreen) {
+        AppTheme {
+            Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
+                spec.content()
+            }
+        }
+        return
+    }
     AppTheme {
         Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.width(spec.width)) {
             Column(
