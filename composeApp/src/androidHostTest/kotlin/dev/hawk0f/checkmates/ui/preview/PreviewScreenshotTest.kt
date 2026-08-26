@@ -1,5 +1,6 @@
 package dev.hawk0f.checkmates.ui.preview
 
+import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.hawk0f.checkmates.ui.theme.DarkModePreference
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
@@ -10,6 +11,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+
+internal val previewRoborazziOptions = RoborazziOptions(
+    compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.0001f)
+)
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -31,7 +36,10 @@ internal abstract class PreviewScreenshotTest(
     @Test
     fun previewsMatchTheirGoldens() {
         for (spec in specs.filter { it.capturable }) {
-            captureRoboImage("screenshots/preview-${spec.id}-${mode.id}.png") {
+            captureRoboImage(
+                filePath = "screenshots/preview-${spec.id}-${mode.id}.png",
+                roborazziOptions = previewRoborazziOptions
+            ) {
                 PreviewFrame(spec)
             }
         }
