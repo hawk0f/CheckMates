@@ -512,4 +512,5 @@ Lichess account</string>
     <string name="settings_hotseat_facing">Pieces in pass and play</string>
     <string name="settings_facing_owner">Face each player</string>
     <string name="settings_facing_turn">Face the side to move</string>
+    <string name="game_settings_title">Game settings</string>
 </resources>

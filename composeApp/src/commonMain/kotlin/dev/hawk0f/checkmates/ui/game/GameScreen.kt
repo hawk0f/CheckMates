@@ -168,6 +168,12 @@ import dev.hawk0f.checkmates.ui.theme.LocalBoardColors
 import androidx.compose.ui.draw.shadow
 import dev.hawk0f.checkmates.ui.theme.HotseatFacing
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
+import dev.hawk0f.checkmates.resources.a11y_settings
+import dev.hawk0f.checkmates.resources.common_ok
+import dev.hawk0f.checkmates.resources.game_settings_title
+import dev.hawk0f.checkmates.resources.settings_facing_owner
+import dev.hawk0f.checkmates.resources.settings_facing_turn
+import dev.hawk0f.checkmates.resources.settings_hotseat_facing
 
 private val SheetPeekHeight = 232.dp
 private val RevealSlide = 18.dp
@@ -436,6 +442,7 @@ private fun GameSheet(
         .collectAsStateWithLifecycle()
     val chatLines = uiState.chat
     var chatOpen by remember { mutableStateOf(false) }
+    var boardSettingsOpen by remember { mutableStateOf(false) }
     var chatDraft by remember { mutableStateOf("") }
 
     if (chatOpen && viewModel.supportsChat) {
@@ -484,6 +491,10 @@ private fun GameSheet(
                 )
             }
         )
+    }
+
+    if (boardSettingsOpen) {
+        BoardSettingsDialog(onDismiss = { boardSettingsOpen = false })
     }
 
     val scheme = MaterialTheme.colorScheme
@@ -557,6 +568,18 @@ private fun GameSheet(
                     ) {
                         Text(
                             text = "?",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = scheme.onSurface
+                        )
+                    }
+                }
+                if (viewModel.isHotseat) {
+                    CircleButton(
+                        onClick = { boardSettingsOpen = true },
+                        contentDescription = stringResource(Res.string.a11y_settings)
+                    ) {
+                        Text(
+                            text = "⚙",
                             style = MaterialTheme.typography.titleMedium,
                             color = scheme.onSurface
                         )
@@ -840,6 +863,37 @@ private fun MyPlayerRow(
         MaterialChip(gameState = uiState.gameState, bottomColor = bottomColor)
         CapturedRow(uiState.gameState, capturedFrom = bottomColor.opposite)
     }
+}
+
+@Composable
+private fun BoardSettingsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(Res.string.game_settings_title), style = MaterialTheme.typography.titleLarge)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionLabel(stringResource(Res.string.settings_hotseat_facing))
+                SegmentedPills(
+                    options = listOf(
+                        stringResource(Res.string.settings_facing_owner),
+                        stringResource(Res.string.settings_facing_turn)
+                    ),
+                    selectedIndex = HotseatFacing.entries.indexOf(ThemeManager.hotseatFacing),
+                    onSelect = { index -> ThemeManager.selectHotseatFacing(HotseatFacing.entries[index]) }
+                )
+            }
+        },
+        confirmButton = {
+            PillButton(
+                text = stringResource(Res.string.common_ok),
+                onClick = onDismiss,
+                tone = PillTone.SOFT,
+                compact = true
+            )
+        }
+    )
 }
 
 @Composable
