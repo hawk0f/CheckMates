@@ -37,7 +37,7 @@ import dev.hawk0f.checkmates.session.FlowManager
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
-import dev.hawk0f.checkmates.ui.theme.SelectPill
+import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.ThemeManager
 import dev.hawk0f.checkmates.ui.theme.ThemePalette
@@ -112,15 +112,11 @@ fun SettingsScreen(onBack: () -> Unit, onSwitchFlow: () -> Unit = {}) {
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 SectionLabel(stringResource(Res.string.settings_appearance))
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    for (preference in DarkModePreference.entries) {
-                        SelectPill(
-                            text = darkModeLabel(preference),
-                            selected = ThemeManager.darkMode == preference,
-                            onClick = { ThemeManager.selectDarkMode(preference) }
-                        )
-                    }
-                }
+                SegmentedPills(
+                    options = DarkModePreference.entries.map { preference -> darkModeLabel(preference) },
+                    selectedIndex = DarkModePreference.entries.indexOf(ThemeManager.darkMode),
+                    onSelect = { index -> ThemeManager.selectDarkMode(DarkModePreference.entries[index]) }
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {

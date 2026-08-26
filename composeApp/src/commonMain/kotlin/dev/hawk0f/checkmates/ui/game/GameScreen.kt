@@ -8,8 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -70,7 +68,7 @@ import dev.hawk0f.checkmates.ui.theme.LocalAppAccents
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
-import dev.hawk0f.checkmates.ui.theme.SelectPill
+import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
 import dev.hawk0f.checkmates.ui.theme.SoftCard
 import dev.hawk0f.checkmates.ui.theme.StatTile
@@ -1432,7 +1430,6 @@ private val timeControlChoices = listOf(
     TimeControl(900, 10)
 )
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
     var clockMode by remember { mutableStateOf(ClockMode.FISCHER) }
@@ -1441,18 +1438,11 @@ private fun TimeControlDialog(onPick: (TimeControl?) -> Unit) {
         title = { Text(stringResource(Res.string.game_clock_title), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    for (option in ClockMode.entries) {
-                        SelectPill(
-                            text = clockModeLabel(option),
-                            selected = option == clockMode,
-                            onClick = { clockMode = option }
-                        )
-                    }
-                }
+                SegmentedPills(
+                    options = ClockMode.entries.map { option -> clockModeLabel(option) },
+                    selectedIndex = ClockMode.entries.indexOf(clockMode),
+                    onSelect = { index -> clockMode = ClockMode.entries[index] }
+                )
                 for (choice in timeControlChoices) {
                     val withMode = choice?.copy(mode = clockMode)
                     PillButton(

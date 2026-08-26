@@ -506,4 +506,7 @@ Lichess account</string>
     <string name="seek_game_start_failed">Could not start the game</string>
     <string name="game_captured">Captured</string>
     <string name="game_moves_browse">Browse moves</string>
+    <string name="home_section_play">Play</string>
+    <string name="home_section_practice">Practice</string>
+    <string name="home_section_community">Community</string>
 </resources>

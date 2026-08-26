@@ -3,8 +3,6 @@ package dev.hawk0f.checkmates.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -87,6 +85,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import dev.hawk0f.checkmates.resources.home_section_community
+import dev.hawk0f.checkmates.resources.home_section_play
+import dev.hawk0f.checkmates.resources.home_section_practice
+import dev.hawk0f.checkmates.ui.theme.PillAction
+import dev.hawk0f.checkmates.ui.theme.PillGrid
 
 @Composable
 fun HomeScreen(
@@ -327,7 +330,6 @@ private fun HeroCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ModeRail(
     onPlayOnline: () -> Unit,
@@ -341,71 +343,46 @@ private fun ModeRail(
     onOpenFriends: () -> Unit,
     onSwitchFlow: () -> Unit
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp)
-    ) {
-        PillButton(
-            text = stringResource(Res.string.home_new_game),
-            onClick = onPlayOnline,
-            tone = PillTone.ACCENT,
-            compact = true
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        ModeSection(
+            title = stringResource(Res.string.home_section_play),
+            actions = listOf(
+                PillAction(stringResource(Res.string.home_new_game), onPlayOnline, PillTone.ACCENT),
+                PillAction(stringResource(Res.string.home_pass_and_play), onPassAndPlay),
+                PillAction(stringResource(Res.string.home_computer), onPlayComputer, PillTone.LEAF),
+                PillAction(stringResource(Res.string.home_nearby), onPlayBluetooth)
+            )
         )
-        PillButton(
-            text = stringResource(Res.string.home_pass_and_play),
-            onClick = onPassAndPlay,
-            tone = PillTone.SOFT,
-            compact = true
+        ModeSection(
+            title = stringResource(Res.string.home_section_practice),
+            actions = listOf(
+                PillAction(stringResource(Res.string.puzzles_title), onOpenPuzzles, PillTone.LEAF),
+                PillAction(stringResource(Res.string.openings_title), onOpenOpenings, PillTone.LEAF),
+                PillAction(stringResource(Res.string.editor_title), onOpenEditor)
+            )
         )
-        PillButton(
-            text = stringResource(Res.string.home_computer),
-            onClick = onPlayComputer,
-            tone = PillTone.LEAF,
-            compact = true
-        )
-        PillButton(
-            text = stringResource(Res.string.home_nearby),
-            onClick = onPlayBluetooth,
-            tone = PillTone.SOFT,
-            compact = true
-        )
-        PillButton(
-            text = stringResource(Res.string.puzzles_title),
-            onClick = onOpenPuzzles,
-            tone = PillTone.LEAF,
-            compact = true
-        )
-        PillButton(
-            text = stringResource(Res.string.leaderboard_title),
-            onClick = onOpenLeaderboard,
-            tone = PillTone.SOFT,
-            compact = true
-        )
-        PillButton(
-            text = stringResource(Res.string.friends_title),
-            onClick = onOpenFriends,
-            tone = PillTone.SOFT,
-            compact = true
-        )
-        PillButton(
-            text = stringResource(Res.string.openings_title),
-            onClick = onOpenOpenings,
-            tone = PillTone.LEAF,
-            compact = true
-        )
-        PillButton(
-            text = stringResource(Res.string.editor_title),
-            onClick = onOpenEditor,
-            tone = PillTone.SOFT,
-            compact = true
+        ModeSection(
+            title = stringResource(Res.string.home_section_community),
+            actions = listOf(
+                PillAction(stringResource(Res.string.leaderboard_title), onOpenLeaderboard),
+                PillAction(stringResource(Res.string.friends_title), onOpenFriends)
+            )
         )
         PillButton(
             text = stringResource(Res.string.flow_switch_to, stringResource(Res.string.flow_lichess_name)),
             onClick = onSwitchFlow,
             tone = PillTone.BAND,
-            compact = true
+            compact = true,
+            modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun ModeSection(title: String, actions: List<PillAction>) {
+    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        SectionLabel(title)
+        PillGrid(actions = actions)
     }
 }
 

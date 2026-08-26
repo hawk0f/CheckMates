@@ -506,4 +506,7 @@
     <string name="seek_game_start_failed">Не удалось начать партию</string>
     <string name="game_captured">Съедено</string>
     <string name="game_moves_browse">Просмотр ходов</string>
+    <string name="home_section_play">Играть</string>
+    <string name="home_section_practice">Тренировка</string>
+    <string name="home_section_community">Сообщество</string>
 </resources>

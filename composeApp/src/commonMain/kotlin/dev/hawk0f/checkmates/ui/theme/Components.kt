@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,7 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.sp
 
 enum class PillTone {
     INK,
@@ -89,6 +95,82 @@ fun PillButton(
             fontFamily = displayFamily()
         )
         trailing?.invoke()
+    }
+}
+
+data class PillAction(
+    val text: String,
+    val onClick: () -> Unit,
+    val tone: PillTone = PillTone.SOFT,
+    val enabled: Boolean = true
+)
+
+@Composable
+fun PillGrid(
+    actions: List<PillAction>,
+    modifier: Modifier = Modifier,
+    columns: Int = 2,
+    spacing: Dp = 9.dp
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(spacing)) {
+        for (row in actions.chunked(columns)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                for (action in row) {
+                    PillButton(
+                        text = action.text,
+                        onClick = action.onClick,
+                        tone = action.tone,
+                        enabled = action.enabled,
+                        compact = true,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SegmentedPills(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    val style = MaterialTheme.typography.labelLarge.copy(textAlign = TextAlign.Center)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(scheme.surfaceVariant)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        options.forEachIndexed { index, label ->
+            val isSelected = index == selectedIndex
+            BasicText(
+                text = label,
+                style = style.copy(color = if (isSelected) scheme.onTertiary else scheme.onSurfaceVariant),
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = style.fontSize),
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(CircleShape)
+                    .background(if (isSelected) scheme.tertiary else Color.Transparent)
+                    .clickable { onSelect(index) }
+                    .semantics {
+                        role = Role.RadioButton
+                        selected = isSelected
+                    }
+                    .padding(vertical = 10.dp, horizontal = 8.dp)
+            )
+        }
     }
 }
 

@@ -36,6 +36,7 @@ import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import kotlin.random.Random
 import org.jetbrains.compose.resources.stringResource
@@ -92,23 +93,16 @@ fun ComputerSetupScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 SectionLabel(stringResource(Res.string.computer_side_label))
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    SelectPill(
-                        text = stringResource(Res.string.computer_side_white),
-                        selected = side == PieceColor.WHITE,
-                        onClick = { side = PieceColor.WHITE }
-                    )
-                    SelectPill(
-                        text = stringResource(Res.string.computer_side_black),
-                        selected = side == PieceColor.BLACK,
-                        onClick = { side = PieceColor.BLACK }
-                    )
-                    SelectPill(
-                        text = stringResource(Res.string.computer_side_random),
-                        selected = side == null,
-                        onClick = { side = null }
-                    )
-                }
+                val sideOptions = listOf(PieceColor.WHITE, PieceColor.BLACK, null)
+                SegmentedPills(
+                    options = listOf(
+                        stringResource(Res.string.computer_side_white),
+                        stringResource(Res.string.computer_side_black),
+                        stringResource(Res.string.computer_side_random)
+                    ),
+                    selectedIndex = sideOptions.indexOf(side),
+                    onSelect = { index -> side = sideOptions[index] }
+                )
             }
 
             PillButton(

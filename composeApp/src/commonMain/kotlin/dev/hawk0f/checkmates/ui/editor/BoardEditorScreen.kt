@@ -24,8 +24,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import dev.hawk0f.checkmates.platform.rememberShareText
 import dev.hawk0f.checkmates.resources.Res
 import dev.hawk0f.checkmates.resources.a11y_back
@@ -63,6 +61,9 @@ import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.PillAction
+import dev.hawk0f.checkmates.ui.theme.PillGrid
+import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.SelectPill
 import org.jetbrains.compose.resources.stringResource
 
@@ -76,7 +77,6 @@ private val brushOrder = listOf(
 )
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 fun BoardEditorScreen(
     onPlayHotseat: (String) -> Unit,
     onPlayComputer: (String) -> Unit,
@@ -157,18 +157,16 @@ fun BoardEditorScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 SectionLabel(stringResource(Res.string.editor_side_to_move))
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    SelectPill(
-                        text = stringResource(Res.string.common_white_side),
-                        selected = uiState.sideToMove == PieceColor.WHITE,
-                        onClick = { viewModel.setSideToMove(PieceColor.WHITE) }
-                    )
-                    SelectPill(
-                        text = stringResource(Res.string.common_black_side),
-                        selected = uiState.sideToMove == PieceColor.BLACK,
-                        onClick = { viewModel.setSideToMove(PieceColor.BLACK) }
-                    )
-                }
+                SegmentedPills(
+                    options = listOf(
+                        stringResource(Res.string.common_white_side),
+                        stringResource(Res.string.common_black_side)
+                    ),
+                    selectedIndex = if (uiState.sideToMove == PieceColor.WHITE) 0 else 1,
+                    onSelect = { index ->
+                        viewModel.setSideToMove(if (index == 0) PieceColor.WHITE else PieceColor.BLACK)
+                    }
+                )
             }
 
             uiState.problem?.let { problem ->
@@ -185,29 +183,13 @@ fun BoardEditorScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(9.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                PillButton(
-                    text = stringResource(Res.string.editor_reset),
-                    onClick = viewModel::resetToStart,
-                    tone = PillTone.SOFT,
-                    compact = true
+            PillGrid(
+                actions = listOf(
+                    PillAction(stringResource(Res.string.editor_reset), viewModel::resetToStart),
+                    PillAction(stringResource(Res.string.editor_clear), viewModel::clearBoard),
+                    PillAction(stringResource(Res.string.editor_share_fen), { shareText(uiState.fen) })
                 )
-                PillButton(
-                    text = stringResource(Res.string.editor_clear),
-                    onClick = viewModel::clearBoard,
-                    tone = PillTone.SOFT,
-                    compact = true
-                )
-                PillButton(
-                    text = stringResource(Res.string.editor_share_fen),
-                    onClick = { shareText(uiState.fen) },
-                    tone = PillTone.SOFT,
-                    compact = true
-                )
-            }
+            )
 
             OutlinedTextField(
                 value = importText,
