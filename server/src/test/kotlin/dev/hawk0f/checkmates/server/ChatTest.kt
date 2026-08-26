@@ -60,7 +60,7 @@ class ChatTest {
 
     @Test
     fun chatIsRelayedToBothPlayersAndRateLimited() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
         val created: CreateGameResponse = client.post("/api/games") {
             contentType(ContentType.Application.Json)

@@ -63,7 +63,7 @@ class GameServerTest {
 
     @Test
     fun fullGameToCheckmateIsBroadcast() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
 
         val created: CreateGameResponse = client.post("/api/games") {
@@ -152,7 +152,7 @@ class GameServerTest {
 
     @Test
     fun illegalAndOutOfTurnMovesAreRejected() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
 
         val created: CreateGameResponse = client.post("/api/games") {
@@ -197,7 +197,7 @@ class GameServerTest {
 
     @Test
     fun reconnectRestoresStateViaResync() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
 
         val created: CreateGameResponse = client.post("/api/games") {
@@ -227,7 +227,7 @@ class GameServerTest {
 
     @Test
     fun unknownGameReturnsProtocolError() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
         client.webSocket("/ws/game/nope") {
             val error = receiveMessage()
@@ -238,7 +238,7 @@ class GameServerTest {
 
     @Test
     fun rematchSwapsColorsAndResetsGame() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
 
         val created: CreateGameResponse = client.post("/api/games") {

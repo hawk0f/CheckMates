@@ -41,19 +41,22 @@ class SeekPool(private val registry: RoomRegistry) {
             createdAtMillis = nowMillis,
             result = CompletableDeferred()
         )
-        val opponent = mutex.withLock {
-            val candidate = waiting
-                .filter { it.compatibleWith(seek, nowMillis) }
-                .minByOrNull { abs(it.rating - seek.rating) }
-            if (candidate != null) {
-                waiting.remove(candidate)
-            } else {
-                waiting.add(seek)
+        while (true) {
+            val opponent = mutex.withLock {
+                waiting.removeAll { it.result.isCompleted }
+                val candidate = waiting
+                    .filter { it.compatibleWith(seek, nowMillis) }
+                    .minByOrNull { abs(it.rating - seek.rating) }
+                if (candidate != null) {
+                    waiting.remove(candidate)
+                } else {
+                    waiting.add(seek)
+                }
+                candidate
             }
-            candidate
-        }
-        if (opponent != null) {
-            pair(opponent, seek)
+            if (opponent == null || pair(opponent, seek)) {
+                break
+            }
         }
         return seek.id to seek.result
     }
@@ -65,10 +68,13 @@ class SeekPool(private val registry: RoomRegistry) {
     }
 
     suspend fun queuedFor(timeControl: TimeControl): Int = mutex.withLock {
-        waiting.count { it.timeControl == timeControl }
+        waiting.count { it.timeControl == timeControl && !it.result.isCompleted }
     }
 
-    private suspend fun pair(host: Seek, guest: Seek) {
+    private suspend fun pair(host: Seek, guest: Seek): Boolean {
+        if (host.result.isCompleted) {
+            return false
+        }
         val created = registry.create(
             hostName = host.name,
             timeControl = host.timeControl,
@@ -80,9 +86,9 @@ class SeekPool(private val registry: RoomRegistry) {
         if (room == null || guestColor == null) {
             host.result.completeExceptionally(IllegalStateException("failed to create paired game"))
             guest.result.completeExceptionally(IllegalStateException("failed to create paired game"))
-            return
+            return true
         }
-        host.result.complete(
+        val hostAccepted = host.result.complete(
             SeekMessage.Matched(
                 gameId = created.gameId,
                 shortCode = created.shortCode,
@@ -92,6 +98,10 @@ class SeekPool(private val registry: RoomRegistry) {
                 opponentRating = guest.rating
             )
         )
+        if (!hostAccepted) {
+            registry.discard(created.gameId)
+            return false
+        }
         guest.result.complete(
             SeekMessage.Matched(
                 gameId = created.gameId,
@@ -102,9 +112,13 @@ class SeekPool(private val registry: RoomRegistry) {
                 opponentRating = host.rating
             )
         )
+        return true
     }
 
     private fun Seek.compatibleWith(other: Seek, nowMillis: Long): Boolean {
+        if (result.isCompleted) {
+            return false
+        }
         if (timeControl != other.timeControl) {
             return false
         }

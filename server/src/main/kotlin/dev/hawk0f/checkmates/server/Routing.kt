@@ -1,5 +1,6 @@
 package dev.hawk0f.checkmates.server
 
+import dev.hawk0f.checkmates.shared.protocol.ClockMode
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.protocol.ProtocolJson
 import dev.hawk0f.checkmates.shared.protocol.ShortCode
@@ -104,7 +105,17 @@ fun Application.configureRouting(
                     sendSeek(SeekMessage.Error("BAD_TIME_CONTROL", "unsupported time control"))
                     return@webSocket
                 }
-                val timeControl = TimeControl(initialSeconds, incrementSeconds)
+                val timeControl = TimeControl(
+                    initialSeconds = initialSeconds,
+                    incrementSeconds = incrementSeconds,
+                    mode = ClockMode.byId(call.request.queryParameters["mode"]),
+                    blackInitialSeconds = call.request.queryParameters["blackInitial"]?.toIntOrNull(),
+                    blackIncrementSeconds = call.request.queryParameters["blackIncrement"]?.toIntOrNull()
+                )
+                if (!timeControl.isSupported()) {
+                    sendSeek(SeekMessage.Error("BAD_TIME_CONTROL", "unsupported time control"))
+                    return@webSocket
+                }
                 val userId = call.request.queryParameters["token"]?.let { users.userIdByToken(it) }
                 val name = call.request.queryParameters["name"]?.trim()?.take(30).orEmpty().ifEmpty { "Player" }
                 val speed = GameSpeed.of(timeControl)
@@ -168,7 +179,7 @@ fun Application.configureRouting(
                     token = dispatch(room, token, message, users) ?: continue
                 }
             } finally {
-                token?.let { room.detach(it) }
+                token?.let { room.detach(it, this) }
             }
         }
     }
@@ -227,7 +238,7 @@ private suspend fun WebSocketServerSession.sendSeek(message: SeekMessage) {
     send(Frame.Text(SeekJson.encode(message)))
 }
 
-private fun TimeControl.isSupported(): Boolean {
+internal fun TimeControl.isSupported(): Boolean {
     if (initialSeconds !in 10..86400 || incrementSeconds !in 0..600) {
         return false
     }

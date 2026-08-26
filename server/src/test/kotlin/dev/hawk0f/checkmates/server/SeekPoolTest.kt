@@ -34,6 +34,18 @@ class SeekPoolTest {
     }
 
     @Test
+    fun aSeekerWhoLeftIsNotPairedWithTheNextArrival() = runTest {
+        val pool = newPool()
+        val (_, gone) = pool.enqueue("Anna", 1L, blitz, 1500)
+        gone.cancel()
+
+        val (_, arriving) = pool.enqueue("Boris", 2L, blitz, 1500)
+
+        assertFalse(arriving.isCompleted)
+        assertEquals(1, pool.queuedFor(blitz))
+    }
+
+    @Test
     fun seeksWithDifferentTimeControlsAreNotPaired() = runTest {
         val pool = newPool()
         val (_, first) = pool.enqueue("Anna", 1L, blitz, 1500)

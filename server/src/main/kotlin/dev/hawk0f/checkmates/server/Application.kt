@@ -40,12 +40,14 @@ private const val MAX_FRAME_BYTES = 64 * 1024L
 
 fun main() {
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    embeddedServer(Netty, port = port, host = "0.0.0.0", module = Application::module).start(wait = true)
+    embeddedServer(Netty, port = port, host = "0.0.0.0", module = { module() }).start(wait = true)
 }
 
-fun Application.module() {
+fun Application.module(
+    dbPath: String = System.getenv("DB_PATH") ?: "data/chess.db",
+    backupDirectory: String = System.getenv("BACKUP_DIR") ?: "data/backups"
+) {
     val publicBaseUrl = System.getenv("PUBLIC_BASE_URL") ?: "http://localhost:8080"
-    val dbPath = System.getenv("DB_PATH") ?: "data/chess.db"
     val database = Db.init(dbPath)
     val users = UserRepository(database)
     val roomStore = SqliteRoomStore(database)
@@ -53,7 +55,6 @@ fun Application.module() {
     val crashes = CrashRepository(database)
     val friends = FriendRepository(database)
     val adminToken = System.getenv("ADMIN_TOKEN")
-    val backupDirectory = System.getenv("BACKUP_DIR") ?: "data/backups"
     val startedAtMillis = System.currentTimeMillis()
     val registry = RoomRegistry(
         publicBaseUrl = publicBaseUrl,

@@ -63,7 +63,7 @@ class PremoveTest {
 
     @Test
     fun queuedPremovesAreAppliedInstantlyAndCostNoClock() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
         val created: CreateGameResponse = client.post("/api/games") {
             contentType(ContentType.Application.Json)
@@ -146,7 +146,7 @@ class PremoveTest {
 
     @Test
     fun aPremoveTheBoardRejectsDropsTheQueue() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
         val created: CreateGameResponse = client.post("/api/games") {
             contentType(ContentType.Application.Json)
@@ -209,7 +209,7 @@ class PremoveTest {
 
     @Test
     fun premovesSentOnYourOwnTurnAreChargedLikeANormalMove() = testApplication {
-        application { module() }
+        application { testModule() }
         val client = testClient(this)
         val created: CreateGameResponse = client.post("/api/games") {
             contentType(ContentType.Application.Json)

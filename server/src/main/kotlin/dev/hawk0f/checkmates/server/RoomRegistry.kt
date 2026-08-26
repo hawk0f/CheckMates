@@ -95,6 +95,13 @@ class RoomRegistry(
 
     fun byCode(code: String): GameRoom? = idsByCode[ShortCode.normalize(code)]?.let { roomsById[it] }
 
+    suspend fun discard(gameId: String) {
+        val room = roomsById.remove(gameId) ?: return
+        idsByCode.remove(room.shortCode, gameId)
+        room.closeSessions()
+        runCatching { store.delete(gameId) }
+    }
+
     suspend fun cleanup(nowMillis: Long = System.currentTimeMillis()) {
         for (room in roomsById.values.filter { it.isStale(nowMillis) }) {
             room.closeSessions()

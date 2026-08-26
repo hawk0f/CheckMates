@@ -146,6 +146,9 @@ object Db {
     }
 
     private fun JdbcTransaction.migrate() {
+        for ((table, column, definition) in ADDED_COLUMNS) {
+            ensureColumn(table, column, definition)
+        }
         val current = readVersion()
         if (current >= LATEST_VERSION) {
             return
@@ -161,11 +164,6 @@ object Db {
         }
         if (current < 4) {
             exec("CREATE INDEX IF NOT EXISTS user_ratings_board ON user_ratings(speed, rating)")
-        }
-        if (current < 7) {
-            for ((table, column, definition) in ADDED_COLUMNS) {
-                ensureColumn(table, column, definition)
-            }
         }
         writeVersion(LATEST_VERSION)
     }

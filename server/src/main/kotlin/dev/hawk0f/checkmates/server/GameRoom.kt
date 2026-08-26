@@ -78,6 +78,7 @@ class GameRoom(
     private val premoves = mutableMapOf<PieceColor, List<String>>()
     private val chatTimestamps = mutableMapOf<PieceColor, ArrayDeque<Long>>()
     private var turnStartedAtMillis: Long = 0
+    private var readyAtMillis: Long = 0
 
     init {
         players[hostColor] = PlayerSlot(hostToken, hostName, null, hostUserId)
@@ -113,6 +114,7 @@ class GameRoom(
         val guestColor = hostColor.opposite
         players[guestColor] = PlayerSlot(guestToken, guestName, session, guestUserId)
         status = RoomStatus.IN_PROGRESS
+        readyAtMillis = System.currentTimeMillis()
         if (timeControl != null) {
             remainingMillis[PieceColor.WHITE] = ClockRules.initialMillis(timeControl, PieceColor.WHITE)
             remainingMillis[PieceColor.BLACK] = ClockRules.initialMillis(timeControl, PieceColor.BLACK)
@@ -137,6 +139,7 @@ class GameRoom(
             val guestColor = hostColor.opposite
             players[guestColor] = PlayerSlot(guestToken, guestName, null, guestUserId)
             status = RoomStatus.IN_PROGRESS
+            readyAtMillis = System.currentTimeMillis()
             if (timeControl != null) {
                 remainingMillis[PieceColor.WHITE] = ClockRules.initialMillis(timeControl, PieceColor.WHITE)
                 remainingMillis[PieceColor.BLACK] = ClockRules.initialMillis(timeControl, PieceColor.BLACK)
@@ -190,6 +193,7 @@ class GameRoom(
         }
         status = snapshot.status
         turnStartedAtMillis = 0
+        readyAtMillis = if (snapshot.status == RoomStatus.IN_PROGRESS) System.currentTimeMillis() else 0
         lastActivityMillis = snapshot.lastActivityMillis
     }
 
@@ -237,7 +241,7 @@ class GameRoom(
                     }
                 }
                 GameMessage.AcceptTakeback -> {
-                    if (takebackOfferedBy == color.opposite) {
+                    if (status == RoomStatus.IN_PROGRESS && takebackOfferedBy == color.opposite) {
                         applyTakeback(takebackOfferedBy!!)
                     }
                 }
@@ -248,6 +252,7 @@ class GameRoom(
                     }
                 }
                 GameMessage.RequestResync -> players[color]?.session?.sendMessage(resyncMessage())
+                is GameMessage.Reconnect -> players[color]?.session?.sendMessage(resyncMessage())
                 GameMessage.ClaimTimeout -> handleTimeoutClaim()
                 is GameMessage.RegisterPush -> {
                     players[color]?.pushToken = message.token
@@ -283,21 +288,30 @@ class GameRoom(
                     GameMessage.ProtocolError("UNEXPECTED_MESSAGE", "unexpected message type")
                 )
             }
-            persist()
+            if (message.affectsPersistedState()) {
+                persist()
+            }
         }
     }
 
-    suspend fun detach(token: String) {
+    suspend fun detach(token: String, session: WebSocketServerSession) {
         mutex.withLock {
             touch()
             val color = players.entries.find { it.value.token == token }?.key ?: return
-            players[color]?.session = null
+            val slot = players[color] ?: return
+            if (slot.session !== session) {
+                return
+            }
+            slot.session = null
             opponentOf(color)?.session?.sendMessage(GameMessage.OpponentConnectionChanged(connected = false))
         }
     }
 
     private suspend fun applyTakeback(requester: PieceColor) {
         takebackOfferedBy = null
+        if (status != RoomStatus.IN_PROGRESS) {
+            return
+        }
         premoves.clear()
         val history = game.state().uciHistory
         if (history.isEmpty()) {
@@ -324,6 +338,7 @@ class GameRoom(
         rematchOfferedBy = null
         takebackOfferedBy = null
         status = RoomStatus.IN_PROGRESS
+        readyAtMillis = System.currentTimeMillis()
         val swapped = players.entries.associate { (color, slot) -> color.opposite to slot }
         players.clear()
         players.putAll(swapped)
@@ -365,9 +380,12 @@ class GameRoom(
             players[color]?.session?.sendMessage(GameMessage.MoveRejected(uci, "NOT_YOUR_TURN"))
             return
         }
-        if (timeControl != null && flagIsDown(color)) {
-            finishLocked(GameOverReason.TIMEOUT, color.opposite)
-            return
+        if (timeControl != null) {
+            startClockWhenBothConnected()
+            if (flagIsDown(color)) {
+                finishLocked(GameOverReason.TIMEOUT, color.opposite)
+                return
+            }
         }
         when (val outcome = game.applyUci(uci)) {
             is MoveOutcome.Applied -> {
@@ -412,6 +430,9 @@ class GameRoom(
         game.finish(reason, winner)
         status = RoomStatus.FINISHED
         premoves.clear()
+        drawOfferedBy = null
+        takebackOfferedBy = null
+        turnStartedAtMillis = 0
         broadcast(GameMessage.GameOver(reason, winner))
         recordFinishedGame(reason, winner)
         updateRatings(winner)
@@ -611,6 +632,13 @@ class GameRoom(
         }
         if (players.size == 2 && players.values.all { it.session != null }) {
             turnStartedAtMillis = System.currentTimeMillis()
+            return
+        }
+        if (players.values.none { it.session != null } || readyAtMillis == 0L) {
+            return
+        }
+        if (System.currentTimeMillis() - readyAtMillis >= JOIN_GRACE_MILLIS) {
+            turnStartedAtMillis = readyAtMillis
         }
     }
 
@@ -642,6 +670,7 @@ class GameRoom(
         if (status != RoomStatus.IN_PROGRESS || timeControl == null) {
             return
         }
+        startClockWhenBothConnected()
         val toMove = game.sideToMove()
         if (flagIsDown(toMove)) {
             finishLocked(GameOverReason.TIMEOUT, toMove.opposite)
@@ -661,6 +690,16 @@ class GameRoom(
         const val CHAT_WINDOW_MILLIS = 10_000L
 
         private val log = LoggerFactory.getLogger(GameRoom::class.java)
+        private const val JOIN_GRACE_MILLIS = 20_000L
+    }
+
+    private fun GameMessage.affectsPersistedState(): Boolean = when (this) {
+        GameMessage.Ping,
+        GameMessage.RequestResync,
+        is GameMessage.Reconnect,
+        is GameMessage.RegisterPush,
+        is GameMessage.SendChat -> false
+        else -> true
     }
 
     internal fun resyncMessage() = GameMessage.Resync(

@@ -75,10 +75,18 @@ fun Route.friendRoutes(
                 call.respond(HttpStatusCode.Forbidden, ApiError("NOT_A_FRIEND", "add this player as a friend first"))
                 return@post
             }
+            val requestedTimeControl = request.timeControl
+            if (requestedTimeControl != null && !requestedTimeControl.isSupported()) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    ApiError("BAD_TIME_CONTROL", "unsupported time control")
+                )
+                return@post
+            }
             val myName = friends.displayNameOf(userId) ?: "Player"
             val created = registry.create(
                 hostName = myName,
-                timeControl = request.timeControl,
+                timeControl = requestedTimeControl,
                 hostUserId = userId
             )
             val joinUrl = registry.joinUrl(created.shortCode)
