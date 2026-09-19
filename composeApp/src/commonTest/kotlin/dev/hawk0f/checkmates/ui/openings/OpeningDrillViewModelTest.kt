@@ -2,7 +2,9 @@ package dev.hawk0f.checkmates.ui.openings
 
 import dev.hawk0f.checkmates.session.OpeningProgressPersistence
 import dev.hawk0f.checkmates.shared.domain.Square
+import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.opening.OpeningBook
+import dev.hawk0f.checkmates.shared.opening.OpeningLine
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -14,13 +16,16 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
-private class FakeOpeningProgress : OpeningProgressPersistence {
+private class FakeOpeningProgress(
+    private val lines: List<OpeningLine> = emptyList()
+) : OpeningProgressPersistence {
     val saved = mutableListOf<Triple<String, Int, Int>>()
     override fun bestStreak(lineId: String): Int = 0
     override fun mistakes(lineId: String): Int = 0
     override fun saveResult(lineId: String, mistakes: Int, streak: Int) {
         saved += Triple(lineId, mistakes, streak)
     }
+    override fun customLines(): List<OpeningLine> = lines
 }
 
 class OpeningDrillViewModelTest {
@@ -108,5 +113,20 @@ class OpeningDrillViewModelTest {
         assertEquals(DrillStatus.PLAYING, state.status)
         assertEquals(0, state.mistakes)
         assertEquals(listOf("e2e4"), state.gameState.uciHistory)
+    }
+
+    @Test
+    fun aCustomLineCanBeTrained() = runTest(dispatcher) {
+        val line = OpeningLine("custom-test", "My line", PieceColor.WHITE, listOf("d2d4", "d7d5"))
+        val viewModel = OpeningDrillViewModel(
+            lineId = line.id,
+            store = FakeOpeningProgress(listOf(line)),
+            opponentDelayMillis = 0
+        )
+
+        play(viewModel, "d2d4")
+
+        assertEquals(DrillStatus.COMPLETED, viewModel.uiState.value.status)
+        assertEquals(line, viewModel.uiState.value.line)
     }
 }

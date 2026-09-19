@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -25,8 +27,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,6 +42,8 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.PgnBuilder
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
+import dev.hawk0f.checkmates.shared.opening.OpeningBook
+import dev.hawk0f.checkmates.session.OpeningProgressStore
 import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
@@ -52,8 +58,19 @@ import dev.hawk0f.checkmates.resources.Res
 import dev.hawk0f.checkmates.resources.replay_accuracy
 import dev.hawk0f.checkmates.resources.replay_analyse
 import dev.hawk0f.checkmates.resources.replay_analysing
+import dev.hawk0f.checkmates.resources.replay_annotation
+import dev.hawk0f.checkmates.resources.replay_annotation_hint
+import dev.hawk0f.checkmates.resources.replay_annotation_save
+import dev.hawk0f.checkmates.resources.replay_annotation_title
 import dev.hawk0f.checkmates.resources.replay_back_to_history
 import dev.hawk0f.checkmates.resources.replay_best_was
+import dev.hawk0f.checkmates.resources.replay_practice_correct
+import dev.hawk0f.checkmates.resources.replay_practice_move
+import dev.hawk0f.checkmates.resources.replay_practice_prompt
+import dev.hawk0f.checkmates.resources.replay_practice_retry
+import dev.hawk0f.checkmates.resources.replay_practice_stop
+import dev.hawk0f.checkmates.resources.replay_puzzle_saved
+import dev.hawk0f.checkmates.resources.replay_save_puzzle
 import dev.hawk0f.checkmates.resources.replay_quality_best
 import dev.hawk0f.checkmates.resources.replay_quality_blunder
 import dev.hawk0f.checkmates.resources.replay_quality_good
@@ -65,6 +82,7 @@ import dev.hawk0f.checkmates.resources.replay_phase_middlegame
 import dev.hawk0f.checkmates.resources.replay_phase_opening
 import dev.hawk0f.checkmates.resources.replay_players
 import dev.hawk0f.checkmates.resources.replay_score_and_date
+import dev.hawk0f.checkmates.resources.game_opening_name
 import dev.hawk0f.checkmates.resources.replay_start_position
 import dev.hawk0f.checkmates.ui.theme.reasonLabel
 import org.jetbrains.compose.resources.stringResource
@@ -82,9 +100,13 @@ fun ReplayScreen(
     analysisViewModel: ReplayAnalysisViewModel = viewModel { ReplayAnalysisViewModel() }
 ) {
     var moveIndex by remember(item) { mutableIntStateOf(item.uciHistory.size) }
+    var annotationEditorOpen by remember(item) { mutableStateOf(false) }
+    var annotationDraft by remember(item) { mutableStateOf("") }
     val analysis by analysisViewModel.uiState.collectAsStateWithLifecycle()
+    val practice by analysisViewModel.practiceState.collectAsStateWithLifecycle()
     val gameState = remember(item, moveIndex) {
         val game = ChessGame()
+        item.startFen?.let(game::loadFen)
         for (uci in item.uciHistory.take(moveIndex)) {
             game.applyUci(uci)
         }
@@ -94,6 +116,21 @@ fun ReplayScreen(
     val accents = LocalAppAccents.current
     val shareText = rememberShareText()
     val total = item.uciHistory.size
+    val opening = remember(item, moveIndex) {
+        if (item.startFen == null) {
+            OpeningBook.identify(item.uciHistory.take(moveIndex), OpeningProgressStore.customLines())
+        } else {
+            null
+        }
+    }
+    LaunchedEffect(item.id) {
+        analysisViewModel.loadAnnotations(item.id)
+    }
+    LaunchedEffect(moveIndex) {
+        if (practice.activePly != null && practice.activePly != moveIndex - 1) {
+            analysisViewModel.stopPractice()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
@@ -121,6 +158,12 @@ fun ReplayScreen(
                     ),
                     color = accents.bandStrong
                 )
+                opening?.let {
+                    SectionLabel(
+                        text = stringResource(Res.string.game_opening_name, it.name),
+                        color = accents.bandStrong
+                    )
+                }
             }
             CircleButton(
                 contentDescription = stringResource(Res.string.a11y_share),
@@ -132,7 +175,9 @@ fun ReplayScreen(
                             winner = item.winner,
                             reason = item.reason,
                             uciHistory = item.uciHistory,
-                            dateMillis = item.finishedAtMillis
+                            startFen = item.startFen,
+                            dateMillis = item.finishedAtMillis,
+                            annotations = analysis.annotations
                         )
                     )
                 },
@@ -148,6 +193,7 @@ fun ReplayScreen(
 
         val flipped = item.myColor == PieceColor.BLACK
         val currentAnalysis = analysis.summary?.moves?.getOrNull(moveIndex - 1)
+        val practiceActive = practice.activePly == moveIndex - 1 && practice.gameState != null
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (analysis.summary != null) {
                 EvaluationBar(
@@ -158,12 +204,12 @@ fun ReplayScreen(
             }
             BoardBox(modifier = Modifier.weight(1f)) { boardModifier ->
                 ChessBoard(
-                    gameState = gameState,
-                    selected = null,
-                    legalTargets = emptySet(),
+                    gameState = practice.gameState.takeIf { practiceActive } ?: gameState,
+                    selected = practice.selected.takeIf { practiceActive },
+                    legalTargets = practice.legalTargets.takeIf { practiceActive } ?: emptySet(),
                     flipped = flipped,
-                    onSquareTap = {},
-                    interactive = false,
+                    onSquareTap = analysisViewModel::onPracticeSquareTap,
+                    interactive = practiceActive && practice.result != PracticeResult.CORRECT,
                     modifier = boardModifier
                 )
             }
@@ -194,6 +240,27 @@ fun ReplayScreen(
                     text = stringResource(Res.string.replay_move_of_total, moveIndex, total),
                     style = MaterialTheme.typography.bodySmall,
                     color = accents.bandStrong
+                )
+            }
+
+            if (moveIndex > 0) {
+                val annotation = analysis.annotations[moveIndex - 1].orEmpty()
+                if (annotation.isNotEmpty()) {
+                    Text(
+                        text = annotation,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = accents.bandStrong
+                    )
+                }
+                PillButton(
+                    text = stringResource(Res.string.replay_annotation),
+                    onClick = {
+                        annotationDraft = annotation
+                        annotationEditorOpen = true
+                    },
+                    tone = PillTone.SOFT,
+                    compact = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
@@ -296,6 +363,81 @@ fun ReplayScreen(
                             color = accents.bandStrong
                         )
                     }
+                    if (practiceActive) {
+                        Text(
+                            text = stringResource(
+                                when (practice.result) {
+                                    PracticeResult.THINKING -> Res.string.replay_practice_prompt
+                                    PracticeResult.TRY_AGAIN -> Res.string.replay_practice_retry
+                                    PracticeResult.CORRECT -> Res.string.replay_practice_correct
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (practice.result == PracticeResult.CORRECT) {
+                                accents.positive
+                            } else {
+                                scheme.onSurfaceVariant
+                            }
+                        )
+                        PillButton(
+                            text = stringResource(Res.string.replay_practice_stop),
+                            onClick = analysisViewModel::stopPractice,
+                            tone = PillTone.SOFT,
+                            compact = true
+                        )
+                    } else if (
+                        currentAnalysis.bestMove != null &&
+                        currentAnalysis.bestMove != currentAnalysis.uci &&
+                        currentAnalysis.quality in setOf(
+                            MoveQuality.INACCURACY,
+                            MoveQuality.MISTAKE,
+                            MoveQuality.BLUNDER
+                        )
+                    ) {
+                        PillButton(
+                            text = stringResource(Res.string.replay_practice_move),
+                            onClick = {
+                                analysisViewModel.startPractice(
+                                    uciHistory = item.uciHistory,
+                                    startFen = item.startFen,
+                                    ply = moveIndex - 1,
+                                    bestMove = currentAnalysis.bestMove.orEmpty()
+                                )
+                            },
+                            tone = PillTone.ACCENT,
+                            compact = true
+                        )
+                    }
+                    if (
+                        currentAnalysis.bestMove != null &&
+                        currentAnalysis.bestMove != currentAnalysis.uci &&
+                        currentAnalysis.quality in setOf(
+                            MoveQuality.INACCURACY,
+                            MoveQuality.MISTAKE,
+                            MoveQuality.BLUNDER
+                        )
+                    ) {
+                        val ply = moveIndex - 1
+                        val saved = ply in analysis.savedPuzzlePlies
+                        PillButton(
+                            text = stringResource(
+                                if (saved) Res.string.replay_puzzle_saved else Res.string.replay_save_puzzle
+                            ),
+                            onClick = {
+                                analysisViewModel.savePersonalPuzzle(
+                                    gameId = item.id,
+                                    uciHistory = item.uciHistory,
+                                    startFen = item.startFen,
+                                    ply = ply,
+                                    bestMove = currentAnalysis.bestMove.orEmpty(),
+                                    centipawnLoss = currentAnalysis.centipawnLoss
+                                )
+                            },
+                            enabled = !saved,
+                            tone = PillTone.SOFT,
+                            compact = true
+                        )
+                    }
                 }
             }
 
@@ -318,7 +460,7 @@ fun ReplayScreen(
                     } else {
                         stringResource(Res.string.replay_analyse)
                     },
-                    onClick = { analysisViewModel.analyse(item.uciHistory) },
+                    onClick = { analysisViewModel.analyse(item.uciHistory, item.startFen) },
                     enabled = !analysis.running,
                     tone = PillTone.ACCENT,
                     compact = true,
@@ -334,6 +476,32 @@ fun ReplayScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+
+    if (annotationEditorOpen && moveIndex > 0) {
+        AlertDialog(
+            onDismissRequest = { annotationEditorOpen = false },
+            title = { Text(stringResource(Res.string.replay_annotation_title, moveIndex)) },
+            text = {
+                OutlinedTextField(
+                    value = annotationDraft,
+                    onValueChange = { annotationDraft = it },
+                    label = { Text(stringResource(Res.string.replay_annotation_hint)) },
+                    minLines = 3
+                )
+            },
+            confirmButton = {
+                PillButton(
+                    text = stringResource(Res.string.replay_annotation_save),
+                    onClick = {
+                        analysisViewModel.saveAnnotation(item.id, moveIndex - 1, annotationDraft)
+                        annotationEditorOpen = false
+                    },
+                    tone = PillTone.ACCENT,
+                    compact = true
+                )
+            }
+        )
     }
 }
 

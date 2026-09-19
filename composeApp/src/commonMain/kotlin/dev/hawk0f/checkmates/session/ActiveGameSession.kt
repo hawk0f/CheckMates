@@ -3,6 +3,7 @@ package dev.hawk0f.checkmates.session
 import dev.hawk0f.checkmates.platform.epochMillis
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
+import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.shared.transport.GameTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,8 @@ class ActiveGameSession(
 
     val myColor = MutableStateFlow<PieceColor?>(null)
     val opponentName = MutableStateFlow<String?>(null)
+    val timeControl = MutableStateFlow<TimeControl?>(null)
+    val clockSnapshot = MutableStateFlow<GameMessage.ClockUpdated?>(null)
     val messages = MutableSharedFlow<GameMessage>(extraBufferCapacity = 64)
 
     private var credentials: Pair<String, String>? = null
@@ -42,6 +45,25 @@ class ActiveGameSession(
                     }
 
                     is GameMessage.GameCreated -> rememberCredentials(message.gameId, message.playerToken)
+                    is GameMessage.ClockConfigured -> timeControl.value = message.timeControl
+                    is GameMessage.ClockUpdated -> clockSnapshot.value = message
+                    is GameMessage.MoveApplied -> {
+                        val whiteMillis = message.whiteMillis
+                        val blackMillis = message.blackMillis
+                        if (whiteMillis != null && blackMillis != null) {
+                            clockSnapshot.value = GameMessage.ClockUpdated(whiteMillis, blackMillis)
+                        }
+                    }
+                    is GameMessage.Resync -> {
+                        if (message.timeControl != null) {
+                            timeControl.value = message.timeControl
+                        }
+                        val whiteMillis = message.whiteMillis
+                        val blackMillis = message.blackMillis
+                        if (whiteMillis != null && blackMillis != null) {
+                            clockSnapshot.value = GameMessage.ClockUpdated(whiteMillis, blackMillis)
+                        }
+                    }
                     else -> {}
                 }
                 messages.emit(message)

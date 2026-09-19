@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dev.hawk0f.checkmates.app.R
@@ -29,6 +30,9 @@ class PushMessagingService : FirebaseMessagingService() {
         )
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            message.data["correspondenceId"]?.let { id ->
+                data = Uri.parse("checkmates://correspondence/$id")
+            }
         }
         val pendingIntent = launchIntent?.let {
             PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -40,7 +44,8 @@ class PushMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .apply { pendingIntent?.let { setContentIntent(it) } }
             .build()
-        manager.notify(message.data["shortCode"]?.hashCode() ?: 1, notification)
+        val notificationId = message.data["correspondenceId"] ?: message.data["shortCode"]
+        manager.notify(notificationId?.hashCode() ?: 1, notification)
     }
 
     companion object {

@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
+import dev.hawk0f.checkmates.session.LocalGameHistoryStore
 import dev.hawk0f.checkmates.session.OnlineGameResume
+import dev.hawk0f.checkmates.session.mergeGameHistory
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,10 +31,14 @@ class HomeViewModel : ViewModel() {
     }
 
     fun loadRecent() {
+        val local = LocalGameHistoryStore.games()
+        _recent.value = local.take(3)
         val token = AuthManager.token ?: return
         viewModelScope.launch {
             runCatching { AuthManager.api.gamesHistory(token) }
-                .onSuccess { response -> _recent.value = response.games.take(3) }
+                .onSuccess { response ->
+                    _recent.value = mergeGameHistory(response.games, LocalGameHistoryStore.games()).take(3)
+                }
         }
     }
 

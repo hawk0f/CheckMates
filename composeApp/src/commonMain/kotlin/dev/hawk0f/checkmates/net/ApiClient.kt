@@ -6,6 +6,10 @@ import dev.hawk0f.checkmates.shared.protocol.AddFriendRequest
 import dev.hawk0f.checkmates.shared.protocol.ChallengeRequest
 import dev.hawk0f.checkmates.shared.protocol.ChallengeResponse
 import dev.hawk0f.checkmates.shared.protocol.CrashReportRequest
+import dev.hawk0f.checkmates.shared.protocol.CorrespondenceGame
+import dev.hawk0f.checkmates.shared.protocol.CorrespondenceGamesResponse
+import dev.hawk0f.checkmates.shared.protocol.CorrespondenceMoveRequest
+import dev.hawk0f.checkmates.shared.protocol.CreateCorrespondenceRequest
 import dev.hawk0f.checkmates.shared.protocol.FriendSummary
 import dev.hawk0f.checkmates.shared.protocol.FriendsResponse
 import dev.hawk0f.checkmates.shared.protocol.PushTokenRequest
@@ -128,6 +132,25 @@ class ApiClient(private val client: HttpClient) {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
             setBody(ChallengeRequest(friendUserId, timeControl))
+        }.bodyOrError()
+
+    suspend fun correspondenceGames(token: String): CorrespondenceGamesResponse =
+        client.get("${ServerConfig.baseUrl}/api/correspondence") {
+            bearerAuth(token)
+        }.bodyOrError()
+
+    suspend fun createCorrespondenceGame(token: String, opponentUserId: Long): CorrespondenceGame =
+        client.post("${ServerConfig.baseUrl}/api/correspondence") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(CreateCorrespondenceRequest(opponentUserId))
+        }.bodyOrError()
+
+    suspend fun makeCorrespondenceMove(token: String, gameId: Long, uci: String): CorrespondenceGame =
+        client.post("${ServerConfig.baseUrl}/api/correspondence/$gameId/moves") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(CorrespondenceMoveRequest(uci))
         }.bodyOrError()
 
     suspend fun reportCrash(request: CrashReportRequest) {

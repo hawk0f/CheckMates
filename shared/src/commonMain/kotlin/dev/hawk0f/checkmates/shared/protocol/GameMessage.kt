@@ -160,6 +160,17 @@ sealed interface GameMessage {
     ) : GameMessage
 
     @Serializable
+    @SerialName("clockConfigured")
+    data class ClockConfigured(val timeControl: TimeControl?) : GameMessage
+
+    @Serializable
+    @SerialName("clockUpdated")
+    data class ClockUpdated(
+        val whiteMillis: Long,
+        val blackMillis: Long
+    ) : GameMessage
+
+    @Serializable
     @SerialName("moveRejected")
     data class MoveRejected(val uci: String, val reason: String) : GameMessage
 

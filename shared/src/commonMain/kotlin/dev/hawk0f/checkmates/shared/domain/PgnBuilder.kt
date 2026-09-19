@@ -13,7 +13,8 @@ object PgnBuilder {
         startFen: String? = null,
         dateMillis: Long? = null,
         event: String = "Casual game",
-        site: String = "chess.hawk0f.icu"
+        site: String = "chess.hawk0f.icu",
+        annotations: Map<Int, String> = emptyMap()
     ): String {
         val resultTag = when {
             reason == null -> "*"
@@ -23,6 +24,8 @@ object PgnBuilder {
         }
         val movesText = if (uciHistory.isEmpty()) {
             ""
+        } else if (annotations.isNotEmpty() && startFen == null) {
+            annotatedMoves(uciHistory, annotations)
         } else {
             runCatching {
                 val moveList = if (startFen == null) MoveList() else MoveList(startFen)
@@ -60,6 +63,29 @@ object PgnBuilder {
     }
 
     private fun escape(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"")
+
+    private fun annotatedMoves(uciHistory: List<String>, annotations: Map<Int, String>): String {
+        val sanMoves = SanFormatter.sanMoves(uciHistory)
+        return buildString {
+            for ((ply, san) in sanMoves.withIndex()) {
+                if (ply % 2 == 0) {
+                    if (isNotEmpty()) {
+                        append(' ')
+                    }
+                    append(ply / 2 + 1)
+                    append(". ")
+                } else {
+                    append(' ')
+                }
+                append(san)
+                annotations[ply]?.trim()?.takeIf { it.isNotEmpty() }?.let { annotation ->
+                    append(" {")
+                    append(annotation.replace('{', '(').replace('}', ')'))
+                    append('}')
+                }
+            }
+        }
+    }
 
     private fun pgnDate(millis: Long): String {
         val days = millis.floorDiv(86_400_000L)

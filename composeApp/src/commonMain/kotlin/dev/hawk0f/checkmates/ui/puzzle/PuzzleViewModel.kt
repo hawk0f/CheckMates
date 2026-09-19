@@ -43,7 +43,7 @@ data class PuzzleUiState(
 
 class PuzzleViewModel(
     private val store: PuzzlePersistence = PuzzleStore,
-    private val puzzles: List<Puzzle> = BundledPuzzles.all,
+    private val puzzles: List<Puzzle> = BundledPuzzles.all + store.loadPersonalPuzzles(),
     private val now: () -> Long = { Clock.System.now().toEpochMilliseconds() }
 ) : ViewModel() {
 

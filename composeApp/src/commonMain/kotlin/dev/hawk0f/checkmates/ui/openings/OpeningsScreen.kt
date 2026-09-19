@@ -10,28 +10,46 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.hawk0f.checkmates.resources.Res
 import dev.hawk0f.checkmates.resources.a11y_back
 import dev.hawk0f.checkmates.resources.openings_black_lines
+import dev.hawk0f.checkmates.resources.openings_cancel
+import dev.hawk0f.checkmates.resources.openings_import
+import dev.hawk0f.checkmates.resources.openings_import_error
+import dev.hawk0f.checkmates.resources.openings_import_name
+import dev.hawk0f.checkmates.resources.openings_import_pgn
 import dev.hawk0f.checkmates.resources.openings_line_moves
+import dev.hawk0f.checkmates.resources.openings_save
 import dev.hawk0f.checkmates.resources.openings_title
 import dev.hawk0f.checkmates.resources.openings_white_lines
 import dev.hawk0f.checkmates.session.OpeningProgressStore
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.opening.OpeningBook
+import dev.hawk0f.checkmates.shared.opening.OpeningLine
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
 import dev.hawk0f.checkmates.ui.theme.ChevronIcon
 import dev.hawk0f.checkmates.ui.theme.CircleButton
+import dev.hawk0f.checkmates.ui.theme.PillButton
+import dev.hawk0f.checkmates.ui.theme.PillTone
+import dev.hawk0f.checkmates.ui.theme.SelectPill
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun OpeningsScreen(onOpenLine: (String) -> Unit, onBack: () -> Unit) {
+    var customLines by remember { mutableStateOf(OpeningProgressStore.customLines()) }
+    var importing by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -55,6 +73,12 @@ fun OpeningsScreen(onOpenLine: (String) -> Unit, onBack: () -> Unit) {
                 .padding(horizontal = 26.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            PillButton(
+                text = stringResource(Res.string.openings_import),
+                onClick = { importing = true },
+                tone = PillTone.ACCENT,
+                modifier = Modifier.fillMaxWidth()
+            )
             for (color in listOf(PieceColor.WHITE, PieceColor.BLACK)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionLabel(
@@ -66,7 +90,7 @@ fun OpeningsScreen(onOpenLine: (String) -> Unit, onBack: () -> Unit) {
                             }
                         )
                     )
-                    for (line in OpeningBook.forColor(color)) {
+                    for (line in OpeningBook.forColor(color) + customLines.filter { it.trainedColor == color }) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -89,4 +113,84 @@ fun OpeningsScreen(onOpenLine: (String) -> Unit, onBack: () -> Unit) {
             }
         }
     }
+    if (importing) {
+        ImportOpeningDialog(
+            onDismiss = { importing = false },
+            onSave = { line ->
+                OpeningProgressStore.saveCustomLine(line)
+                customLines = OpeningProgressStore.customLines()
+                importing = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ImportOpeningDialog(onDismiss: () -> Unit, onSave: (OpeningLine) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var pgn by remember { mutableStateOf("") }
+    var color by remember { mutableStateOf(PieceColor.WHITE) }
+    var invalid by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.openings_import)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(Res.string.openings_import_name)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = pgn,
+                    onValueChange = { pgn = it },
+                    label = { Text(stringResource(Res.string.openings_import_pgn)) },
+                    minLines = 4
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SelectPill(
+                        text = stringResource(Res.string.openings_white_lines),
+                        selected = color == PieceColor.WHITE,
+                        onClick = { color = PieceColor.WHITE }
+                    )
+                    SelectPill(
+                        text = stringResource(Res.string.openings_black_lines),
+                        selected = color == PieceColor.BLACK,
+                        onClick = { color = PieceColor.BLACK }
+                    )
+                }
+                if (invalid) {
+                    Text(
+                        text = stringResource(Res.string.openings_import_error),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            PillButton(
+                text = stringResource(Res.string.openings_save),
+                onClick = {
+                    val line = OpeningLineImporter.import(name, pgn, color)
+                    if (line == null) {
+                        invalid = true
+                    } else {
+                        onSave(line)
+                    }
+                },
+                compact = true,
+                tone = PillTone.ACCENT
+            )
+        },
+        dismissButton = {
+            PillButton(
+                text = stringResource(Res.string.openings_cancel),
+                onClick = onDismiss,
+                compact = true,
+                tone = PillTone.SOFT
+            )
+        }
+    )
 }

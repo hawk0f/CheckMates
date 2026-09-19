@@ -34,6 +34,7 @@ fun Application.configureRouting(
     seekPool: SeekPool? = null,
     crashes: CrashRepository? = null,
     friends: FriendRepository? = null,
+    correspondence: CorrespondenceRepository? = null,
     adminToken: String? = null,
     startedAtMillis: Long = System.currentTimeMillis()
 ) {
@@ -41,6 +42,9 @@ fun Application.configureRouting(
         accountRoutes(users, ratings)
         adminRoutes(registry, users, crashes, startedAtMillis, adminToken)
         friendRoutes(users, friends, registry)
+        if (friends != null && correspondence != null) {
+            correspondenceRoutes(users, correspondence, friends)
+        }
 
         get("/health") {
             call.respondText("ok")

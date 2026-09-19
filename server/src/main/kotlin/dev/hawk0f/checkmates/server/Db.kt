@@ -85,6 +85,19 @@ object Friends : Table("friends") {
     override val primaryKey = PrimaryKey(userId, friendUserId)
 }
 
+object CorrespondenceGames : Table("correspondence_games") {
+    val id = long("id").autoIncrement()
+    val whiteUserId = long("white_user_id").references(Users.id).index()
+    val blackUserId = long("black_user_id").references(Users.id).index()
+    val whiteName = varchar("white_name", 40)
+    val blackName = varchar("black_name", 40)
+    val uciHistory = text("uci_history").default("")
+    val winner = varchar("winner", 5).nullable()
+    val reason = varchar("reason", 25).nullable()
+    val updatedAtMillis = long("updated_at_millis")
+    override val primaryKey = PrimaryKey(id)
+}
+
 object CrashReports : Table("crash_reports") {
     val id = long("id").autoIncrement()
     val platform = varchar("platform", 16)
@@ -104,7 +117,7 @@ object SchemaVersion : Table("schema_version") {
 
 object Db {
 
-    const val LATEST_VERSION = 7
+    const val LATEST_VERSION = 8
 
     private val ADDED_COLUMNS = listOf(
         Triple("auth_sessions", "expires_at_millis", "INTEGER NOT NULL DEFAULT 0"),
@@ -130,7 +143,8 @@ object Db {
                 GameRooms,
                 UserRatings,
                 CrashReports,
-                Friends
+                Friends,
+                CorrespondenceGames
             )
             migrate()
         }

@@ -27,7 +27,9 @@ import dev.hawk0f.checkmates.ui.theme.CloseIcon
 import dev.hawk0f.checkmates.ui.theme.PillButton
 import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
+import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.SoftTextField
+import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.resources.Res
 import dev.hawk0f.checkmates.resources.ble_connecting
 import dev.hawk0f.checkmates.resources.ble_default_host_name
@@ -49,6 +51,15 @@ import dev.hawk0f.checkmates.resources.common_you
 import dev.hawk0f.checkmates.resources.common_your_name
 import org.jetbrains.compose.resources.stringResource
 import dev.hawk0f.checkmates.resources.a11y_close
+import dev.hawk0f.checkmates.resources.game_clock_title
+import dev.hawk0f.checkmates.resources.game_no_clock
+
+private val bleTimeControls = listOf(
+    null,
+    TimeControl(180, 2),
+    TimeControl(300, 0),
+    TimeControl(600, 0)
+)
 
 @Composable
 fun BleLobbyScreen(
@@ -79,6 +90,7 @@ fun BleLobbyScreen(
     BleLobbyContent(
         uiState = uiState,
         onNameChange = viewModel::onNameChange,
+        onTimeControlChange = viewModel::selectTimeControl,
         onHost = requestHostPermissions,
         onScan = requestScanPermissions,
         onStopHosting = viewModel::stopHosting,
@@ -96,6 +108,7 @@ fun BleLobbyScreen(
 internal fun BleLobbyContent(
     uiState: BleLobbyUiState,
     onNameChange: (String) -> Unit,
+    onTimeControlChange: (TimeControl?) -> Unit,
     onHost: () -> Unit,
     onScan: () -> Unit,
     onStopHosting: () -> Unit,
@@ -132,6 +145,19 @@ internal fun BleLobbyContent(
                     placeholder = stringResource(Res.string.common_your_name),
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            if (uiState.step is BleLobbyStep.Idle || uiState.step is BleLobbyStep.Failed) {
+                Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                    SectionLabel(stringResource(Res.string.game_clock_title))
+                    SegmentedPills(
+                        options = bleTimeControls.map { control ->
+                            control?.label ?: stringResource(Res.string.game_no_clock)
+                        },
+                        selectedIndex = bleTimeControls.indexOf(uiState.timeControl).coerceAtLeast(0),
+                        onSelect = { index -> onTimeControlChange(bleTimeControls[index]) }
+                    )
+                }
             }
 
             when (uiState.step) {

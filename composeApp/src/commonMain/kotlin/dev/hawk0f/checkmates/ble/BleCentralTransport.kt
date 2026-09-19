@@ -62,6 +62,7 @@ class BleCentralTransport(
         if (message is GameMessage.RequestResync) {
             val fen = peripheral.read(fenChar).decodeToString()
             _incoming.emit(GameMessage.Resync(fen, emptyList(), drawOfferPending = false))
+            peripheral.write(moveToHost, BleCodec.encodeToHost(message)!!, WriteType.WithResponse)
             return
         }
         BleCodec.encodeToHost(message)?.let { bytes ->

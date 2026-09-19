@@ -27,9 +27,14 @@ import dev.hawk0f.checkmates.resources.computer_side_label
 import dev.hawk0f.checkmates.resources.computer_side_random
 import dev.hawk0f.checkmates.resources.computer_side_white
 import dev.hawk0f.checkmates.resources.computer_start
+import dev.hawk0f.checkmates.resources.computer_style_aggressive
+import dev.hawk0f.checkmates.resources.computer_style_balanced
+import dev.hawk0f.checkmates.resources.computer_style_label
+import dev.hawk0f.checkmates.resources.computer_style_positional
 import dev.hawk0f.checkmates.resources.computer_title
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.engine.EngineLevel
+import dev.hawk0f.checkmates.shared.engine.EngineStyle
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
 import dev.hawk0f.checkmates.ui.theme.ChevronIcon
 import dev.hawk0f.checkmates.ui.theme.CircleButton
@@ -43,11 +48,12 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ComputerSetupScreen(
-    onStart: (EngineLevel, PieceColor) -> Unit,
+    onStart: (EngineLevel, PieceColor, EngineStyle) -> Unit,
     onBack: () -> Unit
 ) {
     var level by remember { mutableStateOf(EngineLevel.DEFAULT) }
     var side by remember { mutableStateOf<PieceColor?>(PieceColor.WHITE) }
+    var style by remember { mutableStateOf(EngineStyle.BALANCED) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -92,6 +98,19 @@ fun ComputerSetupScreen(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                SectionLabel(stringResource(Res.string.computer_style_label))
+                SegmentedPills(
+                    options = listOf(
+                        stringResource(Res.string.computer_style_balanced),
+                        stringResource(Res.string.computer_style_aggressive),
+                        stringResource(Res.string.computer_style_positional)
+                    ),
+                    selectedIndex = EngineStyle.entries.indexOf(style),
+                    onSelect = { index -> style = EngineStyle.entries[index] }
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 SectionLabel(stringResource(Res.string.computer_side_label))
                 val sideOptions = listOf(PieceColor.WHITE, PieceColor.BLACK, null)
                 SegmentedPills(
@@ -109,7 +128,7 @@ fun ComputerSetupScreen(
                 text = stringResource(Res.string.computer_start),
                 onClick = {
                     val color = side ?: if (Random.nextBoolean()) PieceColor.WHITE else PieceColor.BLACK
-                    onStart(level, color)
+                    onStart(level, color, style)
                 },
                 tone = PillTone.ACCENT,
                 modifier = Modifier.fillMaxWidth()

@@ -5,6 +5,7 @@ import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.protocol.ProtocolJson
 import dev.hawk0f.checkmates.shared.protocol.ShortCode
+import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,6 +29,8 @@ class ProtocolTest {
         GameMessage.ColorAssigned(PieceColor.BLACK),
         GameMessage.OpponentJoined("Друг"),
         GameMessage.MoveApplied("e7e8q", "fen here", 12),
+        GameMessage.ClockConfigured(TimeControl(300, 3)),
+        GameMessage.ClockUpdated(299_500, 300_000),
         GameMessage.MoveRejected("e2e5", "ILLEGAL"),
         GameMessage.DrawOffered,
         GameMessage.DrawDeclined,

@@ -26,6 +26,11 @@ class PgnCustomStartTest {
         assertTrue(pgn.contains("[SetUp \"1\"]"), pgn)
         assertTrue(pgn.contains("[FEN \"$promotionFen\"]"), pgn)
         assertTrue(pgn.contains("a8=N"), pgn)
+
+        val imported = PgnReader.read(pgn)!!
+        assertEquals(promotionFen, imported.startFen)
+        assertEquals(listOf("a7a8n"), imported.uciMoves)
+        assertEquals(PieceColor.WHITE, imported.winner)
     }
 
     @Test

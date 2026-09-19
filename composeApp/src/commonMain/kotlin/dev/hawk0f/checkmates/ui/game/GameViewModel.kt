@@ -5,10 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dev.hawk0f.checkmates.platform.currentPushToken
 import dev.hawk0f.checkmates.platform.epochMillis
 import dev.hawk0f.checkmates.session.ActiveGameSession
-import dev.hawk0f.checkmates.net.lichess.LichessGameTransport
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
 import dev.hawk0f.checkmates.session.OnlineGameStore
+import dev.hawk0f.checkmates.session.LocalGameHistoryPersistence
+import dev.hawk0f.checkmates.session.LocalGameHistoryStore
+import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.GameRecordRequest
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.shared.domain.ChessGame
@@ -34,6 +36,7 @@ import dev.hawk0f.checkmates.session.HotseatGamePersistence
 import dev.hawk0f.checkmates.shared.domain.PremovePlanner
 import dev.hawk0f.checkmates.shared.engine.ChessEngine
 import dev.hawk0f.checkmates.shared.engine.EngineLevel
+import dev.hawk0f.checkmates.shared.engine.EngineStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
@@ -46,7 +49,8 @@ sealed interface GameMode {
 
     data class Computer(
         val level: EngineLevel = EngineLevel.DEFAULT,
-        val myColor: PieceColor = PieceColor.WHITE
+        val myColor: PieceColor = PieceColor.WHITE,
+        val style: EngineStyle = EngineStyle.BALANCED
     ) : GameMode
     data class Remote(val session: ActiveGameSession) : GameMode
 }
@@ -68,6 +72,7 @@ data class GameUiState(
     val opponentName: String?,
     val opponentConnected: Boolean,
     val computerLevel: Int? = null,
+    val computerStyle: EngineStyle? = null,
     val drawOfferIncoming: Boolean,
     val drawOfferOutgoing: Boolean,
     val connectionState: TransportConnectionState?,
@@ -87,8 +92,11 @@ data class GameUiState(
     val premoveState: GameState? = null,
     val seriesMyWins: Int = 0,
     val seriesOpponentWins: Int = 0,
-    val seriesDraws: Int = 0
-)
+    val seriesDraws: Int = 0,
+    val seriesTargetWins: Int = 2
+) {
+    val seriesComplete: Boolean get() = seriesMyWins >= seriesTargetWins || seriesOpponentWins >= seriesTargetWins
+}
 
 private const val HINT_DEPTH = 5
 private const val MAX_CHAT_LINES = 50
@@ -98,14 +106,15 @@ class GameViewModel(
     private val mode: GameMode,
     private val savedGames: HotseatGamePersistence = HotseatGameStore,
     private val engineContext: CoroutineContext = Dispatchers.Default,
-    private val startFen: String? = null
+    private val startFen: String? = null,
+    private val localHistory: LocalGameHistoryPersistence = LocalGameHistoryStore
 ) : ViewModel() {
 
     private var game = ChessGame()
     private var recordUploaded = false
     private var hotseatTimeControl: TimeControl? = null
     private var pendingRemoteMove: String? = null
-    private var serverSchedulesPremoves = (mode as? GameMode.Remote)?.session?.kind == "online"
+    private var serverSchedulesPremoves = (mode as? GameMode.Remote)?.session?.kind in setOf("online", "ble")
     private var premovesSentToServer: List<String> = emptyList()
     private var timeoutClaimed = false
     private var localTurnStartedAtMillis = epochMillis()
@@ -127,6 +136,7 @@ class GameViewModel(
                 _uiState.value = _uiState.value.copy(
                     myColor = mode.myColor,
                     computerLevel = mode.level.id,
+                    computerStyle = mode.style,
                     showTimePicker = false
                 )
                 maybeStartEngineTurn()
@@ -262,15 +272,6 @@ class GameViewModel(
         viewModelScope.launch {
             session.messages.collect { message -> handleServerMessage(message) }
         }
-        (session.transport as? LichessGameTransport)?.let { lichess ->
-            viewModelScope.launch {
-                lichess.chat.collect { lines ->
-                    _uiState.value = _uiState.value.copy(
-                        chat = lines.takeLast(MAX_CHAT_LINES).map { ChatLine(it.author, it.text) }
-                    )
-                }
-            }
-        }
         viewModelScope.launch {
             session.myColor.collect { color ->
                 _uiState.value = _uiState.value.copy(myColor = color)
@@ -322,9 +323,33 @@ class GameViewModel(
                 )
                 val myColor = _uiState.value.myColor
                 if (premoveHead == message.uci && myColor != null && game.sideToMove() != myColor) {
-                    premovesSentToServer = premovesSentToServer.drop(1)
-                    setPremoves(_uiState.value.premoves.drop(1), notifyServer = false)
+                    val remaining = _uiState.value.premoves.drop(1)
+                    if ((mode as? GameMode.Remote)?.session?.kind == "ble") {
+                        premovesSentToServer = emptyList()
+                        setPremoves(remaining)
+                    } else {
+                        premovesSentToServer = premovesSentToServer.drop(1)
+                        setPremoves(remaining, notifyServer = false)
+                    }
                 }
+            }
+
+            is GameMessage.ClockConfigured -> {
+                val control = message.timeControl
+                _uiState.value = _uiState.value.copy(
+                    timeControl = control,
+                    whiteMillis = control?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
+                    blackMillis = control?.let { ClockRules.initialMillis(it, PieceColor.BLACK) }
+                )
+                timeoutClaimed = false
+            }
+
+            is GameMessage.ClockUpdated -> {
+                _uiState.value = _uiState.value.copy(
+                    whiteMillis = message.whiteMillis,
+                    blackMillis = message.blackMillis
+                )
+                timeoutClaimed = false
             }
 
             is GameMessage.Resync -> {
@@ -465,27 +490,52 @@ class GameViewModel(
         recordUploaded = true
         recordSeriesResult(result.winner)
         val session = (mode as? GameMode.Remote)?.session
-        if (session?.kind == "lichess" || session?.kind == "online") {
-            return
+        val myColor = when (mode) {
+            is GameMode.Computer -> mode.myColor
+            is GameMode.Remote -> _uiState.value.myColor
+            GameMode.Hotseat -> null
         }
-        if (startFen != null) {
-            return
-        }
-        val myColor = if (session == null) null else _uiState.value.myColor
         val myName = session?.myName ?: "White"
-        val opponent = session?.let { _uiState.value.opponentName ?: "Opponent" } ?: "Black"
+        val opponent = when (mode) {
+            is GameMode.Computer -> "Computer"
+            is GameMode.Remote -> _uiState.value.opponentName ?: "Opponent"
+            GameMode.Hotseat -> "Black"
+        }
         val whiteName = if (myColor == PieceColor.BLACK) opponent else myName
         val blackName = if (myColor == PieceColor.BLACK) myName else opponent
-        AuthManager.uploadGameIfLoggedIn(
-            GameRecordRequest(
-                mode = session?.kind ?: "hotseat",
+        val finishedAtMillis = epochMillis()
+        val gameMode = when (mode) {
+            is GameMode.Computer -> "computer"
+            is GameMode.Remote -> mode.session.kind
+            GameMode.Hotseat -> "hotseat"
+        }
+        localHistory.add(
+            GameHistoryItem(
+                id = -finishedAtMillis.coerceAtLeast(1),
+                mode = gameMode,
                 myColor = myColor,
                 whiteName = whiteName,
                 blackName = blackName,
                 winner = result.winner,
                 reason = result.reason,
                 uciHistory = state.uciHistory,
-                finishedAtMillis = epochMillis()
+                finishedAtMillis = finishedAtMillis,
+                startFen = startFen
+            )
+        )
+        if (session?.kind == "online" || startFen != null) {
+            return
+        }
+        AuthManager.uploadGameIfLoggedIn(
+            GameRecordRequest(
+                mode = gameMode,
+                myColor = myColor,
+                whiteName = whiteName,
+                blackName = blackName,
+                winner = result.winner,
+                reason = result.reason,
+                uciHistory = state.uciHistory,
+                finishedAtMillis = finishedAtMillis
             )
         )
     }
@@ -525,6 +575,7 @@ class GameViewModel(
         recordUploaded = false
         timeoutClaimed = false
         val current = _uiState.value
+        val resetSeries = current.seriesComplete
         _uiState.value = current.copy(
             gameState = game.state(),
             selected = null,
@@ -542,7 +593,10 @@ class GameViewModel(
             premoves = emptyList(),
             premoveState = null,
             whiteMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
-            blackMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) }
+            blackMillis = current.timeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) },
+            seriesMyWins = if (resetSeries) 0 else current.seriesMyWins,
+            seriesOpponentWins = if (resetSeries) 0 else current.seriesOpponentWins,
+            seriesDraws = if (resetSeries) 0 else current.seriesDraws
         )
         startClockTicker()
     }
@@ -800,14 +854,15 @@ class GameViewModel(
                 game = resetGame()
                 recordUploaded = false
                 val series = _uiState.value
+                val resetSeries = series.seriesComplete
                 _uiState.value = initialUiState().copy(
                     timeControl = hotseatTimeControl,
                     whiteMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.WHITE) },
                     blackMillis = hotseatTimeControl?.let { ClockRules.initialMillis(it, PieceColor.BLACK) },
                     showTimePicker = false,
-                    seriesMyWins = series.seriesMyWins,
-                    seriesOpponentWins = series.seriesOpponentWins,
-                    seriesDraws = series.seriesDraws
+                    seriesMyWins = if (resetSeries) 0 else series.seriesMyWins,
+                    seriesOpponentWins = if (resetSeries) 0 else series.seriesOpponentWins,
+                    seriesDraws = if (resetSeries) 0 else series.seriesDraws
                 )
                 savedGames.clear()
                 startClockTicker()
@@ -818,13 +873,15 @@ class GameViewModel(
                 game = resetGame()
                 recordUploaded = false
                 val series = _uiState.value
+                val resetSeries = series.seriesComplete
                 _uiState.value = initialUiState().copy(
                     myColor = mode.myColor,
                     computerLevel = mode.level.id,
+                    computerStyle = mode.style,
                     showTimePicker = false,
-                    seriesMyWins = series.seriesMyWins,
-                    seriesOpponentWins = series.seriesOpponentWins,
-                    seriesDraws = series.seriesDraws
+                    seriesMyWins = if (resetSeries) 0 else series.seriesMyWins,
+                    seriesOpponentWins = if (resetSeries) 0 else series.seriesOpponentWins,
+                    seriesDraws = if (resetSeries) 0 else series.seriesDraws
                 )
                 startClockTicker()
                 maybeStartEngineTurn()
@@ -842,18 +899,10 @@ class GameViewModel(
 
     val supportsRematch: Boolean get() = (mode as? GameMode.Remote)?.session?.kind == "online"
 
-    val lichessTransport: LichessGameTransport?
-        get() = (mode as? GameMode.Remote)?.session?.transport as? LichessGameTransport
-
     val supportsTakeback: Boolean
         get() = mode is GameMode.Hotseat || (mode as? GameMode.Remote)?.session != null
 
     fun offerTakeback() {
-        val lichess = lichessTransport
-        if (lichess != null) {
-            viewModelScope.launch { lichess.offerTakeback() }
-            return
-        }
         when (mode) {
             GameMode.Hotseat -> undoLocalMove()
             is GameMode.Computer -> {
@@ -874,11 +923,6 @@ class GameViewModel(
     }
 
     fun answerTakeback(accept: Boolean) {
-        val lichess = lichessTransport
-        if (lichess != null) {
-            viewModelScope.launch { lichess.answerTakeback(accept) }
-            return
-        }
         val session = (mode as? GameMode.Remote)?.session ?: return
         _uiState.value = _uiState.value.copy(takebackOfferIncoming = false)
         viewModelScope.launch {
@@ -916,19 +960,9 @@ class GameViewModel(
         persistHotseatGame()
     }
 
-    fun claimVictory() {
-        val transport = lichessTransport ?: return
-        viewModelScope.launch { transport.claimVictory() }
-    }
-
     fun sendChat(text: String) {
         val clean = text.trim().take(MAX_CHAT_CHARS)
         if (clean.isEmpty()) {
-            return
-        }
-        val lichess = lichessTransport
-        if (lichess != null) {
-            viewModelScope.launch { lichess.sendChat(clean) }
             return
         }
         val remote = mode as? GameMode.Remote ?: return
@@ -1020,7 +1054,7 @@ class GameViewModel(
         engineJob = viewModelScope.launch {
             val searchJob = coroutineContext[Job]
             val move = withContext(engineContext) {
-                engine.bestMove(fen, computer.level) { searchJob?.isActive != false }
+                engine.bestMove(fen, computer.level, computer.style) { searchJob?.isActive != false }
             }
             if (move == null || game.fen() != fen) {
                 _uiState.value = _uiState.value.copy(engineThinking = false)
@@ -1068,6 +1102,7 @@ class GameViewModel(
 
     private fun initialUiState(): GameUiState {
         val remote = mode as? GameMode.Remote
+        val remoteClock = remote?.session?.clockSnapshot?.value
         return GameUiState(
             gameState = game.state(),
             selected = null,
@@ -1079,6 +1114,9 @@ class GameViewModel(
             drawOfferIncoming = false,
             drawOfferOutgoing = false,
             connectionState = remote?.session?.transport?.connectionState?.value,
+            timeControl = remote?.session?.timeControl?.value,
+            whiteMillis = remoteClock?.whiteMillis,
+            blackMillis = remoteClock?.blackMillis,
             showTimePicker = remote == null
         )
     }

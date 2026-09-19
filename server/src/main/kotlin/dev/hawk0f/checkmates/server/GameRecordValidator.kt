@@ -9,7 +9,7 @@ object GameRecordValidator {
 
     const val MAX_PLIES = 800
 
-    val CLIENT_MODES = setOf("hotseat", "ble")
+    val CLIENT_MODES = setOf("hotseat", "computer", "ble")
 
     private val replayableReasons = setOf(
         GameOverReason.CHECKMATE,

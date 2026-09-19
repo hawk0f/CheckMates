@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.platform.formatDate
+import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.ProfileResponse
 import dev.hawk0f.checkmates.ui.theme.ChevronDirection
@@ -60,6 +61,7 @@ import dev.hawk0f.checkmates.resources.common_cancel
 import dev.hawk0f.checkmates.resources.mode_nearby
 import dev.hawk0f.checkmates.resources.mode_online
 import dev.hawk0f.checkmates.resources.mode_pass_and_play
+import dev.hawk0f.checkmates.resources.home_computer
 import dev.hawk0f.checkmates.resources.profile_avatar_emoji
 import dev.hawk0f.checkmates.resources.profile_avatar_pieces
 import dev.hawk0f.checkmates.resources.profile_choose_avatar
@@ -126,7 +128,7 @@ internal fun ProfileContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (profile == null) {
-            AuthContent(uiState, onLogin, onRegister, onBack)
+            AuthContent(uiState, onLogin, onRegister, onOpenReplay, onBack)
         } else {
             LoggedInContent(
                 profile = profile,
@@ -174,6 +176,7 @@ private fun ColumnScope.AuthContent(
     uiState: ProfileUiState,
     onLogin: (String, String) -> Unit,
     onRegister: (String, String, String) -> Unit,
+    onOpenReplay: () -> Unit,
     onBack: () -> Unit
 ) {
     var registering by remember { mutableStateOf(false) }
@@ -249,6 +252,17 @@ private fun ColumnScope.AuthContent(
                 enabled = login.length >= 3 && password.length >= 6,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+        if (uiState.history.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            SectionLabel(stringResource(Res.string.profile_recent_games))
+            for (item in uiState.history) {
+                HistoryRow(item) {
+                    ReplayHolder.current = item
+                    onOpenReplay()
+                }
+                Hairline()
+            }
         }
     }
 }
@@ -424,6 +438,7 @@ private fun HistoryRow(item: GameHistoryItem, onClick: () -> Unit) {
     val accents = LocalAppAccents.current
     val won = item.winner != null && item.winner == item.myColor
     val drawn = item.winner == null
+    val sharedBoard = item.myColor == null
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(13.dp),
@@ -435,7 +450,7 @@ private fun HistoryRow(item: GameHistoryItem, onClick: () -> Unit) {
                 .clip(CircleShape)
                 .background(
                     when {
-                        drawn -> scheme.outlineVariant
+                        drawn || sharedBoard -> scheme.outlineVariant
                         won -> accents.bandStrong
                         else -> scheme.primary
                     }
@@ -443,15 +458,15 @@ private fun HistoryRow(item: GameHistoryItem, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (drawn) {
-                    "D"
-                } else if (won) {
-                    "W"
-                } else {
-                    "L"
+                text = when {
+                    sharedBoard && item.winner == PieceColor.WHITE -> "1–0"
+                    sharedBoard && item.winner == PieceColor.BLACK -> "0–1"
+                    drawn -> "D"
+                    won -> "W"
+                    else -> "L"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                color = scheme.onPrimary
+                color = if (drawn || sharedBoard) scheme.onSurfaceVariant else scheme.onPrimary
             )
         }
         Column(modifier = Modifier.weight(1f)) {
@@ -483,6 +498,7 @@ private fun modeLabel(mode: String): String = when (mode) {
     "online" -> stringResource(Res.string.mode_online)
     "ble" -> stringResource(Res.string.mode_nearby)
     "hotseat" -> stringResource(Res.string.mode_pass_and_play)
+    "computer" -> stringResource(Res.string.home_computer)
     else -> mode
 }
 

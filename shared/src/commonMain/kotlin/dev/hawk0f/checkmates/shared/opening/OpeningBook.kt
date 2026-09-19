@@ -81,4 +81,19 @@ object OpeningBook {
     fun byId(id: String): OpeningLine? = lines.find { it.id == id }
 
     fun forColor(color: PieceColor): List<OpeningLine> = lines.filter { it.trainedColor == color }
+
+    fun identify(uciHistory: List<String>, additionalLines: List<OpeningLine> = emptyList()): OpeningLine? {
+        if (uciHistory.size < MIN_IDENTIFICATION_PLIES) {
+            return null
+        }
+        val candidates = (lines + additionalLines).mapNotNull { line ->
+            val commonPlies = uciHistory.zip(line.moves).takeWhile { (played, book) -> played == book }.size
+            line.takeIf { commonPlies >= MIN_IDENTIFICATION_PLIES }?.let { it to commonPlies }
+        }
+        val deepest = candidates.maxOfOrNull { it.second } ?: return null
+        val matches = candidates.filter { it.second == deepest }.map { it.first }.distinctBy { it.name }
+        return matches.singleOrNull()
+    }
+
+    private const val MIN_IDENTIFICATION_PLIES = 2
 }

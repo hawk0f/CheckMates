@@ -35,12 +35,14 @@ class GameAnalyzer(private val engine: ChessEngine = ChessEngine()) {
 
     fun analyse(
         uciHistory: List<String>,
+        startFen: String? = null,
         depth: Int = DEFAULT_DEPTH,
         nodeBudget: Int = DEFAULT_NODE_BUDGET,
         shouldContinue: () -> Boolean = { true },
         onProgress: (Int) -> Unit = {}
     ): AnalysisSummary {
         val board = Board()
+        startFen?.let(board::loadFromFen)
         val moves = mutableListOf<MoveAnalysis>()
         var carried: EngineLine? = null
         for ((ply, uci) in uciHistory.withIndex()) {

@@ -52,6 +52,7 @@ import dev.hawk0f.checkmates.shared.domain.GameState
 import dev.hawk0f.checkmates.shared.domain.Piece
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.PieceKind
+import dev.hawk0f.checkmates.shared.domain.PgnReader
 import dev.hawk0f.checkmates.shared.domain.PositionProblem
 import dev.hawk0f.checkmates.ui.game.BoardBox
 import dev.hawk0f.checkmates.ui.game.ChessBoard
@@ -80,7 +81,7 @@ private val brushOrder = listOf(
 fun BoardEditorScreen(
     onPlayHotseat: (String) -> Unit,
     onPlayComputer: (String) -> Unit,
-    onOpenImportedGame: (List<String>) -> Unit,
+    onOpenImportedGame: (PgnReader.ImportedGame) -> Unit,
     onBack: () -> Unit,
     viewModel: BoardEditorViewModel = viewModel { BoardEditorViewModel() }
 ) {
@@ -215,10 +216,10 @@ fun BoardEditorScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
-            if (uiState.importedMoves.isNotEmpty()) {
+            uiState.importedGame?.let { importedGame ->
                 PillButton(
                     text = stringResource(Res.string.editor_open_pgn, uiState.importedMoves.size),
-                    onClick = { onOpenImportedGame(uiState.importedMoves) },
+                    onClick = { onOpenImportedGame(importedGame) },
                     tone = PillTone.ACCENT,
                     compact = true,
                     modifier = Modifier.fillMaxWidth()

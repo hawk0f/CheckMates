@@ -44,7 +44,7 @@ class OpeningDrillViewModel(
     private val opponentDelayMillis: Long = 350
 ) : ViewModel() {
 
-    private val line = OpeningBook.byId(lineId) ?: OpeningBook.lines.first()
+    private val line = OpeningBook.byId(lineId) ?: store.customLines().find { it.id == lineId } ?: OpeningBook.lines.first()
     private var game = ChessGame()
     private var opponentJob: Job? = null
 

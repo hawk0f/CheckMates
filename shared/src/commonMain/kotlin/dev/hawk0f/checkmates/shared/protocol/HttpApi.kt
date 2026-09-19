@@ -126,7 +126,8 @@ data class GameHistoryItem(
     val winner: PieceColor?,
     val reason: GameOverReason,
     val uciHistory: List<String>,
-    val finishedAtMillis: Long
+    val finishedAtMillis: Long,
+    val startFen: String? = null
 )
 
 @Serializable
@@ -167,6 +168,29 @@ data class ChallengeResponse(
     val playerToken: String,
     val pushed: Boolean
 )
+
+@Serializable
+data class CreateCorrespondenceRequest(val opponentUserId: Long)
+
+@Serializable
+data class CorrespondenceMoveRequest(val uci: String)
+
+@Serializable
+data class CorrespondenceGame(
+    val id: Long,
+    val whiteUserId: Long,
+    val blackUserId: Long,
+    val whiteName: String,
+    val blackName: String,
+    val uciHistory: List<String>,
+    val sideToMove: PieceColor,
+    val winner: PieceColor? = null,
+    val reason: GameOverReason? = null,
+    val updatedAtMillis: Long
+)
+
+@Serializable
+data class CorrespondenceGamesResponse(val games: List<CorrespondenceGame>)
 
 @Serializable
 data class CrashReportRequest(

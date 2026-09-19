@@ -23,6 +23,16 @@ enum class EngineLevel(val id: Int, val depth: Int, val blunderChance: Double, v
     }
 }
 
+enum class EngineStyle {
+    BALANCED,
+    AGGRESSIVE,
+    POSITIONAL;
+
+    companion object {
+        fun byName(name: String): EngineStyle = entries.find { it.name == name } ?: BALANCED
+    }
+}
+
 data class EngineLine(
     val bestMove: String?,
     val scoreCentipawns: Int,
@@ -35,6 +45,7 @@ class ChessEngine(private val random: Random = Random.Default) {
     fun bestMove(
         fen: String,
         level: EngineLevel = EngineLevel.DEFAULT,
+        style: EngineStyle = EngineStyle.BALANCED,
         shouldContinue: () -> Boolean = { true }
     ): String? {
         val board = loadBoard(fen) ?: return null
@@ -45,7 +56,7 @@ class ChessEngine(private val random: Random = Random.Default) {
         if (level.blunderChance > 0 && random.nextDouble() < level.blunderChance) {
             return moves[random.nextInt(moves.size)].toUci()
         }
-        return analyse(board, level.depth, level.nodeBudget, shouldContinue).bestMove ?: moves.first().toUci()
+        return analyse(board, level.depth, level.nodeBudget, style, shouldContinue).bestMove ?: moves.first().toUci()
     }
 
     fun analyse(
@@ -55,16 +66,17 @@ class ChessEngine(private val random: Random = Random.Default) {
         shouldContinue: () -> Boolean = { true }
     ): EngineLine {
         val board = loadBoard(fen) ?: return EngineLine(null, 0, null, 0)
-        return analyse(board, depth, nodeBudget, shouldContinue)
+        return analyse(board, depth, nodeBudget, EngineStyle.BALANCED, shouldContinue)
     }
 
     private fun analyse(
         board: Board,
         depth: Int,
         nodeBudget: Int,
+        style: EngineStyle,
         shouldContinue: () -> Boolean
     ): EngineLine {
-        val search = Search(nodeBudget, shouldContinue)
+        val search = Search(nodeBudget, style, shouldContinue)
         var best: Move? = null
         var bestScore = 0
         var reached = 0
@@ -108,6 +120,7 @@ class ChessEngine(private val random: Random = Random.Default) {
 
     private class Search(
         private val nodeBudget: Int,
+        private val style: EngineStyle,
         private val shouldContinue: () -> Boolean = { true }
     ) {
 
@@ -198,7 +211,7 @@ class ChessEngine(private val random: Random = Random.Default) {
             if (board.isDraw || board.isStaleMate) {
                 return 0
             }
-            val standPat = Evaluation.evaluate(board)
+            val standPat = Evaluation.evaluate(board, style)
             if (standPat >= beta || ply >= MAX_PLY) {
                 return standPat
             }

@@ -4,6 +4,7 @@ import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.engine.ChessEngine
 import dev.hawk0f.checkmates.shared.engine.EngineLevel
+import dev.hawk0f.checkmates.shared.engine.EngineStyle
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -51,6 +52,23 @@ class EngineTest {
             game.loadFen(fen)
             assertTrue(game.applyUci(move) is MoveOutcome.Applied, "level ${level.id} played illegal $move")
         }
+    }
+
+    @Test
+    fun everyStyleReturnsALegalMove() {
+        val fen = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
+        for (style in EngineStyle.entries) {
+            val move = engine.bestMove(fen, EngineLevel.THREE, style)
+            assertNotNull(move, "$style returned nothing")
+            val game = ChessGame()
+            game.loadFen(fen)
+            assertTrue(game.applyUci(move) is MoveOutcome.Applied, "$style played illegal $move")
+        }
+    }
+
+    @Test
+    fun anUnknownStyleFallsBackToBalanced() {
+        assertEquals(EngineStyle.BALANCED, EngineStyle.byName("UNKNOWN"))
     }
 
     @Test

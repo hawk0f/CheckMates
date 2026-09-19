@@ -3,7 +3,9 @@ package dev.hawk0f.checkmates.shared
 import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.protocol.BleCodec
+import dev.hawk0f.checkmates.shared.protocol.ClockMode
 import dev.hawk0f.checkmates.shared.protocol.GameMessage
+import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -22,6 +24,8 @@ class BleCodecTest {
             GameMessage.DeclineDraw,
             GameMessage.Resign,
             GameMessage.RequestResync,
+            GameMessage.SetPremoves(emptyList()),
+            GameMessage.SetPremoves(listOf("e7e5", "g8f6", "f8c5")),
             GameMessage.OfferTakeback,
             GameMessage.AcceptTakeback,
             GameMessage.DeclineTakeback
@@ -37,6 +41,11 @@ class BleCodecTest {
     fun hostToGuestRoundTrip() {
         val messages = listOf(
             GameMessage.MoveApplied("e2e4", "", 0),
+            GameMessage.ClockConfigured(null),
+            GameMessage.ClockConfigured(TimeControl(180, 2)),
+            GameMessage.ClockConfigured(TimeControl(600, 5, ClockMode.BRONSTEIN)),
+            GameMessage.ClockUpdated(179_843, 180_000),
+            GameMessage.PremovesDropped("ILLEGAL_MOVE"),
             GameMessage.ColorAssigned(PieceColor.WHITE),
             GameMessage.ColorAssigned(PieceColor.BLACK),
             GameMessage.OpponentJoined("Host"),
@@ -79,6 +88,8 @@ class BleCodecTest {
         assertNull(BleCodec.decodeFromGuest("Tjunk".encodeToByteArray()))
         assertNull(BleCodec.decodeFromHost("Ujunk".encodeToByteArray()))
         assertNull(BleCodec.decodeFromHost("U0".encodeToByteArray()))
+        assertNull(BleCodec.decodeFromHost("Q180,2,x".encodeToByteArray()))
+        assertNull(BleCodec.decodeFromHost("K-1,200".encodeToByteArray()))
     }
 
     @Test

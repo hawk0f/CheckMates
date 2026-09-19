@@ -1,7 +1,7 @@
 # CheckMates
 
-Kotlin Multiplatform chess app — pass & play, Bluetooth LE, online play through an own Ktor
-server, and a Lichess client built on the Board API. Android and iOS share one Compose
+Kotlin Multiplatform chess app — pass & play, Bluetooth LE, computer play, puzzles and online play
+through an own Ktor server. Android and iOS share one Compose
 Multiplatform UI; the rules engine and the wire protocol are shared with the server too.
 
 ## Modules
@@ -9,7 +9,7 @@ Multiplatform UI; the rules engine and the wire protocol are shared with the ser
 | Module | What lives there |
 | --- | --- |
 | `shared` | Rules engine (`ChessGame` over kchesslib), SAN formatting, the `GameMessage` protocol, shared utils. Used by the clients *and* the server. |
-| `composeApp` | The whole UI and all client logic: screens, view models, BLE transport, REST/WebSocket clients, Lichess integration. `androidMain` + `iosMain` for platform bits. |
+| `composeApp` | The whole UI and all client logic: screens, view models, BLE transport and REST/WebSocket clients. `androidMain` + `iosMain` for platform bits. |
 | `androidApp` | Android application shell: `MainActivity`, deep links, FCM service, R8/baseline-profile setup. |
 | `iosApp` | Xcode project that hosts the shared Compose UI. |
 | `server` | Ktor server: accounts, game history, room registry, WebSocket relay, landing page, `.well-known` app links. |
@@ -78,8 +78,8 @@ preview and its golden never drift apart. Goldens live in
 
 Every screen is in the catalog. Screens whose state comes from a network-backed view model are split
 into a thin `XScreen(...)` that owns the view model and a stateless `XContent(uiState, callbacks)`
-that the preview drives with fixtures — lobby, friends, leaderboard, nearby, profile and all eight
-Lichess screens. Screens with a local view model (`GameScreen`, opening drill, puzzles, board editor)
+that the preview drives with fixtures — lobby, friends, leaderboard, nearby and profile.
+Screens with a local view model (`GameScreen`, opening drill, puzzles, board editor)
 take the view model as a parameter instead, so a preview passes one it built itself.
 
 Replay is the one spec previewed without a golden — it prints a locale- and timezone-formatted date,
@@ -112,6 +112,37 @@ board's pieces from the image.
 CI runs the same set plus a release build and the iOS compile — see
 [ci.yml](.github/workflows/ci.yml).
 
+## Training
+
+Completed games can be analysed locally in Replay. For inaccuracies, mistakes and blunders the
+review can reopen the position before the move and ask the player to find the engine suggestion on
+the board. The same position can be saved as a personal puzzle; personal puzzles join the bundled
+set and use the same rating and spaced-repetition scheduler.
+
+Each replay move can also carry a local text annotation. Notes are stored per game and ply and are
+included as PGN comments when the game is shared, so an annotated review can be reopened in other
+chess software without losing the player's ideas.
+
+The opening trainer includes built-in lines and custom PGN main lines. Use **Import PGN line** on
+the Openings screen, choose the trained colour and paste a legal PGN. The imported line is stored on
+the device and can be drilled with the same automatic opponent and mistake tracking as built-in
+lines.
+
+Rematches form a best-of-three series. The game-over panel keeps wins and draws across games,
+announces the series winner after two victories and resets the score when the next rematch starts.
+Computer games offer balanced, attacking and positional styles independently from engine strength.
+
+The client keeps the latest 50 completed games on the device, including pass-and-play, computer,
+Bluetooth and online games. This archive is available without an account on Home and Profile and
+opens in the same replay screen. The dedicated archive can search either player's name and filter by
+local or remote mode and by personal result. After sign-in it is merged with server history; matching
+local and server copies completed within one minute are shown once, with the server record taking precedence.
+
+Signed-in friends can also play correspondence games. Positions and move history live in the
+server database, every submitted move is replayed through the shared rules engine, and only the
+player whose turn it is may move. The client lists parallel games, opens an interactive board and
+sends a push notification to the opponent after each accepted move.
+
 ## Server configuration
 
 All configuration is environment variables:
@@ -133,7 +164,7 @@ purged by a background loop.
 
 ### Trust boundary
 
-`POST /api/me/games` only accepts client-owned modes (`hotseat`, `ble`) and replays the whole
+`POST /api/me/games` only accepts client-owned modes (`hotseat`, `computer`, `ble`) and replays the whole
 move list through the engine before storing it — a declared result that the replay contradicts
 is rejected with `400 BAD_RECORD`. Online games are written by the server itself when the room
 finishes, so clients cannot forge them.
@@ -148,10 +179,10 @@ The VPS runs the fat jar behind Caddy:
 ```bash
 ./gradlew :server:buildFatJar
 scp server/build/libs/server-all.jar <host>:/opt/chess/
-ssh <host> 'cd /opt/chess && docker compose -f docker-compose.prod.yml up -d --force-recreate'
+ssh <host> 'cd /opt/chess && docker compose -f docker-compose.yml up -d --force-recreate chess-server'
 ```
 
-`deploy/docker-compose.prod.yml` mounts the jar, `data/` and `fcm-key.json`, and publishes only
+The production `/opt/chess/docker-compose.yml` mounts the jar, `data/` and `fcm-key.json`, and publishes only
 on `127.0.0.1:8090`; Caddy terminates TLS for `chess.hawk0f.icu`.
 
 ## Signing
@@ -168,7 +199,7 @@ keyPassword=...
 
 ## Premoves
 
-In remote games (online, Bluetooth, Lichess) you can click moves while the opponent is thinking.
+In remote games (online and Bluetooth) you can click moves while the opponent is thinking.
 [PremovePlanner](shared/src/commonMain/kotlin/dev/hawk0f/checkmates/shared/domain/PremovePlanner.kt)
 projects the queue by replaying it on the live position with the side-to-move flipped after each
 entry, so up to `MAX_PREMOVES` of your own moves can be planned in a row and the board shows the
@@ -181,8 +212,7 @@ Who executes the queue depends on the opponent:
 | Game kind | Executed by | Clock cost |
 | --- | --- | --- |
 | `online` (own server) | server, via `setPremoves` | a flat `GameRoom.PREMOVE_ELAPSED_MILLIS` (100 ms) instead of real elapsed time, and the increment is still granted |
-| `lichess` | client, one move per turn | one network round trip, charged by Lichess |
-| `ble` | client | no clocks in Bluetooth games |
+| `ble` | BLE host | 100 ms; the host owns and synchronizes both clocks |
 
 For online games the client ships the whole queue to the server with `setPremoves` whenever it
 changes. [GameRoom](server/src/main/kotlin/dev/hawk0f/checkmates/server/GameRoom.kt) validates the
@@ -195,6 +225,11 @@ board rejects with `premovesDropped("ILLEGAL_MOVE")`, and the client clears its 
 A server that predates this protocol answers `protocolError` instead, and the client silently falls
 back to executing premoves itself — so **online premoves only become instant after the server jar is
 redeployed** (see [Deployment](#deployment)).
+
+Bluetooth hosts can choose no clock, 3+2, 5+0 or 10+0 before advertising a game. The host sends the
+control and exact millisecond snapshots through the compact BLE protocol, applies increments and
+declares timeout. It also receives the pending premove queue in advance, so Bluetooth latency does
+not count against a premove: each accepted premove costs exactly 100 ms.
 
 ## Copy and localization
 
@@ -212,21 +247,6 @@ messages produced inside view models — those need a `UiText` wrapper (raw stri
 Board squares expose accessibility labels ("e4, white pawn") plus a state description (selected,
 legal move, last move, king in check); piece images stay decorative so a screen reader announces
 each square once. Icon-only buttons take a `contentDescription` through `CircleButton`.
-
-## Lichess integration
-
-OAuth is PKCE with no client secret: client id `dev.hawk0f.checkmates`, redirect
-`dev.hawk0f.checkmates://lichess-auth`, scopes `board:play challenge:read challenge:write
-puzzle:read tournament:write follow:read`. The token is stored with multiplatform-settings, and
-sign-in happens in the system browser, so no password ever reaches the app.
-
-Rate limits are handled in [LichessRateLimit.kt](composeApp/src/commonMain/kotlin/dev/hawk0f/checkmates/net/lichess/LichessRateLimit.kt):
-a 429 starts a cooldown (from `Retry-After`, else one minute, capped at ten) that every later
-request waits out, and `HttpRequestRetry` retries 429/5xx up to three times.
-
-Note the Board API forbids any engine assistance during a live game. That is why the in-game
-panel shows a plain material balance instead of a cloud evaluation; cloud eval is only used in
-post-game review.
 
 ## License
 

@@ -24,6 +24,7 @@ data class BoardEditorUiState(
     val fen: String = START_FEN,
     val problem: PositionProblem? = null,
     val importedMoves: List<String> = emptyList(),
+    val importedGame: PgnReader.ImportedGame? = null,
     val importError: Boolean = false
 ) {
     val playable: Boolean get() = problem == null
@@ -84,19 +85,23 @@ class BoardEditorViewModel : ViewModel() {
         val pieces = PositionEditor.piecesFromFen(text)
         if (pieces != null && pieces.isNotEmpty()) {
             setPieces(pieces, PositionEditor.sideToMoveFromFen(text))
-            _uiState.value = _uiState.value.copy(importedMoves = emptyList(), importError = false)
+            _uiState.value = _uiState.value.copy(importedMoves = emptyList(), importedGame = null, importError = false)
             return
         }
-        val moves = PgnReader.uciMoves(text)
-        if (moves.isEmpty()) {
+        val importedGame = PgnReader.read(text)
+        if (importedGame == null) {
             _uiState.value = _uiState.value.copy(importError = true)
             return
         }
-        _uiState.value = _uiState.value.copy(importedMoves = moves, importError = false)
+        _uiState.value = _uiState.value.copy(
+            importedMoves = importedGame.uciMoves,
+            importedGame = importedGame,
+            importError = false
+        )
     }
 
     fun clearImport() {
-        _uiState.value = _uiState.value.copy(importedMoves = emptyList(), importError = false)
+        _uiState.value = _uiState.value.copy(importedMoves = emptyList(), importedGame = null, importError = false)
     }
 
     private fun setPieces(pieces: Map<Square, Piece>, sideToMove: PieceColor) {

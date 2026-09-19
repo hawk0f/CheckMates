@@ -27,15 +27,6 @@ import dev.hawk0f.checkmates.ui.theme.ChevronDirection
 import dev.hawk0f.checkmates.ui.theme.ChevronIcon
 import dev.hawk0f.checkmates.ui.theme.CircleButton
 import dev.hawk0f.checkmates.ui.theme.DarkModePreference
-import dev.hawk0f.checkmates.resources.flow_checkmates_name
-import dev.hawk0f.checkmates.resources.flow_current
-import dev.hawk0f.checkmates.resources.flow_lichess_name
-import dev.hawk0f.checkmates.resources.flow_section
-import dev.hawk0f.checkmates.resources.flow_switch_to
-import dev.hawk0f.checkmates.session.AppFlow
-import dev.hawk0f.checkmates.session.FlowManager
-import dev.hawk0f.checkmates.ui.theme.PillButton
-import dev.hawk0f.checkmates.ui.theme.PillTone
 import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.ui.theme.SegmentedPills
 import dev.hawk0f.checkmates.ui.theme.SoftCard
@@ -61,7 +52,7 @@ import dev.hawk0f.checkmates.resources.settings_hotseat_facing
 import dev.hawk0f.checkmates.ui.theme.HotseatFacing
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onSwitchFlow: () -> Unit = {}) {
+fun SettingsScreen(onBack: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 26.dp, end = 20.dp, top = 22.dp),
@@ -85,35 +76,6 @@ fun SettingsScreen(onBack: () -> Unit, onSwitchFlow: () -> Unit = {}) {
                 .padding(horizontal = 26.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                SectionLabel(stringResource(Res.string.flow_section))
-                val flowName = stringResource(
-                    if (FlowManager.current == AppFlow.LICHESS) {
-                        Res.string.flow_lichess_name
-                    } else {
-                        Res.string.flow_checkmates_name
-                    }
-                )
-                val otherName = stringResource(
-                    if (FlowManager.other() == AppFlow.LICHESS) {
-                        Res.string.flow_lichess_name
-                    } else {
-                        Res.string.flow_checkmates_name
-                    }
-                )
-                Text(
-                    text = stringResource(Res.string.flow_current, flowName),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                PillButton(
-                    text = stringResource(Res.string.flow_switch_to, otherName),
-                    onClick = onSwitchFlow,
-                    tone = PillTone.BAND,
-                    compact = true
-                )
-            }
-
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 SectionLabel(stringResource(Res.string.settings_appearance))
                 SegmentedPills(

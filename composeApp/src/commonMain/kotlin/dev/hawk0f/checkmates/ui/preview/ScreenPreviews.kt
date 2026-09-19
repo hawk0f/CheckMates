@@ -3,17 +3,6 @@ package dev.hawk0f.checkmates.ui.preview
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
-import dev.hawk0f.checkmates.net.lichess.LichessChallenge
-import dev.hawk0f.checkmates.net.lichess.LichessClock
-import dev.hawk0f.checkmates.net.lichess.LichessExplorerMove
-import dev.hawk0f.checkmates.net.lichess.LichessExplorerPosition
-import dev.hawk0f.checkmates.net.lichess.LichessLeaderboardUser
-import dev.hawk0f.checkmates.net.lichess.LichessOngoingGame
-import dev.hawk0f.checkmates.net.lichess.LichessOpponent
-import dev.hawk0f.checkmates.net.lichess.LichessPerf
-import dev.hawk0f.checkmates.net.lichess.LichessRating
-import dev.hawk0f.checkmates.net.lichess.LichessTournament
-import dev.hawk0f.checkmates.net.lichess.LichessUserRef
 import dev.hawk0f.checkmates.session.PuzzlePersistence
 import dev.hawk0f.checkmates.shared.domain.GameOverReason
 import dev.hawk0f.checkmates.shared.domain.PieceColor
@@ -31,7 +20,6 @@ import dev.hawk0f.checkmates.ui.ble.BleLobbyUiState
 import dev.hawk0f.checkmates.ui.computer.ComputerSetupScreen
 import dev.hawk0f.checkmates.ui.editor.BoardEditorScreen
 import dev.hawk0f.checkmates.ui.editor.BoardEditorViewModel
-import dev.hawk0f.checkmates.ui.flow.FlowPickerScreen
 import dev.hawk0f.checkmates.ui.friends.FriendsContent
 import dev.hawk0f.checkmates.ui.friends.FriendsUiState
 import dev.hawk0f.checkmates.ui.game.GameMode
@@ -41,23 +29,6 @@ import dev.hawk0f.checkmates.ui.home.HomeScreen
 import dev.hawk0f.checkmates.ui.home.HomeViewModel
 import dev.hawk0f.checkmates.ui.leaderboard.LeaderboardContent
 import dev.hawk0f.checkmates.ui.leaderboard.LeaderboardUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessArenasContent
-import dev.hawk0f.checkmates.ui.lichess.LichessArenasUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessExplorerContent
-import dev.hawk0f.checkmates.ui.lichess.LichessExplorerUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessHomeContent
-import dev.hawk0f.checkmates.ui.lichess.LichessHomeUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessPlayersContent
-import dev.hawk0f.checkmates.ui.lichess.LichessPlayersUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessPuzzleContent
-import dev.hawk0f.checkmates.ui.lichess.LichessPuzzleUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessReviewContent
-import dev.hawk0f.checkmates.ui.lichess.LichessReviewUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessSeekContent
-import dev.hawk0f.checkmates.ui.lichess.LichessSeekUiState
-import dev.hawk0f.checkmates.ui.lichess.LichessWatchContent
-import dev.hawk0f.checkmates.ui.lichess.LichessWatchUiState
-import dev.hawk0f.checkmates.ui.lichess.WatchPlayer
 import dev.hawk0f.checkmates.ui.online.LobbyStep
 import dev.hawk0f.checkmates.ui.online.OnlineLobbyContent
 import dev.hawk0f.checkmates.ui.online.OnlineLobbyUiState
@@ -85,6 +56,10 @@ private object PreviewPuzzleStore : PuzzlePersistence {
     override fun loadStreak(): Int = 4
 
     override fun saveStreak(streak: Int) = Unit
+
+    override fun loadPersonalPuzzles() = emptyList<dev.hawk0f.checkmates.shared.puzzle.Puzzle>()
+
+    override fun savePersonalPuzzle(puzzle: dev.hawk0f.checkmates.shared.puzzle.Puzzle) = Unit
 }
 
 private val previewHistoryItem = GameHistoryItem(
@@ -103,12 +78,8 @@ internal val homeScreenSpec = PreviewSpec("screen-home", fillsScreen = true) {
     HomeScreen(viewModel = remember { HomeViewModel() })
 }
 
-internal val flowPickerScreenSpec = PreviewSpec("screen-flow-picker", fillsScreen = true) {
-    FlowPickerScreen(onChosen = {})
-}
-
 internal val computerSetupScreenSpec = PreviewSpec("screen-computer-setup", fillsScreen = true) {
-    ComputerSetupScreen(onStart = { _, _ -> }, onBack = {})
+    ComputerSetupScreen(onStart = { _, _, _ -> }, onBack = {})
 }
 
 internal val openingsScreenSpec = PreviewSpec("screen-openings", fillsScreen = true) {
@@ -157,26 +128,6 @@ private val previewProfile = ProfileResponse(
     createdAtMillis = PREVIEW_NOW_MILLIS
 )
 
-private val previewLichessOngoing = LichessOngoingGame(
-    gameId = "abcd1234",
-    color = "white",
-    isMyTurn = true,
-    lastMove = "e2e4",
-    opponent = LichessOpponent(username = "penguin", rating = 1712),
-    perf = "blitz",
-    rated = true,
-    secondsLeft = 174,
-    speed = "blitz"
-)
-
-private val previewLichessChallenge = LichessChallenge(
-    id = "ch1",
-    status = "created",
-    challenger = LichessUserRef(username = "rookiebot", rating = 1560),
-    rated = false,
-    speed = "rapid"
-)
-
 internal val leaderboardScreenSpec = PreviewSpec("screen-leaderboard", fillsScreen = true) {
     LeaderboardContent(
         uiState = LeaderboardUiState(
@@ -220,6 +171,7 @@ internal val bleLobbyScreenSpec = PreviewSpec("screen-ble-lobby", fillsScreen = 
     BleLobbyContent(
         uiState = BleLobbyUiState(playerName = "hawk0f", step = BleLobbyStep.Hosting),
         onNameChange = {},
+        onTimeControlChange = {},
         onHost = {},
         onScan = {},
         onStopHosting = {},
@@ -327,214 +279,8 @@ internal val openingDrillScreenSpec = PreviewSpec("screen-opening-drill", fillsS
     )
 }
 
-internal val lichessHomeSignedOutScreenSpec = PreviewSpec("screen-lichess-home-signed-out", fillsScreen = true) {
-    LichessHomeContent(
-        uiState = LichessHomeUiState(),
-        onSignIn = {},
-        onOpenGame = {},
-        onAcceptChallenge = {},
-        onDeclineChallenge = {},
-        onLogout = {},
-        onDismissError = {},
-        onOpenSeek = {},
-        onOpenPuzzle = {},
-        onOpenWatch = {},
-        onOpenArenas = {},
-        onOpenExplorer = {},
-        onOpenPlayers = {},
-        onOpenSettings = {},
-        onSwitchFlow = {}
-    )
-}
-
-internal val lichessHomeSignedInScreenSpec = PreviewSpec("screen-lichess-home", fillsScreen = true) {
-    LichessHomeContent(
-        uiState = LichessHomeUiState(
-            username = "hawk0f",
-            ratings = listOf("blitz 1842", "rapid 1710"),
-            streaming = true,
-            ongoing = listOf(previewLichessOngoing),
-            incoming = listOf(previewLichessChallenge)
-        ),
-        onSignIn = {},
-        onOpenGame = {},
-        onAcceptChallenge = {},
-        onDeclineChallenge = {},
-        onLogout = {},
-        onDismissError = {},
-        onOpenSeek = {},
-        onOpenPuzzle = {},
-        onOpenWatch = {},
-        onOpenArenas = {},
-        onOpenExplorer = {},
-        onOpenPlayers = {},
-        onOpenSettings = {},
-        onSwitchFlow = {}
-    )
-}
-
-internal val lichessSeekScreenSpec = PreviewSpec("screen-lichess-seek", fillsScreen = true) {
-    LichessSeekContent(
-        uiState = LichessSeekUiState(myRating = 1842),
-        onModeChange = {},
-        onPoolClockChange = {},
-        onDirectClockChange = {},
-        onRatedChange = {},
-        onRatingSpreadChange = {},
-        onFriendNameChange = {},
-        onAiLevelChange = {},
-        onCreateOpenChallenge = {},
-        onCancelChallenge = {},
-        onStart = {},
-        onCancelWaiting = {},
-        onDismissError = {},
-        onDismissOpenChallenge = {},
-        onBack = {}
-    )
-}
-
-internal val lichessPlayersScreenSpec = PreviewSpec("screen-lichess-players", fillsScreen = true) {
-    LichessPlayersContent(
-        uiState = LichessPlayersUiState(
-            loading = false,
-            query = "pen",
-            suggestions = listOf("penguin", "pendulum"),
-            online = listOf(LichessUserRef(username = "penguin", rating = 1712, online = true)),
-            offline = listOf(LichessUserRef(username = "walrus", rating = 1490)),
-            leaderboard = listOf(
-                LichessLeaderboardUser(
-                    id = "magnus",
-                    username = "DrNykterstein",
-                    title = "GM",
-                    perfs = mapOf("blitz" to LichessRating(rating = 3105, progress = 12))
-                )
-            )
-        ),
-        onQueryChange = {},
-        onChallenge = {},
-        onCreateOpenChallenge = {},
-        onDismissMessage = {},
-        onBack = {}
-    )
-}
-
-internal val lichessArenasScreenSpec = PreviewSpec("screen-lichess-arenas", fillsScreen = true) {
-    LichessArenasContent(
-        uiState = LichessArenasUiState(
-            loading = false,
-            featured = LichessTournament(
-                id = "hourly",
-                fullName = "Hourly Blitz Arena",
-                clock = LichessClock(limit = 180, increment = 2),
-                nbPlayers = 1284,
-                minutes = 60,
-                secondsToFinish = 1800,
-                rated = true,
-                perf = LichessPerf(key = "blitz", name = "Blitz")
-            ),
-            starting = listOf(
-                LichessTournament(
-                    id = "daily",
-                    fullName = "Daily Rapid Arena",
-                    clock = LichessClock(limit = 600, increment = 0),
-                    nbPlayers = 312,
-                    minutes = 120,
-                    secondsToStart = 900,
-                    rated = true,
-                    perf = LichessPerf(key = "rapid", name = "Rapid")
-                )
-            )
-        ),
-        onJoin = {},
-        onDismissMessage = {},
-        onBack = {}
-    )
-}
-
-internal val lichessPuzzleScreenSpec = PreviewSpec("screen-lichess-puzzle", fillsScreen = true) {
-    LichessPuzzleContent(
-        uiState = LichessPuzzleUiState(
-            loading = false,
-            puzzleId = "aBcDe",
-            rating = 1620,
-            themes = listOf("mateIn2", "kingsideAttack"),
-            gameState = previewState("e2e4", "e7e5", "g1f3", "b8c6", "f1b5"),
-            sideToMove = PieceColor.BLACK,
-            flipped = true,
-            movesLeft = 3,
-            streak = 5,
-            myPuzzleRating = 1704
-        ),
-        onLoadNext = {},
-        onLoadDaily = {},
-        onSquareTap = {},
-        onDismissError = {},
-        onBack = {}
-    )
-}
-
-internal val lichessExplorerScreenSpec = PreviewSpec("screen-lichess-explorer", fillsScreen = true) {
-    LichessExplorerContent(
-        uiState = LichessExplorerUiState(
-            gameState = previewState("e2e4", "c7c5"),
-            moves = listOf("e2e4", "c7c5"),
-            position = LichessExplorerPosition(
-                white = 21_450,
-                draws = 8_902,
-                black = 19_884,
-                moves = listOf(
-                    LichessExplorerMove(uci = "g1f3", san = "Nf3", white = 9_120, draws = 4_010, black = 8_330, averageRating = 2412),
-                    LichessExplorerMove(uci = "b1c3", san = "Nc3", white = 4_210, draws = 1_902, black = 4_004, averageRating = 2380)
-                )
-            )
-        ),
-        onSourceChange = {},
-        onPlayMove = {},
-        onUndo = {},
-        onReset = {},
-        onDismissError = {},
-        onBack = {}
-    )
-}
-
-internal val lichessWatchScreenSpec = PreviewSpec("screen-lichess-watch", fillsScreen = true) {
-    LichessWatchContent(
-        uiState = LichessWatchUiState(
-            channels = listOf("best", "blitz", "rapid", "classical", "bullet"),
-            channel = "blitz",
-            gameId = "abcd1234",
-            gameState = previewState("d2d4", "d7d5", "c2c4", "e7e6", "b1c3"),
-            white = WatchPlayer(name = "DrNykterstein", title = "GM", rating = 3105, seconds = 128),
-            black = WatchPlayer(name = "penguingim1", title = "GM", rating = 2914, seconds = 96),
-            live = true,
-            streamerCount = 7
-        ),
-        onWatch = {},
-        onDismissError = {},
-        onReview = {},
-        onBack = {}
-    )
-}
-
-internal val lichessReviewScreenSpec = PreviewSpec("screen-lichess-review", fillsScreen = true) {
-    LichessReviewContent(
-        uiState = LichessReviewUiState(
-            gameId = "abcd1234",
-            loading = false,
-            moves = listOf("e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "g8f6"),
-            moveIndex = 4,
-            gameState = previewState("e2e4", "e7e5", "g1f3", "b8c6")
-        ),
-        onGoTo = {},
-        onStep = {},
-        onDismissError = {},
-        onBack = {}
-    )
-}
-
 internal val screenPreviewSpecs = listOf(
     homeScreenSpec,
-    flowPickerScreenSpec,
     computerSetupScreenSpec,
     openingsScreenSpec,
     settingsScreenSpec,
@@ -549,25 +295,12 @@ internal val screenPreviewSpecs = listOf(
     profileAuthScreenSpec,
     profileAccountScreenSpec,
     gameHotseatScreenSpec,
-    openingDrillScreenSpec,
-    lichessHomeSignedOutScreenSpec,
-    lichessHomeSignedInScreenSpec,
-    lichessSeekScreenSpec,
-    lichessPlayersScreenSpec,
-    lichessArenasScreenSpec,
-    lichessPuzzleScreenSpec,
-    lichessExplorerScreenSpec,
-    lichessWatchScreenSpec,
-    lichessReviewScreenSpec
+    openingDrillScreenSpec
 )
 
 @Preview
 @Composable
 internal fun HomeScreenPreview() = PreviewFrame(homeScreenSpec)
-
-@Preview
-@Composable
-internal fun FlowPickerScreenPreview() = PreviewFrame(flowPickerScreenSpec)
 
 @Preview
 @Composable
@@ -628,39 +361,3 @@ internal fun GameHotseatScreenPreview() = PreviewFrame(gameHotseatScreenSpec)
 @Preview
 @Composable
 internal fun OpeningDrillScreenPreview() = PreviewFrame(openingDrillScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessHomeSignedOutScreenPreview() = PreviewFrame(lichessHomeSignedOutScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessHomeScreenPreview() = PreviewFrame(lichessHomeSignedInScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessSeekScreenPreview() = PreviewFrame(lichessSeekScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessPlayersScreenPreview() = PreviewFrame(lichessPlayersScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessArenasScreenPreview() = PreviewFrame(lichessArenasScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessPuzzleScreenPreview() = PreviewFrame(lichessPuzzleScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessExplorerScreenPreview() = PreviewFrame(lichessExplorerScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessWatchScreenPreview() = PreviewFrame(lichessWatchScreenSpec)
-
-@Preview
-@Composable
-internal fun LichessReviewScreenPreview() = PreviewFrame(lichessReviewScreenSpec)

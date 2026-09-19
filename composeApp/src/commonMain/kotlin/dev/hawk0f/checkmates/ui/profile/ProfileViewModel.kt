@@ -3,6 +3,8 @@ package dev.hawk0f.checkmates.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hawk0f.checkmates.session.AuthManager
+import dev.hawk0f.checkmates.session.LocalGameHistoryStore
+import dev.hawk0f.checkmates.session.mergeGameHistory
 import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.ProfileResponse
 import dev.hawk0f.checkmates.shared.protocol.UpdateProfileRequest
@@ -25,13 +27,13 @@ class ProfileViewModel : ViewModel() {
     val profile: StateFlow<ProfileResponse?> = AuthManager.profile
         .stateIn(viewModelScope, SharingStarted.Eagerly, AuthManager.profile.value)
 
-    private val _uiState = MutableStateFlow(ProfileUiState())
+    private val _uiState = MutableStateFlow(
+        ProfileUiState(history = LocalGameHistoryStore.games(), historyLoaded = true)
+    )
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        if (AuthManager.isLoggedIn) {
-            loadHistory()
-        }
+        loadHistory()
     }
 
     fun login(login: String, password: String) = authAction {
@@ -52,7 +54,7 @@ class ProfileViewModel : ViewModel() {
 
     fun logout() {
         AuthManager.logout()
-        _uiState.value = ProfileUiState()
+        _uiState.value = ProfileUiState(history = LocalGameHistoryStore.games(), historyLoaded = true)
     }
 
     fun dismissError() {
@@ -60,11 +62,16 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun loadHistory() {
+        val local = LocalGameHistoryStore.games()
+        _uiState.value = _uiState.value.copy(history = local, historyLoaded = true)
         val token = AuthManager.token ?: return
         viewModelScope.launch {
             runCatching { AuthManager.api.gamesHistory(token) }
                 .onSuccess { response ->
-                    _uiState.value = _uiState.value.copy(history = response.games, historyLoaded = true)
+                    _uiState.value = _uiState.value.copy(
+                        history = mergeGameHistory(response.games, LocalGameHistoryStore.games()),
+                        historyLoaded = true
+                    )
                 }
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(

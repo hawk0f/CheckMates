@@ -47,7 +47,7 @@ internal object Evaluation {
         }
     }
 
-    fun evaluate(board: Board): Int {
+    fun evaluate(board: Board, style: EngineStyle = EngineStyle.BALANCED): Int {
         var score = 0
         var phase = 0
         for (index in 0 until 64) {
@@ -72,9 +72,18 @@ internal object Evaluation {
             }
             score += if (white) material + positional else -(material + positional)
         }
-        score += kingScore(board, Side.WHITE, phase) - kingScore(board, Side.BLACK, phase)
-        score += bishopPair(board, Side.WHITE) - bishopPair(board, Side.BLACK)
-        score += pawnStructure(board, Side.WHITE) - pawnStructure(board, Side.BLACK)
+        val kingSafety = kingScore(board, Side.WHITE, phase) - kingScore(board, Side.BLACK, phase)
+        val bishops = bishopPair(board, Side.WHITE) - bishopPair(board, Side.BLACK)
+        val pawns = pawnStructure(board, Side.WHITE) - pawnStructure(board, Side.BLACK)
+        score += when (style) {
+            EngineStyle.BALANCED -> kingSafety + bishops + pawns
+            EngineStyle.AGGRESSIVE -> kingSafety / 2 + bishops + pawns / 2
+            EngineStyle.POSITIONAL -> kingSafety * 2 + bishops * 2 + pawns * 2
+        }
+        if (style == EngineStyle.AGGRESSIVE) {
+            val mobility = board.legalMoves().size * 2
+            score += if (board.sideToMove == Side.WHITE) mobility else -mobility
+        }
         return if (board.sideToMove == Side.WHITE) score else -score
     }
 

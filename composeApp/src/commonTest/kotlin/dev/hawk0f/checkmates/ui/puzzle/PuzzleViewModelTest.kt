@@ -30,6 +30,10 @@ private class FakePuzzleStore : PuzzlePersistence {
     override fun saveStreak(streak: Int) {
         this.streak = streak
     }
+
+    override fun loadPersonalPuzzles(): List<Puzzle> = emptyList()
+
+    override fun savePersonalPuzzle(puzzle: Puzzle) = Unit
 }
 
 class PuzzleViewModelTest {

@@ -1,6 +1,7 @@
 package dev.hawk0f.checkmates.shared
 
 import dev.hawk0f.checkmates.shared.domain.PgnReader
+import dev.hawk0f.checkmates.shared.domain.PieceColor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -26,5 +27,32 @@ class PgnReaderTest {
     @Test
     fun returnsEmptyForGarbage() {
         assertEquals(emptyList(), PgnReader.uciMoves(""))
+    }
+
+    @Test
+    fun readsPlayersAndResultWithTheMoves() {
+        val imported = PgnReader.read(
+            """
+            [White "Ada"]
+            [Black "Grace"]
+            [Result "0-1"]
+
+            1. e4 e5 2. Nf3 Nc6 0-1
+            """.trimIndent()
+        )!!
+
+        assertEquals("Ada", imported.whiteName)
+        assertEquals("Grace", imported.blackName)
+        assertEquals(PieceColor.BLACK, imported.winner)
+        assertEquals(listOf("e2e4", "e7e5", "g1f3", "b8c6"), imported.uciMoves)
+    }
+
+    @Test
+    fun missingMetadataUsesPortableDefaults() {
+        val imported = PgnReader.read("1. d4 d5 1/2-1/2")!!
+
+        assertEquals("White", imported.whiteName)
+        assertEquals("Black", imported.blackName)
+        assertEquals(null, imported.winner)
     }
 }

@@ -57,7 +57,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.abs
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.hawk0f.checkmates.platform.playMoveSound
@@ -92,14 +91,12 @@ import dev.hawk0f.checkmates.resources.game_advantage_level
 import dev.hawk0f.checkmates.resources.game_advantage_mine
 import dev.hawk0f.checkmates.resources.game_advantage_theirs
 import dev.hawk0f.checkmates.resources.game_allow
-import dev.hawk0f.checkmates.resources.game_analysis
 import dev.hawk0f.checkmates.resources.game_black_to_move
 import dev.hawk0f.checkmates.resources.game_chat_empty
 import dev.hawk0f.checkmates.resources.game_chat_line
 import dev.hawk0f.checkmates.resources.game_chat_placeholder
 import dev.hawk0f.checkmates.resources.game_chat_send
 import dev.hawk0f.checkmates.resources.game_chat_title
-import dev.hawk0f.checkmates.resources.game_claim_win
 import dev.hawk0f.checkmates.resources.clock_mode_bronstein
 import dev.hawk0f.checkmates.resources.clock_mode_delay
 import dev.hawk0f.checkmates.resources.clock_mode_fischer
@@ -120,8 +117,6 @@ import dev.hawk0f.checkmates.resources.game_no_moves_were_played
 import dev.hawk0f.checkmates.resources.game_no_moves_yet
 import dev.hawk0f.checkmates.resources.game_opening_move
 import dev.hawk0f.checkmates.resources.game_opponent_fallback
-import dev.hawk0f.checkmates.resources.game_opponent_gone
-import dev.hawk0f.checkmates.resources.game_opponent_gone_countdown
 import dev.hawk0f.checkmates.resources.game_opponent_reconnecting
 import dev.hawk0f.checkmates.resources.game_reconnecting
 import dev.hawk0f.checkmates.resources.game_rematch
@@ -139,6 +134,8 @@ import dev.hawk0f.checkmates.resources.game_result_you_lost
 import dev.hawk0f.checkmates.resources.game_result_you_won
 import dev.hawk0f.checkmates.resources.game_series_local
 import dev.hawk0f.checkmates.resources.game_series_remote
+import dev.hawk0f.checkmates.resources.game_series_won
+import dev.hawk0f.checkmates.resources.game_series_lost
 import dev.hawk0f.checkmates.resources.game_side_black
 import dev.hawk0f.checkmates.resources.game_side_white
 import dev.hawk0f.checkmates.resources.game_stream_live
@@ -163,11 +160,18 @@ import dev.hawk0f.checkmates.resources.game_viewing_ply
 import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.resources.a11y_hint
 import dev.hawk0f.checkmates.resources.computer_opponent
+import dev.hawk0f.checkmates.resources.computer_style_aggressive
+import dev.hawk0f.checkmates.resources.computer_style_balanced
+import dev.hawk0f.checkmates.resources.computer_style_positional
 import dev.hawk0f.checkmates.resources.computer_thinking
 import dev.hawk0f.checkmates.resources.game_clear_premoves
 import dev.hawk0f.checkmates.resources.game_hint_move
 import dev.hawk0f.checkmates.resources.game_premoves_queued
 import dev.hawk0f.checkmates.shared.domain.Square
+import dev.hawk0f.checkmates.shared.engine.EngineStyle
+import dev.hawk0f.checkmates.shared.opening.OpeningBook
+import dev.hawk0f.checkmates.session.OpeningProgressStore
+import dev.hawk0f.checkmates.resources.game_opening_name
 import androidx.compose.ui.unit.Dp
 import dev.hawk0f.checkmates.resources.a11y_first_move
 import dev.hawk0f.checkmates.resources.a11y_last_move
@@ -204,7 +208,6 @@ private fun rememberGameViewModel(mode: GameMode, startFen: String?): GameViewMo
 fun GameScreen(
     mode: GameMode,
     onExit: () -> Unit,
-    onOpenReview: ((String) -> Unit)? = null,
     startFen: String? = null,
     viewModel: GameViewModel = rememberGameViewModel(mode, startFen)
 ) {
@@ -251,8 +254,7 @@ fun GameScreen(
                     viewModel = viewModel,
                     bottomColor = bottomColor,
                     onExit = onExit,
-                    onResignRequest = { confirmingResign = true },
-                    onOpenReview = onOpenReview
+                    onResignRequest = { confirmingResign = true }
                 )
             }
         }
@@ -321,13 +323,19 @@ private fun PlayingPanel(
     viewModel: GameViewModel,
     bottomColor: PieceColor,
     onExit: () -> Unit,
-    onResignRequest: () -> Unit,
-    onOpenReview: ((String) -> Unit)?
+    onResignRequest: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     val gameState = uiState.gameState
     val history = gameState.uciHistory
+    val opening = remember(history, viewModel.startPositionFen) {
+        if (viewModel.startPositionFen == null) {
+            OpeningBook.identify(history, OpeningProgressStore.customLines())
+        } else {
+            null
+        }
+    }
     var previewPly by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(history.size) {
         previewPly = null
@@ -338,13 +346,7 @@ private fun PlayingPanel(
     )
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
     val expanded = sheetState.targetValue == SheetValue.Expanded
-    val lichess = viewModel.lichessTransport
-    val noIncomingTakeback = remember { MutableStateFlow(false) }
-    val lichessTakebackIncoming by (lichess?.takebackIncoming ?: noIncomingTakeback)
-        .collectAsStateWithLifecycle()
-    val offerIncoming = uiState.drawOfferIncoming ||
-        uiState.takebackOfferIncoming ||
-        lichessTakebackIncoming
+    val offerIncoming = uiState.drawOfferIncoming || uiState.takebackOfferIncoming
     LaunchedEffect(offerIncoming) {
         if (offerIncoming) {
             sheetState.expand()
@@ -366,10 +368,10 @@ private fun PlayingPanel(
                 viewModel = viewModel,
                 bottomColor = bottomColor,
                 expanded = expanded,
+                openingName = opening?.name,
                 previewPly = previewPly,
                 onSelectPly = { ply -> previewPly = ply?.takeIf { it != history.size } },
-                onResignRequest = onResignRequest,
-                onOpenReview = onOpenReview
+                onResignRequest = onResignRequest
             )
         }
     ) { contentPadding ->
@@ -467,17 +469,13 @@ private fun GameSheet(
     viewModel: GameViewModel,
     bottomColor: PieceColor,
     expanded: Boolean,
+    openingName: String?,
     previewPly: Int?,
     onSelectPly: (Int?) -> Unit,
-    onResignRequest: () -> Unit,
-    onOpenReview: ((String) -> Unit)?
+    onResignRequest: () -> Unit
 ) {
-    val lichess = viewModel.lichessTransport
-    val noFlag = remember { MutableStateFlow(false) }
-    val noSeconds = remember { MutableStateFlow<Int?>(null) }
-    val takebackIncoming by (lichess?.takebackIncoming ?: noFlag).collectAsStateWithLifecycle()
-    val takebackOutgoing by (lichess?.takebackOutgoing ?: noFlag).collectAsStateWithLifecycle()
-    val opponentGone by (lichess?.opponentGoneSeconds ?: noSeconds).collectAsStateWithLifecycle()
+    val takebackIncoming = uiState.takebackOfferIncoming
+    val takebackOutgoing = uiState.takebackOfferOutgoing
     val chatLines = uiState.chat
     var chatOpen by remember { mutableStateOf(false) }
     var boardSettingsOpen by remember { mutableStateOf(false) }
@@ -543,6 +541,9 @@ private fun GameSheet(
             .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        openingName?.let {
+            SectionLabel(stringResource(Res.string.game_opening_name, it), color = accents.bandStrong)
+        }
         MyPlayerRow(
             uiState = uiState,
             bottomColor = bottomColor,
@@ -554,30 +555,20 @@ private fun GameSheet(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (lichess != null && onOpenReview != null) {
-                PillButton(
-                    text = stringResource(Res.string.game_analysis),
-                    onClick = { onOpenReview(lichess.gameId) },
-                    tone = PillTone.SOFT,
-                    compact = true,
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                Box(modifier = Modifier.weight(1f)) {
-                    SheetReveal(visible = !expanded) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            val pairs = movePairs(uiState.gameState.uciHistory, viewModel.startPositionFen)
-                            for ((index, pair) in pairs.withIndex()) {
-                                Text(
-                                    text = pair,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (index == pairs.lastIndex) {
-                                        scheme.onSurface
-                                    } else {
-                                        scheme.onSurfaceVariant
-                                    }
-                                )
-                            }
+            Box(modifier = Modifier.weight(1f)) {
+                SheetReveal(visible = !expanded) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        val pairs = movePairs(uiState.gameState.uciHistory, viewModel.startPositionFen)
+                        for ((index, pair) in pairs.withIndex()) {
+                            Text(
+                                text = pair,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (index == pairs.lastIndex) {
+                                    scheme.onSurface
+                                } else {
+                                    scheme.onSurfaceVariant
+                                }
+                            )
                         }
                     }
                 }
@@ -747,33 +738,6 @@ private fun GameSheet(
                             onClick = { viewModel.answerTakeback(false) },
                             tone = PillTone.SOFT,
                             compact = true
-                        )
-                    }
-                }
-
-                val goneSeconds = opponentGone
-                if (lichess != null && goneSeconds != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (goneSeconds > 0) {
-                                stringResource(Res.string.game_opponent_gone_countdown, goneSeconds)
-                            } else {
-                                stringResource(Res.string.game_opponent_gone)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = scheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
-                        PillButton(
-                            text = stringResource(Res.string.game_claim_win),
-                            onClick = viewModel::claimVictory,
-                            tone = PillTone.INK,
-                            compact = true,
-                            enabled = goneSeconds == 0
                         )
                     }
                 }
@@ -1313,6 +1277,19 @@ private fun GameOverPanel(
                 style = MaterialTheme.typography.displayMedium,
                 color = scheme.onBackground
             )
+            if (uiState.seriesComplete) {
+                Text(
+                    text = stringResource(
+                        if (uiState.seriesMyWins >= uiState.seriesTargetWins) {
+                            Res.string.game_series_won
+                        } else {
+                            Res.string.game_series_lost
+                        }
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = scheme.primary
+                )
+            }
             uiState.ratingChange?.let { change ->
                 val delta = change.after - change.before
                 Text(
@@ -1546,7 +1523,14 @@ private fun ClockText(millis: Long, active: Boolean, big: Boolean) {
 @Composable
 private fun opponentLabel(uiState: GameUiState): String {
     uiState.opponentName?.let { return it }
-    uiState.computerLevel?.let { return stringResource(Res.string.computer_opponent, it) }
+    uiState.computerLevel?.let { level ->
+        val style = when (uiState.computerStyle) {
+            EngineStyle.AGGRESSIVE -> stringResource(Res.string.computer_style_aggressive)
+            EngineStyle.POSITIONAL -> stringResource(Res.string.computer_style_positional)
+            else -> stringResource(Res.string.computer_style_balanced)
+        }
+        return stringResource(Res.string.computer_opponent, level, style)
+    }
     return stringResource(Res.string.game_opponent_fallback)
 }
 

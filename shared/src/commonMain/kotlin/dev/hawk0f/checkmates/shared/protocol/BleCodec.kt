@@ -9,6 +9,7 @@ object BleCodec {
 
     fun encodeToHost(message: GameMessage): ByteArray? = when (message) {
         is GameMessage.MakeMove -> "M${message.uci}"
+        is GameMessage.SetPremoves -> encodePremoves(message.uciMoves)
         is GameMessage.JoinGame -> "N${message.playerName.truncateToBytes(MAX_MESSAGE_BYTES - 1)}"
         GameMessage.OfferDraw -> "D"
         GameMessage.AcceptDraw -> "A"
@@ -30,6 +31,7 @@ object BleCodec {
         val payload = text.drop(1)
         return when (text[0]) {
             'M' -> GameMessage.MakeMove(payload)
+            'P' -> decodePremoves(payload)
             'N' -> GameMessage.JoinGame(code = "", playerName = payload)
             'D' -> GameMessage.OfferDraw.onlyIfBare(payload)
             'A' -> GameMessage.AcceptDraw.onlyIfBare(payload)
@@ -46,6 +48,11 @@ object BleCodec {
 
     fun encodeToGuest(message: GameMessage): ByteArray? = when (message) {
         is GameMessage.MoveApplied -> "M${message.uci}"
+        is GameMessage.ClockConfigured -> message.timeControl?.let { control ->
+            "Q${control.initialSeconds},${control.incrementSeconds},${control.mode.toWireChar()}"
+        } ?: "Q-"
+        is GameMessage.ClockUpdated -> "K${message.whiteMillis},${message.blackMillis}"
+        is GameMessage.PremovesDropped -> "J"
         is GameMessage.ColorAssigned -> "C${if (message.color == PieceColor.WHITE) 'w' else 'b'}"
         is GameMessage.OpponentJoined -> "N${message.opponentName.truncateToBytes(MAX_MESSAGE_BYTES - 1)}"
         is GameMessage.MoveRejected -> "!${message.uci.take(18)}"
@@ -67,6 +74,9 @@ object BleCodec {
         val payload = text.drop(1)
         return when (text[0]) {
             'M' -> GameMessage.MoveApplied(payload, fenAfter = "", moveNumber = 0)
+            'Q' -> decodeTimeControl(payload)
+            'K' -> decodeClockUpdate(payload)
+            'J' -> GameMessage.PremovesDropped("ILLEGAL_MOVE").onlyIfBare(payload)
             'C' -> GameMessage.ColorAssigned(if (payload == "w") PieceColor.WHITE else PieceColor.BLACK)
             'N' -> GameMessage.OpponentJoined(payload)
             '!' -> GameMessage.MoveRejected(payload, "ILLEGAL")
@@ -79,6 +89,62 @@ object BleCodec {
             'S' -> payload.takeIf { it.isNotBlank() }?.let { GameMessage.ChatSaid(author = "", text = it) }
             else -> null
         }
+    }
+
+    private fun decodeTimeControl(payload: String): GameMessage.ClockConfigured? {
+        if (payload == "-") {
+            return GameMessage.ClockConfigured(null)
+        }
+        val parts = payload.split(',')
+        if (parts.size != 3) {
+            return null
+        }
+        val initialSeconds = parts[0].toIntOrNull()?.takeIf { it > 0 } ?: return null
+        val incrementSeconds = parts[1].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+        val mode = parts[2].singleOrNull()?.toClockMode() ?: return null
+        return GameMessage.ClockConfigured(TimeControl(initialSeconds, incrementSeconds, mode))
+    }
+
+    private fun decodeClockUpdate(payload: String): GameMessage.ClockUpdated? {
+        val parts = payload.split(',')
+        if (parts.size != 2) {
+            return null
+        }
+        val whiteMillis = parts[0].toLongOrNull()?.takeIf { it >= 0 } ?: return null
+        val blackMillis = parts[1].toLongOrNull()?.takeIf { it >= 0 } ?: return null
+        return GameMessage.ClockUpdated(whiteMillis, blackMillis)
+    }
+
+    private fun encodePremoves(moves: List<String>): String {
+        val fitting = moves.take(MAX_PREMOVES_PER_FRAME).toMutableList()
+        while (fitting.isNotEmpty() && "P${fitting.joinToString(",")}".encodeToByteArray().size > MAX_MESSAGE_BYTES) {
+            fitting.removeLast()
+        }
+        return "P${fitting.joinToString(",")}"
+    }
+
+    private fun decodePremoves(payload: String): GameMessage.SetPremoves? {
+        if (payload.isEmpty()) {
+            return GameMessage.SetPremoves(emptyList())
+        }
+        val moves = payload.split(',')
+        if (moves.any { it.length !in 4..5 }) {
+            return null
+        }
+        return GameMessage.SetPremoves(moves)
+    }
+
+    private fun ClockMode.toWireChar(): Char = when (this) {
+        ClockMode.FISCHER -> 'f'
+        ClockMode.BRONSTEIN -> 'b'
+        ClockMode.DELAY -> 'd'
+    }
+
+    private fun Char.toClockMode(): ClockMode? = when (this) {
+        'f' -> ClockMode.FISCHER
+        'b' -> ClockMode.BRONSTEIN
+        'd' -> ClockMode.DELAY
+        else -> null
     }
 
     private fun decodeGameOver(payload: String): GameMessage.GameOver? {
@@ -141,4 +207,6 @@ object BleCodec {
         }
         return result
     }
+
+    private const val MAX_PREMOVES_PER_FRAME = 3
 }

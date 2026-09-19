@@ -57,4 +57,18 @@ class PgnBuilderTest {
         assertContains(pgn, "[Result \"0-1\"]")
         assertEquals("0-1", pgn.trim().lines().last())
     }
+
+    @Test
+    fun annotationsAreExportedAsPgnComments() {
+        val pgn = PgnBuilder.build(
+            whiteName = "W",
+            blackName = "B",
+            winner = null,
+            reason = null,
+            uciHistory = listOf("e2e4", "e7e5", "g1f3"),
+            annotations = mapOf(0 to "Controls the centre", 2 to "Develop with tempo")
+        )
+
+        assertContains(pgn, "1. e4 {Controls the centre} e5 2. Nf3 {Develop with tempo} *")
+    }
 }

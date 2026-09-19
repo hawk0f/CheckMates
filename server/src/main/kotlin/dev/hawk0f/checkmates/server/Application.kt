@@ -54,6 +54,7 @@ fun Application.module(
     val ratings = RatingRepository(database)
     val crashes = CrashRepository(database)
     val friends = FriendRepository(database)
+    val correspondence = CorrespondenceRepository(database)
     val adminToken = System.getenv("ADMIN_TOKEN")
     val startedAtMillis = System.currentTimeMillis()
     val registry = RoomRegistry(
@@ -146,6 +147,7 @@ fun Application.module(
         seekPool = SeekPool(registry),
         crashes = crashes,
         friends = friends,
+        correspondence = correspondence,
         adminToken = adminToken,
         startedAtMillis = startedAtMillis
     )

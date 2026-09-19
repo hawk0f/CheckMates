@@ -12,6 +12,7 @@ import dev.hawk0f.checkmates.ble.BlePeripheralServer
 import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.session.AuthManager
 import dev.hawk0f.checkmates.session.GameSessionHolder
+import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,7 @@ data class DiscoveredHost(
 
 data class BleLobbyUiState(
     val playerName: String = "",
+    val timeControl: TimeControl? = TimeControl(300, 0),
     val step: BleLobbyStep = BleLobbyStep.Idle,
     val hosts: List<DiscoveredHost> = emptyList()
 )
@@ -60,6 +62,10 @@ class BleLobbyViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(playerName = value.take(18))
     }
 
+    fun selectTimeControl(timeControl: TimeControl?) {
+        _uiState.value = _uiState.value.copy(timeControl = timeControl)
+    }
+
     fun startHosting() {
         stopScan()
         _uiState.value = _uiState.value.copy(step = BleLobbyStep.Hosting)
@@ -67,7 +73,7 @@ class BleLobbyViewModel : ViewModel() {
             try {
                 val server = BlePeripheralServer()
                 peripheralServer = server
-                val engine = BleHostEngine(server, hostDisplayName())
+                val engine = BleHostEngine(server, hostDisplayName(), _uiState.value.timeControl)
                 val session = ActiveGameSession(engine.localTransport, kind = "ble", myName = hostDisplayName())
                 GameSessionHolder.install(session)
                 engine.start()

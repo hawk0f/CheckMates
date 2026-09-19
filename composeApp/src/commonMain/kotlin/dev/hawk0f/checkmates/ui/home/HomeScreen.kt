@@ -47,9 +47,7 @@ import dev.hawk0f.checkmates.ui.theme.SectionLabel
 import dev.hawk0f.checkmates.resources.Res
 import dev.hawk0f.checkmates.resources.home_all_games
 import dev.hawk0f.checkmates.resources.home_both_players
-import dev.hawk0f.checkmates.resources.flow_lichess_name
 import dev.hawk0f.checkmates.resources.home_computer
-import dev.hawk0f.checkmates.resources.flow_switch_to
 import dev.hawk0f.checkmates.resources.home_moves_with_mode
 import dev.hawk0f.checkmates.resources.home_nearby
 import dev.hawk0f.checkmates.resources.editor_title
@@ -88,6 +86,7 @@ import androidx.compose.ui.semantics.semantics
 import dev.hawk0f.checkmates.resources.home_section_community
 import dev.hawk0f.checkmates.resources.home_section_play
 import dev.hawk0f.checkmates.resources.home_section_practice
+import dev.hawk0f.checkmates.resources.correspondence_title
 import dev.hawk0f.checkmates.ui.theme.PillAction
 import dev.hawk0f.checkmates.ui.theme.PillGrid
 
@@ -101,9 +100,11 @@ fun HomeScreen(
     onOpenEditor: () -> Unit = {},
     onOpenOpenings: () -> Unit = {},
     onOpenFriends: () -> Unit = {},
+    onOpenCorrespondence: () -> Unit = {},
     onOpenLeaderboard: () -> Unit = {},
-    onSwitchFlow: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenReplay: (GameHistoryItem) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onResumeGame: () -> Unit = {},
     viewModel: HomeViewModel = viewModel { HomeViewModel() }
@@ -115,6 +116,7 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refreshResumable()
+        viewModel.loadRecent()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -148,12 +150,12 @@ fun HomeScreen(
                 onOpenEditor = onOpenEditor,
                 onOpenOpenings = onOpenOpenings,
                 onOpenFriends = onOpenFriends,
-                onOpenLeaderboard = onOpenLeaderboard,
-                onSwitchFlow = onSwitchFlow
+                onOpenCorrespondence = onOpenCorrespondence,
+                onOpenLeaderboard = onOpenLeaderboard
             )
-            if (profile != null && recent.isNotEmpty()) {
+            if (recent.isNotEmpty()) {
                 Hairline()
-                RecentSection(recent, onOpenProfile)
+                RecentSection(recent, onOpenReplay, onOpenHistory)
             }
         }
     }
@@ -341,7 +343,7 @@ private fun ModeRail(
     onOpenEditor: () -> Unit,
     onOpenOpenings: () -> Unit,
     onOpenFriends: () -> Unit,
-    onSwitchFlow: () -> Unit
+    onOpenCorrespondence: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         ModeSection(
@@ -365,15 +367,9 @@ private fun ModeRail(
             title = stringResource(Res.string.home_section_community),
             actions = listOf(
                 PillAction(stringResource(Res.string.leaderboard_title), onOpenLeaderboard),
-                PillAction(stringResource(Res.string.friends_title), onOpenFriends)
+                PillAction(stringResource(Res.string.friends_title), onOpenFriends),
+                PillAction(stringResource(Res.string.correspondence_title), onOpenCorrespondence)
             )
-        )
-        PillButton(
-            text = stringResource(Res.string.flow_switch_to, stringResource(Res.string.flow_lichess_name)),
-            onClick = onSwitchFlow,
-            tone = PillTone.BAND,
-            compact = true,
-            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -387,7 +383,11 @@ private fun ModeSection(title: String, actions: List<PillAction>) {
 }
 
 @Composable
-private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Unit) {
+private fun RecentSection(
+    recent: List<GameHistoryItem>,
+    onOpenReplay: (GameHistoryItem) -> Unit,
+    onOpenHistory: () -> Unit
+) {
     val scheme = MaterialTheme.colorScheme
     val accents = LocalAppAccents.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -401,19 +401,20 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
         } else {
             for (item in recent) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenProfile),
+                    modifier = Modifier.fillMaxWidth().clickable { onOpenReplay(item) },
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val won = item.winner != null && item.winner == item.myColor
                     val drawn = item.winner == null
+                    val sharedBoard = item.myColor == null
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
                             .background(
                                 when {
-                                    drawn -> scheme.surfaceVariant
+                                    drawn || sharedBoard -> scheme.surfaceVariant
                                     won -> accents.bandStrong
                                     else -> scheme.primary
                                 }
@@ -421,15 +422,15 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = stringResource(
-                                when {
-                                    drawn -> Res.string.home_result_draw_short
-                                    won -> Res.string.home_result_win_short
-                                    else -> Res.string.home_result_loss_short
-                                }
-                            ),
+                            text = when {
+                                sharedBoard && item.winner == PieceColor.WHITE -> "1–0"
+                                sharedBoard && item.winner == PieceColor.BLACK -> "0–1"
+                                drawn -> stringResource(Res.string.home_result_draw_short)
+                                won -> stringResource(Res.string.home_result_win_short)
+                                else -> stringResource(Res.string.home_result_loss_short)
+                            },
                             style = MaterialTheme.typography.titleMedium,
-                            color = if (drawn) scheme.onSurfaceVariant else scheme.onPrimary,
+                            color = if (drawn || sharedBoard) scheme.onSurfaceVariant else scheme.onPrimary,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -454,7 +455,7 @@ private fun RecentSection(recent: List<GameHistoryItem>, onOpenProfile: () -> Un
             Spacer(modifier = Modifier.height(2.dp))
             PillButton(
                 text = stringResource(Res.string.home_all_games),
-                onClick = onOpenProfile,
+                onClick = onOpenHistory,
                 tone = PillTone.SOFT,
                 compact = true,
                 modifier = Modifier.fillMaxWidth()
@@ -475,5 +476,6 @@ private fun modeLabel(mode: String): String = when (mode) {
     "online" -> stringResource(Res.string.mode_online)
     "ble" -> stringResource(Res.string.mode_nearby)
     "hotseat" -> stringResource(Res.string.mode_pass_and_play)
+    "computer" -> stringResource(Res.string.home_computer)
     else -> mode
 }

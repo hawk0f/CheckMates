@@ -5,6 +5,7 @@ import dev.hawk0f.checkmates.shared.domain.PieceColor
 import dev.hawk0f.checkmates.shared.domain.ChessGame
 import dev.hawk0f.checkmates.shared.domain.MoveOutcome
 import dev.hawk0f.checkmates.shared.engine.EngineLevel
+import dev.hawk0f.checkmates.shared.engine.EngineStyle
 import dev.hawk0f.checkmates.shared.domain.PieceKind
 import dev.hawk0f.checkmates.shared.domain.Square
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import dev.hawk0f.checkmates.session.HotseatGamePersistence
+import dev.hawk0f.checkmates.session.LocalGameHistoryPersistence
 import dev.hawk0f.checkmates.session.SavedHotseatGame
+import dev.hawk0f.checkmates.shared.protocol.GameHistoryItem
 import dev.hawk0f.checkmates.shared.protocol.TimeControl
 import dev.hawk0f.checkmates.session.ActiveGameSession
 import dev.hawk0f.checkmates.shared.domain.GameOverReason
@@ -64,6 +67,16 @@ class GameViewModelTest {
         }
     }
 
+    private class FakeLocalHistory : LocalGameHistoryPersistence {
+        val stored = mutableListOf<GameHistoryItem>()
+
+        override fun games(): List<GameHistoryItem> = stored
+
+        override fun add(game: GameHistoryItem) {
+            stored += game
+        }
+    }
+
     private fun hotseat(savedGames: HotseatGamePersistence = FakeSavedGames()) =
         GameViewModel(GameMode.Hotseat, savedGames)
 
@@ -93,6 +106,23 @@ class GameViewModelTest {
         assertEquals(Piece(PieceColor.WHITE, PieceKind.ROOK), pieces[Square.fromUci("f1")])
         assertNull(pieces[Square.fromUci("h1")])
         assertEquals(listOf("e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "f8c5", "e1g1"), viewModel.uiState.value.gameState.uciHistory)
+    }
+
+    @Test
+    fun completedGameIsArchivedOnce() {
+        val history = FakeLocalHistory()
+        val viewModel = GameViewModel(
+            mode = GameMode.Hotseat,
+            savedGames = FakeSavedGames(),
+            localHistory = history
+        )
+
+        viewModel.play("f2f3", "e7e5", "g2g4", "d8h4")
+        viewModel.resign()
+
+        assertEquals(1, history.stored.size)
+        assertEquals(listOf("f2f3", "e7e5", "g2g4", "d8h4"), history.stored.single().uciHistory)
+        assertEquals(GameOverReason.CHECKMATE, history.stored.single().reason)
     }
 
     @Test
@@ -218,6 +248,31 @@ class GameViewModelTest {
     }
 
     @Test
+    fun aBestOfThreeSeriesCompletesAndTheNextGameResetsIt() {
+        val viewModel = hotseat()
+
+        repeat(2) {
+            viewModel.play("f2f3", "e7e5", "g2g4", "d8h4")
+            if (it == 0) {
+                assertFalse(viewModel.uiState.value.seriesComplete)
+                viewModel.newGame()
+            }
+        }
+
+        assertEquals(2, viewModel.uiState.value.seriesOpponentWins)
+        assertTrue(viewModel.uiState.value.seriesComplete)
+        viewModel.resign()
+        assertEquals(2, viewModel.uiState.value.seriesOpponentWins)
+
+        viewModel.newGame()
+
+        assertEquals(0, viewModel.uiState.value.seriesMyWins)
+        assertEquals(0, viewModel.uiState.value.seriesOpponentWins)
+        assertEquals(0, viewModel.uiState.value.seriesDraws)
+        assertFalse(viewModel.uiState.value.seriesComplete)
+    }
+
+    @Test
     fun anIllegalSavedHistoryIsDiscarded() {
         val savedGames = FakeSavedGames(
             SavedHotseatGame(
@@ -273,6 +328,21 @@ class GameViewModelTest {
         assertTrue(viewModel.uiState.value.drawOfferIncoming)
     }
 
+    @Test
+    fun bluetoothClockConfigurationAndSnapshotsUpdateTheBoardClock() {
+        val fixture = RemoteFixture(PieceColor.WHITE)
+        val viewModel = remote(fixture)
+        val control = TimeControl(300, 3)
+
+        fixture.session.messages.tryEmit(GameMessage.ClockConfigured(control))
+        fixture.session.messages.tryEmit(GameMessage.ClockUpdated(298_750, 300_000))
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(control, viewModel.uiState.value.timeControl)
+        assertEquals(298_750, viewModel.uiState.value.whiteMillis)
+        assertEquals(300_000, viewModel.uiState.value.blackMillis)
+    }
+
     private class FakeTransport : GameTransport {
         override val incoming: Flow<GameMessage> = MutableSharedFlow()
         override val connectionState = MutableStateFlow<TransportConnectionState>(TransportConnectionState.Connected)
@@ -285,7 +355,7 @@ class GameViewModelTest {
         override suspend fun close() = Unit
     }
 
-    private class RemoteFixture(myColor: PieceColor, kind: String = "lichess") {
+    private class RemoteFixture(myColor: PieceColor, kind: String = "ble") {
         val transport = FakeTransport()
         val session = ActiveGameSession(transport, kind = kind)
 
@@ -362,15 +432,16 @@ class GameViewModelTest {
     }
 
     @Test
-    fun theFirstPremoveIsSentAsSoonAsTheTurnArrives() {
+    fun bluetoothPremovesAreDelegatedToTheHost() {
         val fixture = RemoteFixture(PieceColor.BLACK)
         val viewModel = remote(fixture)
         viewModel.tap("e7", "e5")
         viewModel.tap("g8", "f6")
         fixture.opponentPlays("e2e4", "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", 1)
         dispatcher.scheduler.runCurrent()
-        assertEquals(listOf("e7e5"), fixture.moves)
-        assertEquals(listOf("g8f6"), viewModel.uiState.value.premoves)
+        assertTrue(fixture.moves.isEmpty())
+        assertEquals(listOf(listOf("e7e5"), listOf("e7e5", "g8f6")), fixture.premovePlans)
+        assertEquals(listOf("e7e5", "g8f6"), viewModel.uiState.value.premoves)
     }
 
     @Test
@@ -382,13 +453,15 @@ class GameViewModelTest {
         assertEquals(listOf("g8f6", "f6g4"), viewModel.uiState.value.premoves)
         fixture.opponentPlays("e2e4", "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", 1)
         dispatcher.scheduler.runCurrent()
-        assertEquals(listOf("g8f6"), fixture.moves)
-        assertEquals(listOf("f6g4"), viewModel.uiState.value.premoves)
+        assertTrue(fixture.moves.isEmpty())
+        assertEquals(listOf("g8f6", "f6g4"), viewModel.uiState.value.premoves)
         fixture.opponentPlays("g8f6", "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2", 2)
         dispatcher.scheduler.runCurrent()
+        assertEquals(listOf("f6g4"), viewModel.uiState.value.premoves)
+        assertEquals(listOf("f6g4"), fixture.premovePlans.last())
         fixture.opponentPlays("d2d4", "rnbqkb1r/pppppppp/5n2/8/3PP3/8/PPP2PPP/RNBQKBNR b KQkq - 0 3", 3)
         dispatcher.scheduler.runCurrent()
-        assertEquals(listOf("g8f6", "f6g4"), fixture.moves)
+        assertTrue(fixture.moves.isEmpty())
     }
 
     @Test
@@ -499,6 +572,20 @@ class GameViewModelTest {
         assertEquals(PieceColor.WHITE, viewModel.uiState.value.gameState.sideToMove)
         assertEquals(PieceColor.WHITE, viewModel.uiState.value.myColor)
         assertFalse(viewModel.uiState.value.showTimePicker)
+    }
+
+    @Test
+    fun aNewComputerGameKeepsTheSelectedStyle() {
+        val viewModel = GameViewModel(
+            mode = GameMode.Computer(EngineLevel.ONE, PieceColor.WHITE, EngineStyle.POSITIONAL),
+            savedGames = FakeSavedGames(),
+            engineContext = dispatcher
+        )
+
+        viewModel.resign()
+        viewModel.newGame()
+
+        assertEquals(EngineStyle.POSITIONAL, viewModel.uiState.value.computerStyle)
     }
 
     @Test
