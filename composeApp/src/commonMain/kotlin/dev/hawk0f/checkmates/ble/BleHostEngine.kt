@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.random.Random
 
 class BleHostEngine(
@@ -34,6 +36,8 @@ class BleHostEngine(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var game = ChessGame()
+    private var latestFen = game.fen()
+    private val gameMutex = Mutex()
     private val hostColor: PieceColor = if (Random.nextBoolean()) PieceColor.WHITE else PieceColor.BLACK
     private var guestName: String? = null
     private var drawOfferedBy: PieceColor? = null
@@ -52,7 +56,9 @@ class BleHostEngine(
         override val connectionState: StateFlow<TransportConnectionState> = localConnectionState.asStateFlow()
 
         override suspend fun send(message: GameMessage) {
-            handleFrom(hostColor, message)
+            gameMutex.withLock {
+                handleFrom(hostColor, message)
+            }
         }
 
         override suspend fun close() {
@@ -65,10 +71,14 @@ class BleHostEngine(
     val guestJoined = MutableStateFlow(false)
 
     fun start() {
-        peripheral.start(hostName) { game.fen() }
+        peripheral.start(hostName) { latestFen }
         scope.launch {
             peripheral.incomingWrites.collect { bytes ->
-                BleCodec.decodeFromGuest(bytes)?.let { message -> handleGuestMessage(message) }
+                BleCodec.decodeFromGuest(bytes)?.let { message ->
+                    gameMutex.withLock {
+                        handleGuestMessage(message)
+                    }
+                }
             }
         }
         scope.launch {
@@ -83,7 +93,9 @@ class BleHostEngine(
         scope.launch {
             while (true) {
                 delay(100)
-                checkTimeout()
+                gameMutex.withLock {
+                    checkTimeout()
+                }
             }
         }
     }
@@ -179,6 +191,7 @@ class BleHostEngine(
         }
         when (val outcome = game.applyUci(uci)) {
             is MoveOutcome.Applied -> {
+                latestFen = outcome.state.fen
                 chargeClock(sender)
                 drawOfferedBy = null
                 takebackOfferedBy = null
@@ -214,6 +227,7 @@ class BleHostEngine(
             rebuilt.applyUci(uci)
         }
         game = rebuilt
+        latestFen = game.fen()
         premoves.clear()
         turnStartedAtMillis = epochMillis()
         drawOfferedBy = null
@@ -229,6 +243,7 @@ class BleHostEngine(
         finished = true
         premoves.clear()
         game.finish(reason, winner)
+        latestFen = game.fen()
         broadcast(GameMessage.GameOver(reason, winner))
     }
 
@@ -336,6 +351,7 @@ class BleHostEngine(
             }
             premoves[color] = queue.drop(1)
             val outcome = game.applyUci(uci) as? MoveOutcome.Applied ?: return
+            latestFen = outcome.state.fen
             chargeClock(color, PREMOVE_ELAPSED_MILLIS)
             drawOfferedBy = null
             takebackOfferedBy = null

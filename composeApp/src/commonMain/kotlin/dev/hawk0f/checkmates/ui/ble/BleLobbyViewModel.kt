@@ -80,6 +80,7 @@ class BleLobbyViewModel : ViewModel() {
                 combine(session.myColor, session.opponentName) { color, name -> color != null && name != null }
                     .filter { it }
                     .first()
+                peripheralServer = null
                 _uiState.value = _uiState.value.copy(step = BleLobbyStep.GameReady)
             } catch (e: CancellationException) {
                 throw e
@@ -113,10 +114,18 @@ class BleLobbyViewModel : ViewModel() {
             try {
                 scanner.advertisements.collect { advertisement ->
                     val id = advertisement.identifier.toString()
-                    val label = advertisement.peripheralName ?: "Chess host"
+                    val advertisedName = BleConstants.advertisedName(
+                        advertisement.serviceData(Uuid.parse(BleConstants.SERVICE_UUID))
+                    )
+                    val label = advertisedName ?: advertisement.peripheralName ?: "Chess host"
                     val hosts = _uiState.value.hosts
-                    if (hosts.none { it.id == id }) {
+                    val existingIndex = hosts.indexOfFirst { it.id == id }
+                    if (existingIndex == -1) {
                         _uiState.value = _uiState.value.copy(hosts = hosts + DiscoveredHost(id, label, advertisement))
+                    } else if (advertisedName != null && hosts[existingIndex].label != advertisedName) {
+                        val updatedHosts = hosts.toMutableList()
+                        updatedHosts[existingIndex] = DiscoveredHost(id, advertisedName, advertisement)
+                        _uiState.value = _uiState.value.copy(hosts = updatedHosts)
                     }
                 }
             } catch (e: Exception) {

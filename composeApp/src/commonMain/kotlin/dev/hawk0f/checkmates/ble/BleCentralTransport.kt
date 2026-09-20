@@ -9,6 +9,7 @@ import dev.hawk0f.checkmates.shared.protocol.GameMessage
 import dev.hawk0f.checkmates.shared.transport.GameTransport
 import dev.hawk0f.checkmates.shared.transport.TransportConnectionState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -59,14 +60,20 @@ class BleCentralTransport(
     }
 
     override suspend fun send(message: GameMessage) {
-        if (message is GameMessage.RequestResync) {
-            val fen = peripheral.read(fenChar).decodeToString()
-            _incoming.emit(GameMessage.Resync(fen, emptyList(), drawOfferPending = false))
-            peripheral.write(moveToHost, BleCodec.encodeToHost(message)!!, WriteType.WithResponse)
-            return
-        }
-        BleCodec.encodeToHost(message)?.let { bytes ->
-            peripheral.write(moveToHost, bytes, WriteType.WithResponse)
+        try {
+            if (message is GameMessage.RequestResync) {
+                val fen = peripheral.read(fenChar).decodeToString()
+                _incoming.emit(GameMessage.Resync(fen, emptyList(), drawOfferPending = false))
+                peripheral.write(moveToHost, BleCodec.encodeToHost(message)!!, WriteType.WithResponse)
+                return
+            }
+            BleCodec.encodeToHost(message)?.let { bytes ->
+                peripheral.write(moveToHost, bytes, WriteType.WithResponse)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _connectionState.value = TransportConnectionState.Closed(e.message ?: "Bluetooth connection lost")
         }
     }
 

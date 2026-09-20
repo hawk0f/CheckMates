@@ -58,7 +58,16 @@ actual class BlePeripheralServer {
             override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
                 if (newState == BluetoothProfile.STATE_DISCONNECTED && device == subscribedDevice) {
                     subscribedDevice = null
+                    synchronized(notifyQueue) {
+                        notifyInFlight = false
+                    }
                     _centralConnected.value = false
+                }
+            }
+
+            override fun onServiceAdded(status: Int, service: BluetoothGattService) {
+                if (status == BluetoothGatt.GATT_SUCCESS && service.uuid == UUID.fromString(BleConstants.SERVICE_UUID)) {
+                    startAdvertising(adapter)
                 }
             }
 
@@ -162,7 +171,9 @@ actual class BlePeripheralServer {
             )
         )
         gattServer?.addService(service)
+    }
 
+    private fun startAdvertising(adapter: android.bluetooth.BluetoothAdapter) {
         advertiser = adapter.bluetoothLeAdvertiser
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
@@ -173,7 +184,13 @@ actual class BlePeripheralServer {
             .addServiceUuid(ParcelUuid(UUID.fromString(BleConstants.SERVICE_UUID)))
             .setIncludeDeviceName(false)
             .build()
-        advertiser?.startAdvertising(settings, data, advertiseCallback)
+        val scanResponse = AdvertiseData.Builder()
+            .addServiceData(
+                ParcelUuid(UUID.fromString(BleConstants.SERVICE_UUID)),
+                BleConstants.advertisedNameBytes(playerName)
+            )
+            .build()
+        advertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
     }
 
     actual suspend fun notifyGuest(bytes: ByteArray) {

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import platform.CoreBluetooth.CBATTErrorSuccess
 import platform.CoreBluetooth.CBATTRequest
 import platform.CoreBluetooth.CBAdvertisementDataServiceUUIDsKey
+import platform.CoreBluetooth.CBAdvertisementDataLocalNameKey
 import platform.CoreBluetooth.CBAttributePermissionsReadable
 import platform.CoreBluetooth.CBAttributePermissionsWriteable
 import platform.CoreBluetooth.CBCentral
@@ -24,13 +25,12 @@ import platform.CoreBluetooth.CBMutableCharacteristic
 import platform.CoreBluetooth.CBMutableService
 import platform.CoreBluetooth.CBPeripheralManager
 import platform.CoreBluetooth.CBPeripheralManagerDelegateProtocol
+import platform.CoreBluetooth.CBService
 import platform.CoreBluetooth.CBUUID
 import kotlinx.cinterop.ObjCSignatureOverride
 import platform.Foundation.NSData
+import platform.Foundation.NSError
 import platform.Foundation.NSMakeRange
-import platform.Foundation.NSString
-import platform.Foundation.NSUTF8StringEncoding
-import platform.Foundation.dataUsingEncoding
 import platform.Foundation.subdataWithRange
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -113,6 +113,12 @@ actual class BlePeripheralServer {
         override fun peripheralManagerIsReadyToUpdateSubscribers(peripheral: CBPeripheralManager) {
             drainNotifyQueue()
         }
+
+        override fun peripheralManager(peripheral: CBPeripheralManager, didAddService: CBService, error: NSError?) {
+            if (error == null && didAddService.UUID.UUIDString.equals(BleConstants.SERVICE_UUID, ignoreCase = true)) {
+                startAdvertising(peripheral)
+            }
+        }
     }
 
     actual fun start(playerName: String, fenProvider: () -> String) {
@@ -150,9 +156,13 @@ actual class BlePeripheralServer {
         service.setCharacteristics(listOf(moveToHost, moveToGuest, fen, name))
         moveToGuestChar = moveToGuest
         peripheral.addService(service)
+    }
+
+    private fun startAdvertising(peripheral: CBPeripheralManager) {
         peripheral.startAdvertising(
             mapOf<Any?, Any?>(
-                CBAdvertisementDataServiceUUIDsKey to listOf(CBUUID.UUIDWithString(BleConstants.SERVICE_UUID))
+                CBAdvertisementDataServiceUUIDsKey to listOf(CBUUID.UUIDWithString(BleConstants.SERVICE_UUID)),
+                CBAdvertisementDataLocalNameKey to playerName
             )
         )
     }
@@ -191,7 +201,7 @@ actual class BlePeripheralServer {
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private fun String.toNSData(): NSData =
-    (this as NSString).dataUsingEncoding(NSUTF8StringEncoding) ?: NSData()
+    encodeToByteArray().toNSData()
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private fun ByteArray.toNSData(): NSData = if (isEmpty()) {
