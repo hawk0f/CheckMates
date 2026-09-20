@@ -87,7 +87,7 @@ class OnlineLobbyViewModel : ViewModel() {
                     authToken = AuthManager.token
                 )
                 val transport = WebSocketGameTransport(
-                    client = socketClient,
+                    client = configuredWebSocketClient(),
                     url = ServerConfig.wsGameUrl(created.gameId, created.playerToken),
                     gameId = created.gameId,
                     playerToken = created.playerToken
@@ -144,7 +144,7 @@ class OnlineLobbyViewModel : ViewModel() {
                     return@launch
                 }
                 val transport = WebSocketGameTransport(
-                    client = socketClient,
+                    client = configuredWebSocketClient(),
                     url = ServerConfig.wsGameUrl(info.gameId!!),
                     firstMessage = GameMessage.JoinGame(
                         code = code,
@@ -203,7 +203,7 @@ class OnlineLobbyViewModel : ViewModel() {
 
     private suspend fun startPairedGame(matched: SeekMessage.Matched, name: String) {
         val transport = WebSocketGameTransport(
-            client = socketClient,
+            client = configuredWebSocketClient(),
             url = ServerConfig.wsGameUrl(matched.gameId, matched.playerToken),
             gameId = matched.gameId,
             playerToken = matched.playerToken

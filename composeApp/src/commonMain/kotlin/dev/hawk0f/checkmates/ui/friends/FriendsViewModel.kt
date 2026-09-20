@@ -34,7 +34,6 @@ class FriendsViewModel(
 ) : ViewModel() {
 
     private val httpClient = configuredHttpClient()
-    private val socketClient = configuredWebSocketClient()
     private val api = ApiClient(httpClient)
 
     private val _uiState = MutableStateFlow(FriendsUiState())
@@ -120,7 +119,7 @@ class FriendsViewModel(
             try {
                 val challenge = api.challenge(token, friend.userId, timeControl)
                 val transport = WebSocketGameTransport(
-                    client = socketClient,
+                    client = configuredWebSocketClient(),
                     url = ServerConfig.wsGameUrl(challenge.gameId, challenge.playerToken),
                     gameId = challenge.gameId,
                     playerToken = challenge.playerToken
@@ -159,6 +158,5 @@ class FriendsViewModel(
 
     override fun onCleared() {
         httpClient.close()
-        socketClient.close()
     }
 }

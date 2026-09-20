@@ -34,10 +34,13 @@ object AuthManager {
     val isLoggedIn: Boolean get() = token != null
 
     init {
-        if (token != null) {
+        val storedToken = token
+        if (storedToken != null) {
             scope.launch {
-                runCatching { api.profile(token!!) }.onSuccess { fresh ->
-                    storeProfile(fresh)
+                runCatching { api.profile(storedToken) }.onSuccess { fresh ->
+                    if (token == storedToken) {
+                        storeProfile(fresh)
+                    }
                 }
             }
         }

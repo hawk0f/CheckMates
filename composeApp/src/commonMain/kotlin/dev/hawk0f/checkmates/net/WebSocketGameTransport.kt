@@ -9,6 +9,7 @@ import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -89,6 +90,8 @@ class WebSocketGameTransport(
                             sender.cancel()
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (_: Exception) {
                 }
                 if (closedByUser) {
@@ -126,6 +129,7 @@ class WebSocketGameTransport(
         closedByUser = true
         sendQueue.close()
         job?.cancel()
+        client.close()
         _connectionState.value = TransportConnectionState.Closed(null)
     }
 }
